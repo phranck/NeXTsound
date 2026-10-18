@@ -1,77 +1,78 @@
 import AppKit
 import NeXTsoundCore
 import SwiftUI
+import UniformTypeIdentifiers
 
 public struct WorkbenchView: View {
-    @Binding private var document: ProfileDocument
-    private let fileURL: URL?
-    @State private var errorMessage: String?
+    @Bindable private var model: WorkbenchModel
+    @Environment(\.undoManager) private var undoManager
 
     public var body: some View {
         NavigationSplitView {
-            ProfileSidebar(profile: document.profile, fileURL: fileURL, applyPreset: applyPreset)
+            ProfileSidebar(model: model, undoManager: undoManager)
                 .navigationSplitViewColumnWidth(min: 210, ideal: 230, max: 280)
         } detail: {
-            WorkbenchEditor(profile: profileBinding)
+            WorkbenchEditor(profile: profileBinding, connectionState: model.boards.state)
         }
         .font(.body)
         .tint(WorkbenchTheme.amber)
         .frame(minWidth: WorkbenchLayout.minimumSize.width, minHeight: WorkbenchLayout.minimumSize.height)
         .toolbar {
             ToolbarItemGroup {
-                DocumentActions()
+                ProfileActions(model: model, undoManager: undoManager)
             }
         }
+        .fileImporter(isPresented: $model.isImporting, allowedContentTypes: [.neXTsoundProfile, .json]) { result in
+            guard case let .success(url) = result else {
+                return
+            }
+            Task { await model.importProfile(at: url, undoManager: undoManager) }
+        }
+        .fileExporter(
+            isPresented: $model.isExporting,
+            document: ProfileFile(profile: model.profile),
+            contentType: .neXTsoundProfile,
+            defaultFilename: model.profile.name.isEmpty ? "Untitled" : model.profile.name
+        ) { _ in }
         .alert("The profile could not be changed", isPresented: errorIsPresented) {
-            Button("OK", role: .cancel) { errorMessage = nil }
+            Button("OK", role: .cancel) { model.errorMessage = nil }
         } message: {
-            Text(errorMessage ?? "Check the profile values.")
+            Text(model.errorMessage ?? "Check the profile values.")
         }
     }
 
-    public init(document: Binding<ProfileDocument>, fileURL: URL? = nil) {
-        _document = document
-        self.fileURL = fileURL
+    public init(model: WorkbenchModel) {
+        self.model = model
     }
 }
 
 private extension WorkbenchView {
     var profileBinding: Binding<SoundProfile> {
-        Binding(get: { document.profile }, set: { proposed in
-            do {
-                try document.edit { $0 = proposed }
-            } catch {
-                errorMessage = error.localizedDescription
-            }
-        })
+        Binding(get: { model.profile }, set: { model.updateProfile($0, undoManager: undoManager) })
     }
 
     var errorIsPresented: Binding<Bool> {
-        Binding(get: { errorMessage != nil }, set: {
+        Binding(get: { model.errorMessage != nil }, set: {
             if !$0 {
-                errorMessage = nil
+                model.errorMessage = nil
             }
         })
     }
-
-    func applyPreset(_ preset: FactoryPreset) {
-        do {
-            try document.apply(preset)
-        } catch {
-            errorMessage = error.localizedDescription
-        }
-    }
 }
 
-private struct DocumentActions: View {
+private struct ProfileActions: View {
+    let model: WorkbenchModel
+    let undoManager: UndoManager?
+
     var body: some View {
         ControlGroup {
-            Button("Open profile", systemImage: "folder") {
-                NSDocumentController.shared.openDocument(nil)
-            }
-            Button("Save profile", systemImage: "square.and.arrow.down") {
-                NSApp.sendAction(#selector(NSDocument.save(_:)), to: nil, from: nil)
-            }
+            Button("New profile", systemImage: "plus") { model.addProfile(undoManager: undoManager) }
+            Button("Delete profile", systemImage: "minus") { model.removeProfile(undoManager: undoManager) }
+        }
+        .controlSize(.regular)
+        ControlGroup {
+            Button("Import profile", systemImage: "square.and.arrow.down") { model.isImporting = true }
+            Button("Export profile", systemImage: "square.and.arrow.up") { model.isExporting = true }
         }
         .controlSize(.regular)
     }

@@ -4,7 +4,7 @@ import SwiftUI
 import UniformTypeIdentifiers
 
 /// The canonical shared profile is the document's only stored state.
-public struct ProfileDocument: FileDocument, Equatable {
+public struct ProfileFile: FileDocument, Equatable {
     public static let typeIdentifier = "work.layered.NeXTsound.profile"
     public static let fileExtension = "nxsprofile"
     public static let readableContentTypes: [UTType] = [.neXTsoundProfile, .json]
@@ -31,7 +31,7 @@ public struct ProfileDocument: FileDocument, Equatable {
     }
 }
 
-public extension ProfileDocument {
+public extension ProfileFile {
     func fileWrapper(configuration _: WriteConfiguration) throws -> FileWrapper {
         try encodedFile()
     }
@@ -67,7 +67,7 @@ public extension ProfileDocument {
 }
 
 public extension UTType {
-    static let neXTsoundProfile = UTType(exportedAs: ProfileDocument.typeIdentifier, conformingTo: .json)
+    static let neXTsoundProfile = UTType(exportedAs: ProfileFile.typeIdentifier, conformingTo: .json)
 }
 
 public enum WorkbenchError: Error, Equatable, Sendable {

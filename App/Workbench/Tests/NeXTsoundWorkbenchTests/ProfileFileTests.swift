@@ -3,9 +3,9 @@ import NeXTsoundCore
 import Testing
 @testable import NeXTsoundWorkbench
 
-struct ProfileDocumentTests {
+struct ProfileFileTests {
     @Test func newDocumentsStartMutedWithUnknownContext() throws {
-        let document = ProfileDocument()
+        let document = ProfileFile()
         try document.profile.validate()
         #expect(document.profile.settings.isMuted)
         #expect(document.profile.speaker == nil)
@@ -13,18 +13,18 @@ struct ProfileDocumentTests {
     }
 
     @Test func documentRoundTripPreservesCanonicalData() throws {
-        let original = ProfileDocument(profile: fixture())
+        let original = ProfileFile(profile: fixture())
         let file = try original.encodedFile()
-        #expect(try ProfileDocument(file: file) == original)
+        #expect(try ProfileFile(file: file) == original)
         #expect(try SoundProfile.decode(#require(file.regularFileContents)) == original.profile)
     }
 
     @Test func directoriesAndMalformedFilesAreRejected() {
         #expect(throws: (any Error).self) {
-            try ProfileDocument(file: FileWrapper(directoryWithFileWrappers: [:]))
+            try ProfileFile(file: FileWrapper(directoryWithFileWrappers: [:]))
         }
         #expect(throws: (any Error).self) {
-            try ProfileDocument(file: FileWrapper(regularFileWithContents: Data("invalid".utf8)))
+            try ProfileFile(file: FileWrapper(regularFileWithContents: Data("invalid".utf8)))
         }
     }
 
@@ -34,12 +34,12 @@ struct ProfileDocumentTests {
         fields["formatVersion"] = 99
         let file = try FileWrapper(regularFileWithContents: JSONSerialization.data(withJSONObject: fields))
         #expect(throws: ProfileValidationError.unsupportedFormat(99)) {
-            try ProfileDocument(file: file)
+            try ProfileFile(file: file)
         }
     }
 
     @Test func editsAdvanceRevisionWithoutReplacingIdentity() throws {
-        var document = ProfileDocument(profile: fixture())
+        var document = ProfileFile(profile: fixture())
         let previous = document.profile
         try document.edit { $0.settings.bands[1].gainDb = 3 }
         #expect(document.profile.revision == previous.revision + 1)
@@ -49,7 +49,7 @@ struct ProfileDocumentTests {
     }
 
     @Test func unchangedEditsDoNotAdvanceRevision() throws {
-        var document = ProfileDocument(profile: fixture())
+        var document = ProfileFile(profile: fixture())
         let previous = document
         try document.edit { _ in }
         #expect(document == previous)
@@ -58,7 +58,7 @@ struct ProfileDocumentTests {
     @Test func revisionExhaustionLeavesTheDocumentUnchanged() {
         var profile = fixture()
         profile.revision = .max
-        var document = ProfileDocument(profile: profile)
+        var document = ProfileFile(profile: profile)
         #expect(throws: ProfileValidationError.invalidRevision) {
             try document.edit { $0.name = "Changed" }
         }
@@ -66,7 +66,7 @@ struct ProfileDocumentTests {
     }
 
     @Test func failedMutationsLeaveTheDocumentUnchanged() {
-        var document = ProfileDocument(profile: fixture())
+        var document = ProfileFile(profile: fixture())
         let previous = document
         #expect(throws: CocoaError(.userCancelled)) {
             try document.edit { candidate in
@@ -78,7 +78,7 @@ struct ProfileDocumentTests {
     }
 
     @Test func identityAndRevisionCannotBeReplacedByAnEdit() {
-        var document = ProfileDocument(profile: fixture())
+        var document = ProfileFile(profile: fixture())
         let previous = document
         #expect(throws: WorkbenchError.documentIdentityChanged) {
             try document.edit { $0.id = UUID() }
@@ -91,7 +91,7 @@ struct ProfileDocumentTests {
     }
 
     @Test func invalidSettingsLeaveTheDocumentUnchanged() {
-        var document = ProfileDocument(profile: fixture())
+        var document = ProfileFile(profile: fixture())
         let previous = document
         #expect(throws: (any Error).self) {
             try document.edit { $0.settings.bands[0].gainDb = .nan }
@@ -100,7 +100,7 @@ struct ProfileDocumentTests {
     }
 
     @Test func incompleteNamesCanBeEditedButNotSaved() throws {
-        var document = ProfileDocument(profile: fixture())
+        var document = ProfileFile(profile: fixture())
         try document.edit { $0.name = "" }
         #expect(document.profile.name.isEmpty)
         #expect(throws: ProfileValidationError.invalidName) {
@@ -109,7 +109,7 @@ struct ProfileDocumentTests {
     }
 
     @Test func presetsPreserveTheDocumentAndItsContext() throws {
-        var document = ProfileDocument(profile: fixture())
+        var document = ProfileFile(profile: fixture())
         let previous = document.profile
         try document.apply(.warm)
         #expect(document.profile.id == previous.id)
@@ -123,7 +123,7 @@ struct ProfileDocumentTests {
     }
 }
 
-private extension ProfileDocumentTests {
+private extension ProfileFileTests {
     func fixture() -> SoundProfile {
         var profile = SoundProfile(name: "Test profile")
         profile.speaker = SpeakerRecord(name: "Synthetic test speaker")
