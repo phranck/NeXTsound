@@ -1,0 +1,63 @@
+# Recoverable snapshot storage
+
+The portable [`nxs_storage`](../Firmware/Core/include/nxs_storage.h) library validates, selects, and replaces saved snapshots. It uses the canonical protocol's snapshot codec. It does not serialize native structs or transport request IDs.
+
+This core is host-tested and cross-compiled. It is not yet connected to the device's persistence command. Geometry-gated platform callbacks and audio/XIP/USB coordination are still required before flash writes.
+
+## Layout
+
+There are two isolated 4096-byte sectors. A record occupies the first 512 bytes of a sector. Each 256-byte page is programmed once after erase. The remaining sector bytes are unused by this format.
+
+All integers are little-endian. Storage format version 1 embeds protocol snapshot version 1.0. Unknown versions, generation zero, invalid snapshots, and dirty padding are rejected.
+
+| Data-page offset | Bytes | Meaning |
+| --- | --- | --- |
+| 0 | 4 | `NXSP` magic |
+| 4 | 2 | Storage format version |
+| 6 | 2 | Data-page size, 256 |
+| 8 | 4 | Snapshot generation |
+| 12 | 1 | Protocol major version |
+| 13 | 1 | Protocol minor version |
+| 14 | 2 | Snapshot payload size, 120 |
+| 16 | 120 | Canonical `nxs_snapshot_encode` payload |
+| 136 | 116 | Erased padding, `0xff` |
+| 252 | 4 | CRC-32/ISO-HDLC of data-page bytes 0 through 251 |
+
+The commit page starts at record offset 256. Its offsets below are relative to that page.
+
+| Commit-page offset | Bytes | Meaning |
+| --- | --- | --- |
+| 0 | 4 | `NXSC` magic |
+| 4 | 4 | Matching snapshot generation |
+| 8 | 4 | Matching data-page CRC |
+| 12 | 4 | Bitwise complement of that CRC |
+| 16 | 240 | Erased padding, `0xff` |
+
+The commit page is written only after the data page has passed readback comparison. CRC detects accidental corruption; it is not authentication.
+
+## Selection and generations
+
+`nxs_storage_read` reads both records before choosing the largest valid unsigned generation. A corrupted record can fall back to the other valid record. Two identical records with the same generation are equivalent. Different valid records with the same generation are ambiguous and prevent automatic replacement.
+
+An I/O read failure prevents selection and saving because the unread slot might contain the only valid record. Empty, failed, and ambiguous reads leave caller destinations unchanged. The caller retains its muted factory configuration when no saved state can be loaded.
+
+`nxs_storage_save` scans the media anew on every call. This matters if the newest record became corrupt after an earlier load. The surviving valid record must remain intact while the other sector is replaced. Lower generations and same-generation changes return `NXS_RESULT_STALE_GENERATION`. An identical same-generation save verifies the existing record and performs no erase or program operation. Generations do not wrap.
+
+## Write and acknowledgement
+
+The I/O callbacks address only a slot and one of its two pages. The platform must map them into verified flash bounds and arrange safe execution.
+
+1. Scan both slots and validate the requested generation/snapshot.
+2. Erase the inactive sector and verify that its record space is erased.
+3. Program the data page and compare its complete readback. The commit page must remain erased.
+4. Program the separate commit page.
+5. Read the complete record, decode it, and compare every byte with the expected record.
+6. Return success only after that verification.
+
+A failed final read can leave a complete new record even though no success was acknowledged. A later boot or rescan can select it. Clients must read device state after an uncertain save rather than infer that the older record is still current.
+
+## Host verification
+
+[`storage_tests.c`](../Firmware/Tests/storage_tests.c) uses fresh in-memory sectors. Its NOR model programs bits only from one to zero. Tests cover every byte-prefix cutoff across both program pages and a sector erase, every individual record-bit corruption, CRC-valid malformed headers/snapshots, I/O failures, conflicting generations, and a newest record corrupted before the next save.
+
+The host tests compare CRCs with zlib from the pinned Xcode SDK. Removing the data-CRC check or commit-magic check separately causes the corruption test to fail. With both checks present, 84338 assertions pass. These are software-model results, not physical power-loss tests or flash-execution timing measurements.

@@ -38,7 +38,7 @@ target_include_directories(nxs_firmware PRIVATE Platform USB)
 target_link_libraries(nxs_firmware PRIVATE nxs_device pico_stdlib pico_multicore pico_unique_id pico_util
     tinyusb_device tinyusb_board hardware_clocks hardware_pio hardware_dma)
 target_compile_options(nxs_firmware PRIVATE -Wall -Wextra -Werror -fstack-usage)
-foreach(NXS_LIBRARY nxs_protocol nxs_dsp nxs_device)
+foreach(NXS_LIBRARY nxs_protocol nxs_dsp nxs_device nxs_storage)
     target_compile_options(${NXS_LIBRARY} PRIVATE -fstack-usage)
 endforeach()
 target_compile_definitions(nxs_firmware PRIVATE NXS_FIRMWARE_VERSION="${NXS_GIT_VERSION}"

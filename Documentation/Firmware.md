@@ -40,7 +40,7 @@ The [portable renderer](../Firmware/Core/render.c) primes to 192 frames, process
 
 One DMA channel transfers explicitly bounded blocks from alternating buffers. There is no automatic chaining that could restart a channel at an advanced read pointer. The audio core prepares the next buffer while the current one transfers. Deadline misses and PIO TX stalls require hardware qualification.
 
-A successful apply means the audio owner installed the complete prepared configuration for an upcoming block. Already queued audio is unchanged, and the DSP then crossfades its chains. Only acceptance advances the protocol generation. Persistence and verified-flash capabilities remain absent.
+A successful apply means the audio owner installed the complete prepared configuration for an upcoming block. Already queued audio is unchanged, and the DSP then crossfades its chains. Only acceptance advances the protocol generation. Persistence and verified-flash capabilities remain absent. The [portable recovery core](Storage.md) validates and replaces two snapshot records, but it is not yet connected to the device command or platform flash operations.
 
 Suspend drains to a silent block, stops DMA/PIO, drives the three audio pins low, and parks the audio core. Resume restarts from zero-filled output buffers and primes new input. The control core continues servicing USB. Total USB suspend current has not been qualified. Digital mute does not power down the amplifier.
 
