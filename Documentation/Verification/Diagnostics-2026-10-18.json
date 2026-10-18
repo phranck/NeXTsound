@@ -486,6 +486,22 @@
     "accepted": false,
     "interpretation": "The host request returns success, but neither the sampled port bit nor firmware suspend/resume notification counters confirm a cycle. The reason is not established. No driver was seized/detached and no parent hub was reset."
   },
+  "idle_policy_attempt": {
+    "method": "IOUSBHostInterface on exact serial/VID/PID, reset interface 3 only, with options None; no capture or seize.",
+    "original_idle_timeout_seconds": 0,
+    "requested_idle_timeout_seconds": 1,
+    "idle_timeout_readback_seconds": 1,
+    "observation_window_seconds": 2.5,
+    "restore_original_timeout_acknowledged": true,
+    "client_destroyed": true,
+    "suspend_notifications_before_and_after": [0, 0],
+    "resume_notifications_before_and_after": [0, 0],
+    "generation_before_and_after": [7, 7],
+    "profile_muted_before_and_after": true,
+    "default_output_uids_unchanged": true,
+    "accepted_as_suspend_cycle": false,
+    "interpretation": "The interface accepts the timeout and acknowledges restoration. No firmware notification confirms an actual suspend/resume cycle. This does not establish why the legacy request or the interface policy fails to produce an observed cycle."
+  },
   "reboot": {
     "method": "SDK-compatible application/watchdog reset after audio quiescence.",
     "immediate_hid_set_report_result": "0xe00002ed",
