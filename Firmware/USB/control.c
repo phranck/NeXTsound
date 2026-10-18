@@ -12,6 +12,9 @@ static uint8_t alternate;
 static uint32_t stream_epoch;
 static int16_t host_volume;
 static bool host_muted;
+static const nxs_storage_io_t *storage_io;
+static bool maintenance_active;
+static bool maintenance_release_pending;
 
 static void synchronize_audio_owner(void) {
     bool accepted;
@@ -23,7 +26,9 @@ static void synchronize_audio_owner(void) {
     if (!job_in_flight && configuration && nxs_audio_engine_submit(configuration)) {
         job_in_flight = true;
     }
-    nxs_audio_engine_status(&device.status);
+    nxs_runtime_status_t audio_status;
+    nxs_audio_engine_status(&audio_status);
+    (void)nxs_device_update_audio_status(&device, &audio_status);
 }
 
 static void update_transport(void) {
@@ -35,6 +40,9 @@ bool nxs_usb_init(const char *serial, const char *version) {
         return false;
     }
     job_in_flight = false;
+    storage_io = NULL;
+    maintenance_active = false;
+    maintenance_release_pending = false;
     suspended = false;
     alternate = 0;
     stream_epoch = 0;
@@ -44,11 +52,53 @@ bool nxs_usb_init(const char *serial, const char *version) {
     return nxs_audio_engine_host_controls(host_volume, host_muted);
 }
 
+bool nxs_usb_configure_storage(const nxs_storage_io_t *io, uint32_t flash_size_bytes, const nxs_stored_state_t *restored) {
+    if ((io && (!io->read || !io->erase || !io->program)) ||
+        !nxs_device_configure_storage(&device, flash_size_bytes, io != NULL, restored)) {
+        return false;
+    }
+    storage_io = io;
+    return true;
+}
+
+static void advance_maintenance(void) {
+    nxs_stored_state_t state;
+    bool persistence = nxs_device_pending_persistence(&device, &state);
+    bool reset = nxs_usb_pending_reset().action != NXS_USB_RESET_NONE;
+    if (persistence || reset) {
+        if (!maintenance_active) {
+            maintenance_active = true;
+            nxs_audio_engine_request_maintenance(true);
+        }
+        maintenance_release_pending = false;
+        if (persistence && nxs_audio_engine_maintenance_ready()) {
+            nxs_result_t result = nxs_storage_save(storage_io, &state);
+            (void)nxs_device_complete_persistence(&device, result);
+            /* Keep the producer gated while the next tud_task drains transfers queued during flash access. */
+            maintenance_release_pending = true;
+        }
+        return;
+    }
+    if (maintenance_active) {
+        if (!maintenance_release_pending) {
+            maintenance_release_pending = true;
+            return;
+        }
+        (void)tud_audio_clear_ep_out_ff();
+        ++stream_epoch;
+        nxs_audio_engine_request_maintenance(false);
+        maintenance_active = false;
+        maintenance_release_pending = false;
+    }
+}
+
 void nxs_usb_task(void) {
     synchronize_audio_owner();
+    advance_maintenance();
     update_transport();
     if (alternate != 0 && !suspended && tud_mounted()) {
-        (void)tud_audio_n_fb_set(0, nxs_audio_engine_feedback());
+        uint32_t feedback = maintenance_active ? (NXS_SAMPLE_RATE_HZ / 1000u) << 16 : nxs_audio_engine_feedback();
+        (void)tud_audio_n_fb_set(0, feedback);
     }
 }
 
@@ -175,6 +225,11 @@ bool tud_audio_rx_done_post_read_cb(uint8_t rhport, uint16_t received, uint8_t f
     (void)rhport;
     if (function != 0 || endpoint != NXS_USB_AUDIO_OUT_ENDPOINT || current_alternate == 0 || current_alternate > 2) {
         return false;
+    }
+    if (maintenance_active) {
+        (void)tud_audio_clear_ep_out_ff();
+        nxs_audio_engine_reject_packet();
+        return true;
     }
     uint8_t sample_bytes = current_alternate + 1u;
     uint16_t frame_bytes = sample_bytes * NXS_AUDIO_CHANNELS;

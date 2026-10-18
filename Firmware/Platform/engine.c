@@ -1,6 +1,7 @@
 #include "nxs_engine.h"
 #include "nxs_i2s.h"
 
+#include "pico/flash.h"
 #include "pico/multicore.h"
 #include "pico/stdlib.h"
 #include "pico/util/queue.h"
@@ -8,6 +9,7 @@
 #include <math.h>
 
 #define NXS_HOST_CONTROL_QUEUE_COUNT 4u
+#define NXS_AUDIO_OWNER_START_TIMEOUT_MS 1000u
 
 static nxs_audio_ring_t ring;
 static queue_t configuration_queue;
@@ -17,6 +19,10 @@ static queue_t host_control_queue;
 static nxs_runtime_status_t latest_status;
 static _Atomic uint32_t transport_state;
 static _Atomic uint32_t receive_overruns;
+static nxs_audio_maintenance_t maintenance;
+static nxs_dsp_configuration_t initial_configuration;
+static _Atomic bool owner_started;
+static _Atomic bool flash_safe_ready;
 
 static nxs_render_control_t read_control(void) {
     static nxs_render_control_t latest_host;
@@ -29,7 +35,7 @@ static nxs_render_control_t read_control(void) {
     nxs_render_control_t control = latest_host;
     control.epoch = state >> 2;
     control.streaming = (state & 1u) != 0;
-    control.suspended = (state & 2u) != 0;
+    control.suspended = (state & 2u) != 0 || nxs_audio_maintenance_requested(&maintenance);
     return control;
 }
 
@@ -54,8 +60,13 @@ static void publish_status(const nxs_renderer_t *renderer, uint32_t maximum_us, 
 static void audio_owner(void) {
     nxs_renderer_t renderer;
     nxs_renderer_init(&renderer, &ring);
+    if (!nxs_dsp_apply(&renderer.dsp, &initial_configuration)) {
+        panic("Invalid initial DSP configuration");
+    }
+    atomic_store_explicit(&flash_safe_ready, flash_safe_execute_core_init(), memory_order_release);
     nxs_i2s_init();
     nxs_i2s_start();
+    atomic_store_explicit(&owner_started, true, memory_order_release);
     uint32_t maximum_us = 0, deadline_misses = 0;
     bool paused = false;
     for (;;) {
@@ -63,9 +74,11 @@ static void audio_owner(void) {
         nxs_render_control_t control = read_control();
         if (paused) {
             if (control.suspended) {
+                nxs_audio_maintenance_acknowledge(&maintenance, true);
                 __wfe();
                 continue;
             }
+            nxs_audio_maintenance_acknowledge(&maintenance, false);
             nxs_i2s_start();
             paused = false;
             started = time_us_32();
@@ -86,12 +99,21 @@ static void audio_owner(void) {
         if (control.suspended && nxs_renderer_is_quiet(&renderer)) {
             nxs_i2s_pause();
             paused = true;
+            nxs_audio_maintenance_acknowledge(&maintenance, true);
             publish_status(&renderer, maximum_us, deadline_misses);
+            __sev();
         }
     }
 }
 
-void nxs_audio_engine_init(void) {
+bool nxs_audio_engine_init(const nxs_snapshot_t *initial) {
+    nxs_snapshot_t snapshot = initial ? *initial : nxs_default_snapshot();
+    if (!nxs_dsp_prepare(&snapshot, &initial_configuration)) {
+        return false;
+    }
+    nxs_audio_maintenance_init(&maintenance);
+    atomic_init(&owner_started, false);
+    atomic_init(&flash_safe_ready, false);
     nxs_audio_ring_init(&ring);
     queue_init(&configuration_queue, sizeof(nxs_dsp_configuration_t), 1);
     queue_init(&result_queue, sizeof(bool), 1);
@@ -102,6 +124,27 @@ void nxs_audio_engine_init(void) {
     latest_status.block_deadline_us = NXS_DSP_BLOCK_DEADLINE_US;
     (void)nxs_audio_engine_host_controls(0, false);
     multicore_launch_core1(audio_owner);
+    absolute_time_t deadline = make_timeout_time_ms(NXS_AUDIO_OWNER_START_TIMEOUT_MS);
+    while (!atomic_load_explicit(&owner_started, memory_order_acquire)) {
+        if (time_reached(deadline)) {
+            return false;
+        }
+        tight_loop_contents();
+    }
+    return true;
+}
+
+void nxs_audio_engine_request_maintenance(bool requested) {
+    nxs_audio_maintenance_request(&maintenance, requested);
+    __sev();
+}
+
+bool nxs_audio_engine_maintenance_ready(void) {
+    return nxs_audio_maintenance_ready(&maintenance);
+}
+
+bool nxs_audio_engine_flash_ready(void) {
+    return atomic_load_explicit(&flash_safe_ready, memory_order_acquire);
 }
 
 bool nxs_audio_engine_submit(const nxs_dsp_configuration_t *configuration) {

@@ -137,7 +137,38 @@ static void test_gain_ramps(void) {
     CHECK(ramp.value == 0 && ramp.remaining == 0);
 }
 
+static void test_maintenance_tokens(void) {
+    nxs_audio_maintenance_t maintenance;
+    nxs_audio_maintenance_init(&maintenance);
+    CHECK(!nxs_audio_maintenance_requested(&maintenance) && !nxs_audio_maintenance_ready(&maintenance));
+    nxs_audio_maintenance_request(&maintenance, true);
+    uint32_t first = atomic_load(&maintenance.request_token);
+    CHECK(first != 0 && nxs_audio_maintenance_requested(&maintenance));
+    CHECK(!nxs_audio_maintenance_ready(&maintenance));
+    nxs_audio_maintenance_acknowledge(&maintenance, true);
+    CHECK(nxs_audio_maintenance_ready(&maintenance));
+    nxs_audio_maintenance_request(&maintenance, true);
+    CHECK(atomic_load(&maintenance.request_token) == first && nxs_audio_maintenance_ready(&maintenance));
+    nxs_audio_maintenance_request(&maintenance, false);
+    CHECK(!nxs_audio_maintenance_requested(&maintenance) && !nxs_audio_maintenance_ready(&maintenance));
+    nxs_audio_maintenance_request(&maintenance, true);
+    CHECK(atomic_load(&maintenance.request_token) != first);
+    CHECK(!nxs_audio_maintenance_ready(&maintenance));
+    nxs_audio_maintenance_acknowledge(&maintenance, false);
+    CHECK(!nxs_audio_maintenance_ready(&maintenance));
+    nxs_audio_maintenance_acknowledge(&maintenance, true);
+    CHECK(nxs_audio_maintenance_ready(&maintenance));
+    nxs_audio_maintenance_request(&maintenance, false);
+    maintenance.next_token = UINT32_MAX;
+    atomic_store(&maintenance.acknowledged_token, 1);
+    nxs_audio_maintenance_request(&maintenance, true);
+    CHECK(atomic_load(&maintenance.request_token) == 2 && !nxs_audio_maintenance_ready(&maintenance));
+    nxs_audio_maintenance_acknowledge(&maintenance, true);
+    CHECK(nxs_audio_maintenance_ready(&maintenance));
+}
+
 int main(void) {
+    test_maintenance_tokens();
     test_pcm_conversion();
     test_ring_wrap_and_discard();
     test_concurrent_ring();

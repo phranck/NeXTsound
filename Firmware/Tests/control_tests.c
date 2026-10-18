@@ -16,6 +16,12 @@ static struct {
     bool result;
     bool short_read;
     bool host_muted;
+    bool maintenance_requested;
+    bool maintenance_ready;
+    nxs_usb_reset_request_t reset_request;
+    unsigned int storage_erases;
+    unsigned int storage_programs;
+    uint8_t storage[NXS_STORAGE_SLOT_COUNT][NXS_STORAGE_SECTOR_BYTES];
     int16_t host_volume;
     uint32_t epoch;
     unsigned int submitted;
@@ -27,6 +33,21 @@ static struct {
     uint8_t reply[64];
     uint16_t reply_length;
 } mock;
+
+nxs_usb_reset_request_t nxs_usb_pending_reset(void) {
+    return mock.reset_request;
+}
+
+void nxs_audio_engine_request_maintenance(bool requested) {
+    if (requested && !mock.maintenance_requested) {
+        mock.maintenance_ready = false;
+    }
+    mock.maintenance_requested = requested;
+}
+
+bool nxs_audio_engine_maintenance_ready(void) {
+    return mock.maintenance_requested && mock.maintenance_ready;
+}
 
 bool tud_mounted(void) {
     return mock.mounted;
@@ -126,8 +147,40 @@ bool tud_audio_buffer_and_schedule_control_xfer(uint8_t port, const tusb_control
     return true;
 }
 
+static bool storage_read(void *context, unsigned int slot, nxs_storage_record_t *record) {
+    (void)context;
+    CHECK(slot < NXS_STORAGE_SLOT_COUNT);
+    memcpy(record->bytes, mock.storage[slot], sizeof(record->bytes));
+    return true;
+}
+
+static bool storage_erase(void *context, unsigned int slot) {
+    (void)context;
+    CHECK(slot < NXS_STORAGE_SLOT_COUNT && mock.maintenance_requested && mock.maintenance_ready);
+    ++mock.storage_erases;
+    memset(mock.storage[slot], 0xff, sizeof(mock.storage[slot]));
+    return true;
+}
+
+static bool storage_program(void *context, unsigned int slot, unsigned int page, const uint8_t bytes[NXS_STORAGE_PAGE_BYTES]) {
+    (void)context;
+    CHECK(slot < NXS_STORAGE_SLOT_COUNT && page <= NXS_STORAGE_COMMIT_PAGE);
+    CHECK(mock.maintenance_requested && mock.maintenance_ready);
+    ++mock.storage_programs;
+    for (size_t index = 0; index < NXS_STORAGE_PAGE_BYTES; ++index) {
+        mock.storage[slot][page * NXS_STORAGE_PAGE_BYTES + index] &= bytes[index];
+    }
+    return true;
+}
+
+static void enable_storage(const nxs_stored_state_t *restored) {
+    static const nxs_storage_io_t io = {.read = storage_read, .erase = storage_erase, .program = storage_program};
+    CHECK(nxs_usb_configure_storage(&io, NXS_FLASH_SUPPORTED_BYTES, restored));
+}
+
 static void initialize(void) {
     memset(&mock, 0, sizeof(mock));
+    memset(mock.storage, 0xff, sizeof(mock.storage));
     mock.mounted = mock.allow_submit = mock.allow_host = true;
     CHECK(nxs_usb_init("TESTDEVICE", "test"));
     tud_mount_cb();
@@ -306,6 +359,101 @@ static void test_new_session_can_reuse_an_inflight_request_id(void) {
     CHECK(snapshot.attenuation_db == -9);
 }
 
+static void test_audio_telemetry_preserves_storage_status(void) {
+    initialize();
+    enable_storage(NULL);
+    send(NXS_OPERATION_STATUS, 1, 0, NULL);
+    nxs_message_t reply = response(1, NXS_RESULT_OK);
+    nxs_runtime_status_t status;
+    CHECK(nxs_runtime_status_decode(reply.payload, reply.payload_length, &status) == NXS_RESULT_OK);
+    CHECK(status.storage_available == 1 && status.persisted_generation == 0);
+}
+
+static void test_persistence_waits_for_audio_and_drains_usb(void) {
+    initialize();
+    enable_storage(NULL);
+    set_alternate(1);
+    send(NXS_OPERATION_READ_STATE, 1, 0, NULL);
+    response(1, NXS_RESULT_OK);
+    send(NXS_OPERATION_PERSIST_STATE, 2, 1, NULL);
+    nxs_usb_task();
+    CHECK(mock.maintenance_requested && !mock.maintenance_ready && mock.storage_erases == 0);
+    response(1, NXS_RESULT_OK);
+    mock.available = NXS_DSP_BLOCK_FRAMES * 4;
+    CHECK(tud_audio_rx_done_post_read_cb(0, mock.available, 0, NXS_USB_AUDIO_OUT_ENDPOINT, 1));
+    CHECK(mock.received_frames == 0 && mock.available == 0 && mock.rejected == 1);
+    mock.maintenance_ready = true;
+    uint32_t previous_epoch = mock.epoch;
+    nxs_usb_task();
+    nxs_message_t reply = response(2, NXS_RESULT_OK);
+    CHECK(reply.generation == 1 && mock.storage_erases == 1 && mock.storage_programs == 2);
+    CHECK(mock.maintenance_requested);
+    mock.available = NXS_DSP_BLOCK_FRAMES * 4;
+    CHECK(tud_audio_rx_done_post_read_cb(0, mock.available, 0, NXS_USB_AUDIO_OUT_ENDPOINT, 1));
+    CHECK(mock.received_frames == 0 && mock.available == 0 && mock.rejected == 2);
+    nxs_usb_task();
+    CHECK(!mock.maintenance_requested && mock.epoch != previous_epoch && mock.streaming);
+    send(NXS_OPERATION_STATUS, 3, 0, NULL);
+    reply = response(3, NXS_RESULT_OK);
+    nxs_runtime_status_t status;
+    CHECK(nxs_runtime_status_decode(reply.payload, reply.payload_length, &status) == NXS_RESULT_OK);
+    CHECK(status.storage_available == 1 && status.persisted_generation == 1);
+    send(NXS_OPERATION_PERSIST_STATE, 2, 1, NULL);
+    response(2, NXS_RESULT_OK);
+    nxs_usb_task();
+    CHECK(mock.storage_erases == 1 && !mock.maintenance_requested);
+    nxs_storage_record_t record;
+    memcpy(record.bytes, mock.storage[0], sizeof(record.bytes));
+    nxs_stored_state_t stored;
+    CHECK(nxs_storage_record_decode(&record, &stored));
+    CHECK(stored.generation == 1 && stored.snapshot.muted == 1);
+}
+
+static void test_persistence_completes_after_session_reset(void) {
+    initialize();
+    enable_storage(NULL);
+    send(NXS_OPERATION_PERSIST_STATE, 1, 1, NULL);
+    nxs_usb_task();
+    CHECK(mock.maintenance_requested && mock.storage_erases == 0);
+    tud_mount_cb();
+    send(NXS_OPERATION_CAPABILITIES, 1, 0, NULL);
+    nxs_message_t reply = response(1, NXS_RESULT_OK);
+    CHECK(reply.operation == NXS_OPERATION_CAPABILITIES);
+    mock.maintenance_ready = true;
+    nxs_usb_task();
+    reply = response(1, NXS_RESULT_OK);
+    CHECK(reply.operation == NXS_OPERATION_CAPABILITIES && mock.storage_erases == 1);
+    nxs_usb_task();
+    send(NXS_OPERATION_STATUS, 2, 0, NULL);
+    reply = response(2, NXS_RESULT_OK);
+    nxs_runtime_status_t status;
+    CHECK(nxs_runtime_status_decode(reply.payload, reply.payload_length, &status) == NXS_RESULT_OK);
+    CHECK(status.persisted_generation == 1 && status.storage_available == 1);
+}
+
+static void test_reset_waits_for_audio_and_can_be_canceled(void) {
+    initialize();
+    set_alternate(1);
+    mock.reset_request.action = NXS_USB_RESET_BOOTSEL;
+    nxs_usb_task();
+    CHECK(mock.maintenance_requested && !nxs_audio_engine_maintenance_ready());
+    CHECK(mock.storage_erases == 0 && mock.storage_programs == 0);
+    mock.maintenance_ready = true;
+    nxs_usb_task();
+    CHECK(nxs_audio_engine_maintenance_ready());
+    uint32_t previous_epoch = mock.epoch;
+    mock.reset_request.action = NXS_USB_RESET_NONE;
+    nxs_usb_task();
+    CHECK(mock.maintenance_requested);
+    nxs_usb_task();
+    CHECK(!mock.maintenance_requested && mock.epoch != previous_epoch && mock.streaming);
+}
+
+static void test_storage_callbacks(void) {
+    test_persistence_waits_for_audio_and_drains_usb();
+    test_persistence_completes_after_session_reset();
+}
+
 static void test_basic_callbacks(void) {
     test_hid_bridge_and_owner_acknowledgement();
     test_clock_and_host_controls();
@@ -322,7 +470,10 @@ int main(int count, char **arguments) {
                  {"mount", test_new_configuration_resets_session},
                  {"packet", test_oversized_packet_uses_active_format_limit},
                  {"short-read", test_short_fifo_read_discards_partial_frame},
-                 {"inflight", test_new_session_can_reuse_an_inflight_request_id}};
+                 {"inflight", test_new_session_can_reuse_an_inflight_request_id},
+                 {"storage-status", test_audio_telemetry_preserves_storage_status},
+                 {"storage-flow", test_storage_callbacks},
+                 {"reset-flow", test_reset_waits_for_audio_and_can_be_canceled}};
     size_t matched = 0;
     for (size_t index = 0; index < sizeof(cases) / sizeof(cases[0]); ++index) {
         if (!strcmp(name, "all") || !strcmp(name, cases[index].name)) {

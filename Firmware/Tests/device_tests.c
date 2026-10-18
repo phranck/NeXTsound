@@ -1,6 +1,7 @@
 #include "nxs_device.h"
 #include "nxs_protocol_test.h"
 
+#include <math.h>
 #include <string.h>
 
 static void init(nxs_device_t *device) {
@@ -123,10 +124,137 @@ static void test_malformed_requests_do_not_mutate_state(void) {
     CHECK(memcmp(&before, &device, sizeof(before)) == 0);
 }
 
+static void test_storage_boot_and_audio_status(void) {
+    nxs_device_t device, before;
+    init(&device);
+    memcpy(&before, &device, sizeof(before));
+    CHECK(!nxs_device_configure_storage(NULL, NXS_FLASH_SUPPORTED_BYTES, true, NULL));
+    CHECK(!nxs_device_configure_storage(&device, 0, true, NULL));
+    CHECK(!nxs_device_configure_storage(&device, NXS_FLASH_SUPPORTED_BYTES / 2, true, NULL));
+    CHECK(memcmp(&before, &device, sizeof(before)) == 0);
+    nxs_stored_state_t restored = {.snapshot = nxs_default_snapshot(), .generation = 0};
+    CHECK(!nxs_device_configure_storage(&device, NXS_FLASH_SUPPORTED_BYTES, true, &restored));
+    restored.generation = 19;
+    restored.snapshot.high_pass_hz = NAN;
+    CHECK(!nxs_device_configure_storage(&device, NXS_FLASH_SUPPORTED_BYTES, true, &restored));
+    CHECK(memcmp(&before, &device, sizeof(before)) == 0);
+    restored.snapshot = nxs_default_snapshot();
+    restored.snapshot.attenuation_db = -9;
+    CHECK(nxs_device_configure_storage(&device, NXS_FLASH_SUPPORTED_BYTES, true, &restored));
+    CHECK(device.generation == 19 && device.status.persisted_generation == 19 && device.status.storage_available);
+    CHECK(device.active.attenuation_db == -9 && device.active.muted == 1);
+    send(&device, NXS_OPERATION_CAPABILITIES, 1, 0, NULL);
+    nxs_message_t reply = response(&device, 1, NXS_RESULT_OK);
+    nxs_capabilities_t capabilities;
+    CHECK(nxs_capabilities_decode(reply.payload, reply.payload_length, &capabilities) == NXS_RESULT_OK);
+    CHECK(capabilities.flash_size_bytes == NXS_FLASH_SUPPORTED_BYTES);
+    CHECK(capabilities.feature_flags == (NXS_FEATURE_FLASH_VERIFIED | NXS_FEATURE_PERSISTENCE));
+    CHECK(!nxs_device_configure_storage(&device, 0, false, NULL));
+    nxs_runtime_status_t audio = {.underrun_count = 3,
+                                  .input_peak = 0.25f,
+                                  .output_peak = 0.125f,
+                                  .host_volume_db = -12,
+                                  .host_muted = 1,
+                                  .block_deadline_us = NXS_DSP_BLOCK_DEADLINE_US};
+    CHECK(nxs_device_update_audio_status(&device, &audio));
+    CHECK(device.status.persisted_generation == 19 && device.status.storage_available);
+    CHECK(device.status.underrun_count == 3 && device.status.host_volume_db == -12 && device.status.host_muted);
+    memcpy(&before, &device, sizeof(before));
+    audio.input_peak = NAN;
+    CHECK(!nxs_device_update_audio_status(&device, &audio));
+    CHECK(memcmp(&before, &device, sizeof(before)) == 0);
+    CHECK(!nxs_device_update_audio_status(NULL, &audio));
+    CHECK(!nxs_device_update_audio_status(&device, NULL));
+
+    init(&device);
+    CHECK(nxs_device_configure_storage(&device, NXS_FLASH_SUPPORTED_BYTES, false, &restored));
+    CHECK(device.capabilities.feature_flags == NXS_FEATURE_FLASH_VERIFIED && !device.status.storage_available);
+    CHECK(device.generation == 19 && device.status.persisted_generation == 19);
+    send(&device, NXS_OPERATION_PERSIST_STATE, 1, 19, NULL);
+    response(&device, 1, NXS_RESULT_STORAGE_UNAVAILABLE);
+}
+
+static void test_persistence_acknowledgement(void) {
+    nxs_device_t device;
+    init(&device);
+    CHECK(nxs_device_configure_storage(&device, NXS_FLASH_SUPPORTED_BYTES, true, NULL));
+    nxs_stored_state_t pending = {.generation = 777};
+    CHECK(!nxs_device_pending_persistence(&device, &pending) && pending.generation == 777);
+    send(&device, NXS_OPERATION_READ_STATE, 1, 0, NULL);
+    send(&device, NXS_OPERATION_PERSIST_STATE, 2, 1, NULL);
+    CHECK(device.persistence_pending && !device.apply_pending && device.status.persisted_generation == 0);
+    CHECK(nxs_device_pending_persistence(&device, &pending));
+    CHECK(pending.generation == 1 && pending.snapshot.attenuation_db == -24 && pending.snapshot.muted == 1);
+    response(&device, 1, NXS_RESULT_OK);
+    send(&device, NXS_OPERATION_PERSIST_STATE, 2, 1, NULL);
+    nxs_snapshot_t next = nxs_default_snapshot();
+    next.attenuation_db = -12;
+    send(&device, NXS_OPERATION_APPLY_STATE, 3, 1, &next);
+    response(&device, 3, NXS_RESULT_BUSY);
+    send(&device, NXS_OPERATION_PERSIST_STATE, 4, 1, NULL);
+    response(&device, 4, NXS_RESULT_BUSY);
+    send(&device, NXS_OPERATION_STATUS, 2, 0, NULL);
+    response(&device, 2, NXS_RESULT_INVALID_REPORT);
+    CHECK(!nxs_device_complete_apply(&device, NXS_RESULT_OK));
+    CHECK(!nxs_device_complete_persistence(&device, (nxs_result_t)9));
+    CHECK(device.persistence_pending && device.status.persisted_generation == 0);
+    CHECK(nxs_device_complete_persistence(&device, NXS_RESULT_OK));
+    nxs_message_t reply = response(&device, 2, NXS_RESULT_OK);
+    CHECK(reply.generation == 1 && device.generation == 1 && device.status.persisted_generation == 1);
+    CHECK(!device.persistence_pending);
+    send(&device, NXS_OPERATION_PERSIST_STATE, 2, 1, NULL);
+    response(&device, 2, NXS_RESULT_OK);
+    CHECK(!device.persistence_pending);
+    send(&device, NXS_OPERATION_APPLY_STATE, 6, 1, &next);
+    send(&device, NXS_OPERATION_PERSIST_STATE, 7, 1, NULL);
+    response(&device, 7, NXS_RESULT_BUSY);
+    CHECK(nxs_device_complete_apply(&device, NXS_RESULT_OK));
+    send(&device, NXS_OPERATION_PERSIST_STATE, 8, 1, NULL);
+    response(&device, 8, NXS_RESULT_STALE_GENERATION);
+    send(&device, NXS_OPERATION_PERSIST_STATE, 9, 2, NULL);
+    CHECK(nxs_device_pending_persistence(&device, &pending) && pending.generation == 2);
+    CHECK(nxs_device_complete_persistence(&device, NXS_RESULT_STORAGE_FAILED));
+    response(&device, 9, NXS_RESULT_STORAGE_FAILED);
+    CHECK(device.status.persisted_generation == 1 && device.generation == 2);
+    send(&device, NXS_OPERATION_PERSIST_STATE, 9, 2, NULL);
+    response(&device, 9, NXS_RESULT_STORAGE_FAILED);
+    CHECK(!device.persistence_pending);
+    send(&device, NXS_OPERATION_PERSIST_STATE, 10, 2, NULL);
+    CHECK(nxs_device_complete_persistence(&device, NXS_RESULT_OK));
+    response(&device, 10, NXS_RESULT_OK);
+    CHECK(device.status.persisted_generation == 2 && device.generation == 2);
+    CHECK(!nxs_device_complete_persistence(&device, NXS_RESULT_OK));
+    CHECK(!nxs_device_pending_persistence(NULL, &pending));
+    CHECK(!nxs_device_pending_persistence(&device, NULL));
+}
+
+static void test_persistence_session_reset(void) {
+    nxs_device_t device;
+    init(&device);
+    CHECK(nxs_device_configure_storage(&device, NXS_FLASH_SUPPORTED_BYTES, true, NULL));
+    send(&device, NXS_OPERATION_PERSIST_STATE, 1, 1, NULL);
+    nxs_device_reset_session(&device);
+    CHECK(device.persistence_pending);
+    send(&device, NXS_OPERATION_CAPABILITIES, 1, 0, NULL);
+    nxs_message_t reply = response(&device, 1, NXS_RESULT_OK);
+    CHECK(reply.operation == NXS_OPERATION_CAPABILITIES);
+    CHECK(nxs_device_complete_persistence(&device, NXS_RESULT_OK));
+    reply = response(&device, 1, NXS_RESULT_OK);
+    CHECK(reply.operation == NXS_OPERATION_CAPABILITIES);
+    send(&device, NXS_OPERATION_STATUS, 2, 0, NULL);
+    reply = response(&device, 2, NXS_RESULT_OK);
+    nxs_runtime_status_t status;
+    CHECK(nxs_runtime_status_decode(reply.payload, reply.payload_length, &status) == NXS_RESULT_OK);
+    CHECK(status.persisted_generation == 1 && status.storage_available && reply.generation == 1);
+}
+
 int main(void) {
     test_discovery();
     test_apply_acknowledgement_and_duplicates();
     test_busy_failure_and_disconnect();
     test_malformed_requests_do_not_mutate_state();
+    test_storage_boot_and_audio_status();
+    test_persistence_acknowledgement();
+    test_persistence_session_reset();
     return nxs_test_finish("Device control");
 }

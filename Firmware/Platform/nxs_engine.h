@@ -4,7 +4,10 @@
 #include "nxs_render.h"
 
 /** Initialize on the control core, then transfer DSP and output ownership to core 1. */
-void nxs_audio_engine_init(void);
+bool nxs_audio_engine_init(const nxs_snapshot_t *initial);
+void nxs_audio_engine_request_maintenance(bool requested);
+bool nxs_audio_engine_maintenance_ready(void);
+bool nxs_audio_engine_flash_ready(void);
 bool nxs_audio_engine_submit(const nxs_dsp_configuration_t *configuration);
 bool nxs_audio_engine_take_result(bool *accepted);
 void nxs_audio_engine_status(nxs_runtime_status_t *status);

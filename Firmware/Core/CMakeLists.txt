@@ -1,5 +1,11 @@
 add_library(nxs_device STATIC device.c audio.c render.c)
 target_include_directories(nxs_device PUBLIC include)
-target_link_libraries(nxs_device PUBLIC nxs_dsp)
+target_link_libraries(nxs_device PUBLIC nxs_dsp nxs_storage)
 target_compile_features(nxs_device PUBLIC c_std_11)
 target_compile_options(nxs_device PRIVATE -Wall -Wextra -Wpedantic -Werror)
+
+add_library(nxs_storage STATIC storage.c flash_geometry.c)
+target_include_directories(nxs_storage PUBLIC include)
+target_link_libraries(nxs_storage PUBLIC nxs_protocol)
+target_compile_features(nxs_storage PUBLIC c_std_11)
+target_compile_options(nxs_storage PRIVATE -Wall -Wextra -Wpedantic -Werror)

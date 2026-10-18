@@ -1,0 +1,12 @@
+#ifndef NXS_STORAGE_LAYOUT_H
+#define NXS_STORAGE_LAYOUT_H
+
+/* This macro-only header is also preprocessed into the linker reservation. */
+#define NXS_STORAGE_SLOT_COUNT 2
+#define NXS_STORAGE_SECTOR_BYTES 4096
+#define NXS_STORAGE_PAGE_BYTES 256
+#define NXS_STORAGE_RECORD_BYTES (2 * NXS_STORAGE_PAGE_BYTES)
+#define NXS_FLASH_SUPPORTED_BYTES (4 * 1024 * 1024)
+#define NXS_FLASH_RESERVED_BYTES (NXS_STORAGE_SLOT_COUNT * NXS_STORAGE_SECTOR_BYTES)
+
+#endif
