@@ -10,7 +10,7 @@ Run the complete shared-package checks from the repository root:
 bash Scripts/check.sh
 ```
 
-The script selects the Xcode build pinned in `toolchain.json`, installs the checksum-pinned local format/lint tools, checks source formatting and its regression fixtures, runs C host tests with address/undefined-behavior sanitizers, runs Swift tests, and builds the package in Release mode. It does not access a USB device.
+The script selects the Xcode build pinned in `toolchain.json`, installs the checksum-pinned local format/lint tools, checks source formatting and its regression fixtures, runs C host tests with address/undefined-behavior sanitizers, runs Swift tests, and builds the package in Release mode. It also cross-builds the [muted RP2350 DSP probe](DSP.md) using pinned project-local firmware tools. It does not access a USB device.
 
 ## Wire data
 

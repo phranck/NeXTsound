@@ -14,7 +14,7 @@ concurrency:
 
 jobs:
   shared:
-    name: Shared protocol and profiles
+    name: Shared libraries and RP2350 build
     runs-on: xcode-27
     steps:
       - name: Check out source
