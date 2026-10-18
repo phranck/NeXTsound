@@ -1,0 +1,281 @@
+{
+  "schema_version": 1,
+  "date": "2026-10-18",
+  "specimen_serial": "D4CDD489AFE28CC5",
+  "firmware_evidence": "AudioFormats-2026-10-18.json",
+  "firmware_reported_revision": "74c1c8ab-dirty",
+  "implementation_commit": "20d9d368900080b51a592f77abf4caf9b69ff034",
+  "method": "Explicit-device native HAL PCM24 at 48 kHz with 1 kHz, amplitude-0.125 stereo input; serial-scoped canonical HID requests while the stream runs.",
+  "maximum_configuration": {
+    "muted": true,
+    "high_pass_enabled": true,
+    "high_pass_hz": 5000,
+    "attenuation_db": 0,
+    "eq_frequency_hz": [
+      20,
+      100,
+      1000,
+      10000,
+      20000
+    ],
+    "all_five_eq_bands_enabled": true,
+    "eq_gain_db": 12,
+    "eq_quality": 10,
+    "limiter_threshold_db": -36,
+    "limiter_release_ms": 2000
+  },
+  "audio": {
+    "kind": "audio_run_complete",
+    "bits": 24,
+    "frames": 588800,
+    "default_uids_unchanged": true
+  },
+  "status_samples": [
+    {
+      "kind": "status",
+      "persisted_generation": 3,
+      "storage_available": 1,
+      "streaming": 0,
+      "input_peak": 0,
+      "output_peak": 0,
+      "underruns": 0,
+      "overruns": 0,
+      "max_processing_us": 919,
+      "deadline_us": 1000
+    },
+    {
+      "kind": "status",
+      "persisted_generation": 3,
+      "storage_available": 1,
+      "streaming": 1,
+      "input_peak": 0.125,
+      "output_peak": 0,
+      "underruns": 0,
+      "overruns": 0,
+      "max_processing_us": 919,
+      "deadline_us": 1000
+    },
+    {
+      "kind": "status",
+      "persisted_generation": 3,
+      "storage_available": 1,
+      "streaming": 1,
+      "input_peak": 0.125,
+      "output_peak": 0,
+      "underruns": 0,
+      "overruns": 0,
+      "max_processing_us": 919,
+      "deadline_us": 1000
+    },
+    {
+      "kind": "status",
+      "persisted_generation": 4,
+      "storage_available": 1,
+      "streaming": 1,
+      "input_peak": 0,
+      "output_peak": 0,
+      "underruns": 0,
+      "overruns": 8,
+      "max_processing_us": 919,
+      "deadline_us": 1000
+    },
+    {
+      "kind": "status",
+      "persisted_generation": 4,
+      "storage_available": 1,
+      "streaming": 1,
+      "input_peak": 0.125,
+      "output_peak": 0,
+      "underruns": 0,
+      "overruns": 8,
+      "max_processing_us": 919,
+      "deadline_us": 1000
+    },
+    {
+      "kind": "status",
+      "persisted_generation": 4,
+      "storage_available": 1,
+      "streaming": 1,
+      "input_peak": 0.125,
+      "output_peak": 0,
+      "underruns": 0,
+      "overruns": 8,
+      "max_processing_us": 919,
+      "deadline_us": 1000
+    },
+    {
+      "kind": "status",
+      "persisted_generation": 4,
+      "storage_available": 1,
+      "streaming": 1,
+      "input_peak": 0.125,
+      "output_peak": 0,
+      "underruns": 0,
+      "overruns": 8,
+      "max_processing_us": 919,
+      "deadline_us": 1000
+    },
+    {
+      "kind": "status",
+      "persisted_generation": 4,
+      "storage_available": 1,
+      "streaming": 1,
+      "input_peak": 0.125,
+      "output_peak": 0,
+      "underruns": 0,
+      "overruns": 8,
+      "max_processing_us": 919,
+      "deadline_us": 1000
+    },
+    {
+      "kind": "status",
+      "persisted_generation": 4,
+      "storage_available": 1,
+      "streaming": 1,
+      "input_peak": 0.125,
+      "output_peak": 0,
+      "underruns": 0,
+      "overruns": 8,
+      "max_processing_us": 919,
+      "deadline_us": 1000
+    },
+    {
+      "kind": "status",
+      "persisted_generation": 4,
+      "storage_available": 1,
+      "streaming": 1,
+      "input_peak": 0.125,
+      "output_peak": 0,
+      "underruns": 0,
+      "overruns": 8,
+      "max_processing_us": 919,
+      "deadline_us": 1000
+    },
+    {
+      "kind": "status",
+      "persisted_generation": 4,
+      "storage_available": 1,
+      "streaming": 1,
+      "input_peak": 0.125,
+      "output_peak": 0,
+      "underruns": 0,
+      "overruns": 8,
+      "max_processing_us": 919,
+      "deadline_us": 1000
+    },
+    {
+      "kind": "status",
+      "persisted_generation": 4,
+      "storage_available": 1,
+      "streaming": 1,
+      "input_peak": 0.125,
+      "output_peak": 0,
+      "underruns": 0,
+      "overruns": 8,
+      "max_processing_us": 919,
+      "deadline_us": 1000
+    },
+    {
+      "kind": "status",
+      "persisted_generation": 4,
+      "storage_available": 1,
+      "streaming": 1,
+      "input_peak": 0.125,
+      "output_peak": 0,
+      "underruns": 0,
+      "overruns": 8,
+      "max_processing_us": 919,
+      "deadline_us": 1000
+    },
+    {
+      "kind": "status",
+      "persisted_generation": 4,
+      "storage_available": 1,
+      "streaming": 1,
+      "input_peak": 0.125,
+      "output_peak": 0,
+      "underruns": 0,
+      "overruns": 8,
+      "max_processing_us": 919,
+      "deadline_us": 1000
+    },
+    {
+      "kind": "status",
+      "persisted_generation": 5,
+      "storage_available": 1,
+      "streaming": 1,
+      "input_peak": 0.125,
+      "output_peak": 0,
+      "underruns": 0,
+      "overruns": 17,
+      "max_processing_us": 919,
+      "deadline_us": 1000
+    },
+    {
+      "kind": "status",
+      "persisted_generation": 5,
+      "storage_available": 1,
+      "streaming": 1,
+      "input_peak": 0.125,
+      "output_peak": 0,
+      "underruns": 0,
+      "overruns": 17,
+      "max_processing_us": 919,
+      "deadline_us": 1000
+    },
+    {
+      "kind": "status",
+      "persisted_generation": 5,
+      "storage_available": 1,
+      "streaming": 1,
+      "input_peak": 0.125,
+      "output_peak": 0,
+      "underruns": 0,
+      "overruns": 17,
+      "max_processing_us": 919,
+      "deadline_us": 1000
+    }
+  ],
+  "persistence": {
+    "saved_generations": [
+      4,
+      5
+    ],
+    "exact_apply_and_persist_retries_verified": true,
+    "stale_generation_rejected": true,
+    "baseline_snapshot_restored_byte_identically": true,
+    "baseline_snapshot_sha256": "c9a6a3babe383f1c7eedd5669d4fe68d33593d645dec82597790fd8ab3ac6ff6",
+    "final_generation": 5,
+    "final_persisted_generation": 5,
+    "final_attenuation_db": -24,
+    "final_muted": true
+  },
+  "counter_observations": {
+    "before_saves_overruns": 0,
+    "after_first_save_overruns": 8,
+    "after_second_save_overruns": 17,
+    "stable_streaming_counters_unchanged_between_saves": true,
+    "after_stop_underruns": 1,
+    "maximum_processing_us_before_and_during_run": 919,
+    "block_deadline_us": 1000,
+    "interpretation": "The aggregate overrun counter increased at saves, consistent with the intentional maintenance producer gate. It combines rejected packets, DSP failures, and deadline misses; these samples do not classify each increment independently."
+  },
+  "suspend_attempt": {
+    "method": "Serial/VID/PID-matched IOUSBDeviceInterface500, USBDeviceOpen without seize, then USBDeviceSuspend(true).",
+    "open_returned_success": true,
+    "suspend_returned_success": true,
+    "suspended_port_bit_after_one_second": false,
+    "cleanup_resume_returned_success": true,
+    "post_attempt_hid_reachable": true,
+    "default_output_uids_unchanged": true,
+    "accepted": false
+  },
+  "limits": [
+    "Digitally muted profile throughout; all six filters and limiter state execute before the profile-mute return. The final unmuted clamp path was not exercised.",
+    "Maximum processing is a boot-session high-water value, already 919 us before this run, not a configuration-specific histogram.",
+    "The measured interval excludes DMA wait/submission. This is not a universal real-time or electrical headroom claim.",
+    "The host generated 588800 frames; this is not a measurement of frames at the speaker or I2S pins.",
+    "The post-stop underrun source and confirmed physical suspend/resume still require investigation.",
+    "No electrical measurements, audible qualification, physical power-loss test, or runtime stack high-water measurement."
+  ]
+}
