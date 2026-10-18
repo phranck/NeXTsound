@@ -1,0 +1,16 @@
+; Two instructions per bit, 32 bits per slot. Side-set bit 0 is BCLK;
+; bit 1 is LRCLK. The word clock changes one bit before the next MSB.
+.program nxs_i2s
+.side_set 2
+.wrap_target
+    set x, 30       side 0b01
+left_channel:
+    out pins, 1             side 0b00
+    jmp x-- left_channel    side 0b01
+    out pins, 1             side 0b10
+    set x, 30               side 0b11
+right_channel:
+    out pins, 1             side 0b10
+    jmp x-- right_channel   side 0b11
+    out pins, 1     side 0b00
+.wrap

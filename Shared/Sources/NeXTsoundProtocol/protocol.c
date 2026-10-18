@@ -134,10 +134,14 @@ static bool capabilities_are_valid(const nxs_capabilities_t *capabilities) {
     return true;
 }
 
+bool nxs_host_volume_is_valid(float volume_db) {
+    return isfinite(volume_db) && volume_db >= NXS_HOST_VOLUME_MIN_DB && volume_db <= NXS_HOST_VOLUME_MAX_DB;
+}
+
 static bool runtime_status_is_valid(const nxs_runtime_status_t *status) {
     return status && status->streaming <= 1 && status->host_muted <= 1 && status->storage_available <= 1 && isfinite(status->input_peak) &&
            status->input_peak >= 0.0f && status->input_peak <= 1.0f && isfinite(status->output_peak) && status->output_peak >= 0.0f &&
-           status->output_peak <= 1.0f && within_range(status->host_volume_db, NXS_PARAMETER_ATTENUATION_DB);
+           status->output_peak <= 1.0f && nxs_host_volume_is_valid(status->host_volume_db);
 }
 
 nxs_parameter_range_t nxs_parameter_range(nxs_parameter_t parameter) {

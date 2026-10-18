@@ -47,6 +47,8 @@ typedef struct {
 bool nxs_dsp_prepare(const nxs_snapshot_t *snapshot, nxs_dsp_configuration_t *configuration);
 /** Initialize a muted engine. The caller owns the engine on the audio thread. */
 void nxs_dsp_init(nxs_dsp_t *engine);
+/** Clear signal history without changing settings or an in-flight transition. */
+void nxs_dsp_reset_history(nxs_dsp_t *engine);
 /** Apply a prepared configuration at a block boundary. False means a transition is already active. */
 bool nxs_dsp_apply(nxs_dsp_t *engine, const nxs_dsp_configuration_t *configuration);
 /** Process at most one bounded block of normalized interleaved stereo into mono. */

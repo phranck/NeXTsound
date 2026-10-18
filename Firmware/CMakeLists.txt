@@ -14,6 +14,7 @@ set(CMAKE_CXX_STANDARD 17)
 pico_sdk_init()
 
 add_subdirectory("${CMAKE_CURRENT_LIST_DIR}/../Shared" "${CMAKE_CURRENT_BINARY_DIR}/shared")
+add_subdirectory(Core)
 add_executable(nxs_dsp_probe probe.c)
 target_link_libraries(nxs_dsp_probe PRIVATE nxs_dsp pico_stdlib hardware_clocks)
 target_compile_options(nxs_dsp_probe PRIVATE -Wall -Wextra -Werror)
@@ -22,3 +23,30 @@ pico_enable_stdio_uart(nxs_dsp_probe 0)
 pico_set_program_name(nxs_dsp_probe "NeXTsound DSP build probe")
 pico_set_program_description(nxs_dsp_probe "Muted DSP cross-build probe; no USB or audio output")
 pico_add_extra_outputs(nxs_dsp_probe)
+
+find_package(Git REQUIRED)
+execute_process(COMMAND "${GIT_EXECUTABLE}" rev-parse --short=8 HEAD
+    WORKING_DIRECTORY "${CMAKE_CURRENT_LIST_DIR}/.." OUTPUT_VARIABLE NXS_GIT_VERSION OUTPUT_STRIP_TRAILING_WHITESPACE)
+execute_process(COMMAND "${GIT_EXECUTABLE}" diff-index --quiet HEAD --
+    WORKING_DIRECTORY "${CMAKE_CURRENT_LIST_DIR}/.." RESULT_VARIABLE NXS_GIT_DIRTY)
+if(NXS_GIT_DIRTY)
+    string(APPEND NXS_GIT_VERSION "-dirty")
+endif()
+
+add_executable(nxs_firmware main.c Platform/engine.c Platform/i2s.c USB/control.c USB/descriptors.c)
+target_include_directories(nxs_firmware PRIVATE Platform USB)
+target_link_libraries(nxs_firmware PRIVATE nxs_device pico_stdlib pico_multicore pico_unique_id pico_util
+    tinyusb_device tinyusb_board hardware_clocks hardware_pio hardware_dma)
+target_compile_options(nxs_firmware PRIVATE -Wall -Wextra -Werror -fstack-usage)
+foreach(NXS_LIBRARY nxs_protocol nxs_dsp nxs_device)
+    target_compile_options(${NXS_LIBRARY} PRIVATE -fstack-usage)
+endforeach()
+target_compile_definitions(nxs_firmware PRIVATE NXS_FIRMWARE_VERSION="${NXS_GIT_VERSION}"
+    PICO_STACK_SIZE=0x1000 PICO_CORE1_STACK_SIZE=0x1000)
+pico_generate_pio_header(nxs_firmware "${CMAKE_CURRENT_LIST_DIR}/Platform/i2s.pio")
+pico_enable_stdio_usb(nxs_firmware 0)
+pico_enable_stdio_uart(nxs_firmware 0)
+pico_set_program_name(nxs_firmware "NeXTsound development firmware")
+pico_set_program_version(nxs_firmware "${NXS_GIT_VERSION}")
+pico_set_program_description(nxs_firmware "USB audio and HID control; mono I2S; muted start")
+pico_add_extra_outputs(nxs_firmware)

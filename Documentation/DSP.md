@@ -16,7 +16,7 @@ Call `nxs_dsp_prepare` outside the audio thread to compute a complete configurat
 
 The engine crossfades two complete processing chains over `NXS_DSP_TRANSITION_FRAMES`. During a transition, the output also obeys the incoming configuration's limiter ceiling. Old and new chains have independent delay and limiter state. The extra work of a transition belongs in the eventual on-device runtime budget.
 
-`nxs_dsp_process` accepts no more than `NXS_DSP_BLOCK_FRAMES` per call. Rejection leaves the engine unchanged. It allocates no memory and calls no USB or flash API. The caller provides input/output buffers and handles device synchronization.
+`nxs_dsp_process` accepts no more than `NXS_DSP_BLOCK_FRAMES` per call. Rejection leaves the engine unchanged. It allocates no memory and calls no USB or flash API. The caller provides input/output buffers and handles device synchronization. `nxs_dsp_reset_history` clears both chains' signal history and meters without changing their prepared settings or transition progress. The renderer uses it only after its output envelope has reached silence.
 
 ## EQ preview
 
@@ -30,7 +30,7 @@ Run all shared tests, formatting/lint checks, the Release package build, and the
 bash Scripts/check.sh
 ```
 
-Build only the firmware probe:
+Build the firmware targets:
 
 ```bash
 bash Scripts/firmware.sh
@@ -38,7 +38,7 @@ bash Scripts/firmware.sh
 
 The firmware bootstrap currently supports an Apple Silicon macOS build host. `toolchain.json` pins the compiler archive/checksum, SDK commit, TinyUSB commit, and build-time picotool commit. Tools and dependencies are installed under ignored `.tools`. The first run downloads them. The local and CI gates use the same manifest.
 
-`Firmware/probe.c` requests the canonical 150 MHz clock and exercises the muted engine without configuring USB, UART output, or I²S. Outputs are under `.build/firmware`, including `nxs_dsp_probe.elf` and `nxs_dsp_probe.uf2`. This probe is not the USB audio firmware. The build script never installs it or accesses a device. The SDK's configured flash size is not a physical flash measurement.
+`Firmware/probe.c` requests the canonical 150 MHz clock and exercises the muted engine without configuring USB, UART output, or I²S. Outputs are under `.build/firmware`, including `nxs_dsp_probe.elf` and `nxs_dsp_probe.uf2`. The same build also produces the [USB audio/HID firmware](Firmware.md) as `nxs_firmware.elf` and `nxs_firmware.uf2`. The probe remains a separate no-I/O target. The build script inspects the firmware file but never installs it or accesses a device. The SDK's configured flash size is not a physical flash measurement.
 
 Host tests cover stereo normalization, analytic and processed filter response, DC rejection with a Float32 tolerance, limiting/release, transitions, malformed settings/samples, configuration aliasing, and parameter corners. The cross-build establishes that the RP2350 target compiles and links. Runtime timing, I²S signals, USB behavior, and speaker safety require separate hardware verification.
 

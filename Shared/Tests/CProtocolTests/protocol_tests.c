@@ -1,20 +1,9 @@
 #include "nxs_protocol.h"
+#include "nxs_test.h"
 
 #include <math.h>
 #include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
-
-static unsigned int assertion_count;
-
-#define CHECK(condition)                                                                                                                   \
-    do {                                                                                                                                   \
-        ++assertion_count;                                                                                                                 \
-        if (!(condition)) {                                                                                                                \
-            fprintf(stderr, "%s:%d: %s\n", __FILE__, __LINE__, #condition);                                                                \
-            exit(EXIT_FAILURE);                                                                                                            \
-        }                                                                                                                                  \
-    } while (0)
 
 static void test_golden_message(const char *fixture_path) {
     FILE *fixture = fopen(fixture_path, "r");
@@ -162,6 +151,13 @@ static void test_capability_validation(void) {
 }
 
 static void test_runtime_status(void) {
+    CHECK(nxs_host_volume_is_valid(-80));
+    CHECK(nxs_host_volume_is_valid(0));
+    CHECK(!nxs_host_volume_is_valid(-80.1f));
+    CHECK(!nxs_host_volume_is_valid(0.1f));
+    CHECK(!nxs_host_volume_is_valid(NAN));
+    CHECK(!nxs_host_volume_is_valid(INFINITY));
+    CHECK(!nxs_host_volume_is_valid(-INFINITY));
     nxs_runtime_status_t original = {0};
     original.persisted_generation = 17;
     original.block_deadline_us = 1000;
@@ -190,6 +186,5 @@ int main(int argument_count, char **arguments) {
     test_snapshot_rejection();
     test_capability_validation();
     test_runtime_status();
-    printf("Protocol checks passed: %u assertions\n", assertion_count);
-    return EXIT_SUCCESS;
+    return nxs_test_finish("Protocol");
 }

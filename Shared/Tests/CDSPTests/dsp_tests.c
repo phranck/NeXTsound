@@ -1,20 +1,8 @@
 #include "nxs_dsp.h"
+#include "nxs_test.h"
 
 #include <math.h>
-#include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
-
-static unsigned int assertions;
-
-#define CHECK(condition)                                                                                                                   \
-    do {                                                                                                                                   \
-        ++assertions;                                                                                                                      \
-        if (!(condition)) {                                                                                                                \
-            fprintf(stderr, "%s:%d: %s\n", __FILE__, __LINE__, #condition);                                                                \
-            exit(EXIT_FAILURE);                                                                                                            \
-        }                                                                                                                                  \
-    } while (0)
 
 static nxs_snapshot_t flat_snapshot(void) {
     nxs_snapshot_t snapshot = nxs_default_snapshot();
@@ -209,6 +197,27 @@ static void test_invalid_data_and_bounds(void) {
     CHECK(!nxs_dsp_process(&engine, stereo, NULL, 1));
 }
 
+static void test_history_reset_preserves_settings(void) {
+    nxs_snapshot_t snapshot = flat_snapshot();
+    snapshot.high_pass_enabled = 1;
+    snapshot.high_pass_hz = 100;
+    nxs_dsp_t engine, reference;
+    configure(&engine, &snapshot);
+    configure(&reference, &snapshot);
+    float stereo[NXS_DSP_BLOCK_FRAMES * 2], mono[NXS_DSP_BLOCK_FRAMES], expected[NXS_DSP_BLOCK_FRAMES];
+    for (size_t index = 0; index < NXS_DSP_BLOCK_FRAMES * 2; ++index) {
+        stereo[index] = 0.1f;
+    }
+    for (size_t block = 0; block < 10; ++block) {
+        CHECK(nxs_dsp_process(&engine, stereo, mono, NXS_DSP_BLOCK_FRAMES));
+    }
+    nxs_dsp_reset_history(&engine);
+    CHECK(engine.meter.output_peak == 0 && engine.transition_remaining == 0);
+    CHECK(nxs_dsp_process(&engine, stereo, mono, NXS_DSP_BLOCK_FRAMES));
+    CHECK(nxs_dsp_process(&reference, stereo, expected, NXS_DSP_BLOCK_FRAMES));
+    CHECK(memcmp(mono, expected, sizeof(mono)) == 0);
+}
+
 static void test_maximum_configuration(void) {
     nxs_snapshot_t snapshot = flat_snapshot();
     snapshot.high_pass_enabled = 1;
@@ -273,8 +282,8 @@ int main(void) {
     test_limiter_and_release();
     test_transition_and_busy();
     test_invalid_data_and_bounds();
+    test_history_reset_preserves_settings();
     test_maximum_configuration();
     test_parameter_corners();
-    printf("DSP checks passed: %u assertions\n", assertions);
-    return EXIT_SUCCESS;
+    return nxs_test_finish("DSP");
 }

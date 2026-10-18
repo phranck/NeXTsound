@@ -1,0 +1,5 @@
+add_library(nxs_device STATIC device.c audio.c render.c)
+target_include_directories(nxs_device PUBLIC include)
+target_link_libraries(nxs_device PUBLIC nxs_dsp)
+target_compile_features(nxs_device PUBLIC c_std_11)
+target_compile_options(nxs_device PRIVATE -Wall -Wextra -Wpedantic -Werror)
