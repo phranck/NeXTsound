@@ -8,9 +8,9 @@ The RP2350 target integrates 48 kHz stereo UAC2 playback, vendor-defined HID con
 bash Scripts/firmware.sh
 ```
 
-The script bootstraps the pinned project-local tools, builds both firmware targets, and inspects `nxs_firmware.uf2` as a file. It does not access a connected board or install firmware. Outputs are in `.build/firmware`. The separate `nxs_dsp_probe` target configures no USB or audio output.
+The script bootstraps the pinned project-local tools, builds all three firmware targets, and inspects `nxs_firmware.uf2` as a file. It does not access a connected board or install firmware. Outputs are in `.build/firmware`. The separate `nxs_dsp_probe` target configures no USB or audio output. The SRAM-only `nxs_flash_probe` reads chip metadata over USB CDC; its ELF load ranges are checked during the build. See [flash identification and recovery](Backup.md).
 
-`toolchain.json` supplies the board and dependency revisions. The program version identifies the Git revision and marks tracked working-tree changes. Both cores reserve 4 KiB stacks in the SDK's scratch banks. GCC emits `.su` frame reports beside its objects. These reports are not a measurement of interrupt-inclusive stack high-water use.
+`toolchain.json` supplies the board and dependency revisions. The program version identifies the Git revision and marks tracked working-tree changes. The audio firmware reserves 4 KiB stacks for both cores in the SDK's scratch banks. GCC emits `.su` frame reports beside its objects. These reports are not a measurement of interrupt-inclusive stack high-water use.
 
 ## USB interfaces
 
@@ -56,7 +56,7 @@ Runtime status reports digital input peak after host-volume processing and final
 bash Scripts/check.sh
 ```
 
-The complete gate checks source formatting, formatting regression fixtures, SwiftLint, sanitized C suites, Swift tests, the Release package, and both RP2350 targets. Firmware integration tests inspect the actual descriptor arrays, exercise the real USB callbacks against a platform fixture, and model the generated PIO instructions under the configured shift/autopull assumptions. They do not emulate the USB controller, DMA timing, pad signals, or amplifier.
+The complete gate checks source formatting, formatting regression fixtures, SwiftLint, sanitized C suites, Swift tests, the Release package, and all three RP2350 targets. Firmware integration tests inspect the actual descriptor arrays, exercise the real USB callbacks against a platform fixture, and model the generated PIO instructions under the configured shift/autopull assumptions. They do not emulate the USB controller, DMA timing, pad signals, or amplifier.
 
 Before installation, identify the intended specimen, establish physical flash geometry, preserve and verify its complete flash, and record restoration. A configured SDK flash size is not that measurement. USB enumeration, format/lifecycle behavior, runtime headroom, I2S signals, wiring, and speaker safety remain on-device acceptance work in [issue 3](https://github.com/phranck/NeXTsound/issues/3), following the storage/backup slice in [issue 9](https://github.com/phranck/NeXTsound/issues/9).
 
