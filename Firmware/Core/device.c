@@ -15,6 +15,7 @@ bool nxs_device_init(nxs_device_t *device, const char *serial, const char *firmw
         return false;
     }
     nxs_capabilities_t capabilities = nxs_default_capabilities();
+    capabilities.feature_flags = NXS_FEATURE_DIAGNOSTICS;
     uint8_t payload[NXS_CAPABILITIES_SIZE];
     if (!copy_text(capabilities.device_serial, serial) || !copy_text(capabilities.firmware_version, firmware_version) ||
         nxs_capabilities_encode(&capabilities, payload, sizeof(payload)) != NXS_RESULT_OK) {
@@ -38,7 +39,8 @@ bool nxs_device_configure_storage(nxs_device_t *device, uint32_t flash_size_byte
         return false;
     }
     device->capabilities.flash_size_bytes = flash_size_bytes;
-    device->capabilities.feature_flags = (flash_size_bytes ? NXS_FEATURE_FLASH_VERIFIED : 0u) | (available ? NXS_FEATURE_PERSISTENCE : 0u);
+    device->capabilities.feature_flags =
+        NXS_FEATURE_DIAGNOSTICS | (flash_size_bytes ? NXS_FEATURE_FLASH_VERIFIED : 0u) | (available ? NXS_FEATURE_PERSISTENCE : 0u);
     device->status.storage_available = available ? 1u : 0u;
     if (restored) {
         device->active = restored->snapshot;
@@ -63,9 +65,18 @@ bool nxs_device_update_audio_status(nxs_device_t *device, const nxs_runtime_stat
     return true;
 }
 
+bool nxs_device_update_diagnostics(nxs_device_t *device, const nxs_runtime_diagnostics_t *diagnostics) {
+    if (!device || !diagnostics) {
+        return false;
+    }
+    device->diagnostics = *diagnostics;
+    return true;
+}
+
 static nxs_message_t response_for(const nxs_device_t *device, const nxs_message_t *request, nxs_result_t result) {
     nxs_message_t response = {0};
     response.operation = request->operation;
+    response.protocol_minor = request->protocol_minor;
     response.request_id = request->request_id;
     response.flags = NXS_FLAG_RESPONSE;
     response.result = result;
@@ -135,10 +146,15 @@ bool nxs_device_receive(nxs_device_t *device, const uint8_t *report, size_t leng
         response.result = NXS_RESULT_INVALID_PARAMETERS;
     } else {
         switch (request.operation) {
-        case NXS_OPERATION_CAPABILITIES:
+        case NXS_OPERATION_CAPABILITIES: {
+            nxs_capabilities_t capabilities = device->capabilities;
+            if (request.protocol_minor < NXS_DIAGNOSTICS_PROTOCOL_MINOR) {
+                capabilities.feature_flags &= (uint16_t)~NXS_FEATURE_DIAGNOSTICS;
+            }
             response.payload_length = NXS_CAPABILITIES_SIZE;
-            response.result = nxs_capabilities_encode(&device->capabilities, response.payload, response.payload_length);
+            response.result = nxs_capabilities_encode(&capabilities, response.payload, response.payload_length);
             break;
+        }
         case NXS_OPERATION_READ_STATE:
             response.payload_length = NXS_SNAPSHOT_SIZE;
             response.result = nxs_snapshot_encode(&device->active, response.payload, response.payload_length);
@@ -146,6 +162,10 @@ bool nxs_device_receive(nxs_device_t *device, const uint8_t *report, size_t leng
         case NXS_OPERATION_STATUS:
             response.payload_length = NXS_RUNTIME_STATUS_SIZE;
             response.result = nxs_runtime_status_encode(&device->status, response.payload, response.payload_length);
+            break;
+        case NXS_OPERATION_DIAGNOSTICS:
+            response.payload_length = NXS_RUNTIME_DIAGNOSTICS_SIZE;
+            response.result = nxs_runtime_diagnostics_encode(&device->diagnostics, response.payload, response.payload_length);
             break;
         case NXS_OPERATION_PERSIST_STATE:
             if (!device->status.storage_available) {

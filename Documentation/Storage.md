@@ -8,7 +8,7 @@ The firmware connects this core to deferred device persistence through geometry-
 
 There are two isolated 4096-byte sectors. A record occupies the first 512 bytes of a sector. Each 256-byte page is programmed once after erase. The remaining sector bytes are unused by this format.
 
-All integers are little-endian. Storage format version 1 embeds protocol snapshot version 1.0. Unknown versions, generation zero, invalid snapshots, and dirty padding are rejected.
+All integers are little-endian. Storage format version 1 embeds protocol snapshot version 1.0 through `NXS_SNAPSHOT_PROTOCOL_MAJOR` and `NXS_SNAPSHOT_PROTOCOL_MINOR`. This version does not advance when the HID envelope adds operations. Unknown versions, generation zero, invalid snapshots, and dirty padding are rejected.
 
 | Data-page offset | Bytes | Meaning |
 | --- | --- | --- |
@@ -84,4 +84,4 @@ These were control/storage tests without a USB audio stream. They do not establi
 
 [`storage_tests.c`](../Firmware/Tests/storage_tests.c) uses fresh in-memory sectors. Its NOR model programs bits only from one to zero. Tests cover every byte-prefix cutoff across both program pages and a sector erase, every individual record-bit corruption, CRC-valid malformed headers/snapshots, I/O failures, conflicting generations, and a newest record corrupted before the next save.
 
-The host tests compare CRCs with zlib from the pinned Xcode SDK. Removing the data-CRC check or commit-magic check separately causes the corruption test to fail. With both checks present, 84338 assertions pass. These are software-model results, not physical power-loss tests or flash-execution timing measurements. Geometry tests use only captured SFDP metadata, not original user flash. USB callback fixtures cover deferred saves, producer gating, post-flash draining, telemetry ownership, exact retries, and session-reset completion. The reset-driver fixture checks request type, interface, values, stages, and bus-reset cancellation. Removing telemetry-field ownership makes the actual callback regression fail.
+The host tests compare CRCs with zlib from the pinned Xcode SDK. Removing the data-CRC check or commit-magic check separately causes the corruption test to fail. With both checks present, 84339 assertions pass. These are software-model results, not physical power-loss tests or flash-execution timing measurements. Geometry tests use only captured SFDP metadata, not original user flash. USB callback fixtures cover deferred saves, producer gating, post-flash draining, telemetry ownership, exact retries, and session-reset completion. The reset-driver fixture checks request type, interface, values, stages, and bus-reset cancellation. Removing telemetry-field ownership makes the actual callback regression fail.

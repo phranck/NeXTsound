@@ -16,7 +16,7 @@ static queue_t configuration_queue;
 static queue_t result_queue;
 static queue_t status_queue;
 static queue_t host_control_queue;
-static nxs_runtime_status_t latest_status;
+static nxs_audio_observation_t latest_observation;
 static _Atomic uint32_t transport_state;
 static _Atomic uint32_t receive_overruns;
 static nxs_audio_maintenance_t maintenance;
@@ -50,11 +50,9 @@ static void apply_pending(nxs_renderer_t *renderer) {
 }
 
 static void publish_status(const nxs_renderer_t *renderer, uint32_t maximum_us, uint32_t deadline_misses) {
-    nxs_runtime_status_t status = renderer->status;
-    status.underrun_count += nxs_i2s_stall_count();
-    status.overrun_count += deadline_misses + atomic_load_explicit(&receive_overruns, memory_order_relaxed);
-    status.max_processing_us = maximum_us;
-    (void)queue_try_add(&status_queue, &status);
+    nxs_audio_observation_t observation = nxs_renderer_observe(
+        renderer, maximum_us, nxs_i2s_stall_count(), atomic_load_explicit(&receive_overruns, memory_order_relaxed), deadline_misses);
+    (void)queue_try_add(&status_queue, &observation);
 }
 
 static void audio_owner(void) {
@@ -117,11 +115,11 @@ bool nxs_audio_engine_init(const nxs_snapshot_t *initial) {
     nxs_audio_ring_init(&ring);
     queue_init(&configuration_queue, sizeof(nxs_dsp_configuration_t), 1);
     queue_init(&result_queue, sizeof(bool), 1);
-    queue_init(&status_queue, sizeof(nxs_runtime_status_t), 2);
+    queue_init(&status_queue, sizeof(nxs_audio_observation_t), 2);
     queue_init(&host_control_queue, sizeof(nxs_render_control_t), NXS_HOST_CONTROL_QUEUE_COUNT);
     atomic_init(&transport_state, 0);
     atomic_init(&receive_overruns, 0);
-    latest_status.block_deadline_us = NXS_DSP_BLOCK_DEADLINE_US;
+    latest_observation.status.block_deadline_us = NXS_DSP_BLOCK_DEADLINE_US;
     (void)nxs_audio_engine_host_controls(0, false);
     multicore_launch_core1(audio_owner);
     absolute_time_t deadline = make_timeout_time_ms(NXS_AUDIO_OWNER_START_TIMEOUT_MS);
@@ -159,10 +157,10 @@ bool nxs_audio_engine_take_result(bool *accepted) {
     return queue_try_remove(&result_queue, accepted);
 }
 
-void nxs_audio_engine_status(nxs_runtime_status_t *status) {
-    while (queue_try_remove(&status_queue, &latest_status)) {
+void nxs_audio_engine_status(nxs_audio_observation_t *observation) {
+    while (queue_try_remove(&status_queue, &latest_observation)) {
     }
-    *status = latest_status;
+    *observation = latest_observation;
 }
 
 void nxs_audio_engine_transport(bool streaming, bool suspended, uint32_t epoch) {

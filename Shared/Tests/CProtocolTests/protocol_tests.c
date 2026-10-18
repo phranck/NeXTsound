@@ -178,6 +178,62 @@ static void test_runtime_status(void) {
     CHECK(nxs_runtime_status_encode(&original, payload, sizeof(payload)) == NXS_RESULT_INVALID_PARAMETERS);
 }
 
+static void test_diagnostic_payload(void) {
+    nxs_runtime_diagnostics_t original = {.ring_underrun_count = 0x12345678u,
+                                          .i2s_stall_count = 2,
+                                          .rejected_packet_count = UINT32_MAX,
+                                          .dsp_failure_count = 4,
+                                          .deadline_miss_count = 5,
+                                          .usb_suspend_count = 6,
+                                          .usb_resume_count = 7};
+    const uint8_t expected[NXS_RUNTIME_DIAGNOSTICS_SIZE] = {1, 0, 32, 0, 0x78, 0x56, 0x34, 0x12, 2, 0, 0, 0, 0xff, 0xff, 0xff, 0xff,
+                                                            4, 0, 0,  0, 5,    0,    0,    0,    6, 0, 0, 0, 7,    0,    0,    0};
+    uint8_t payload[NXS_RUNTIME_DIAGNOSTICS_SIZE];
+    CHECK(nxs_runtime_diagnostics_encode(&original, payload, sizeof(payload)) == NXS_RESULT_OK);
+    CHECK(memcmp(payload, expected, sizeof(payload)) == 0);
+    nxs_runtime_diagnostics_t decoded;
+    CHECK(nxs_runtime_diagnostics_decode(payload, sizeof(payload), &decoded) == NXS_RESULT_OK);
+    CHECK(memcmp(&original, &decoded, sizeof(original)) == 0);
+    for (size_t length = 0; length < sizeof(payload); ++length) {
+        CHECK(nxs_runtime_diagnostics_decode(payload, length, &decoded) == NXS_RESULT_INVALID_REPORT);
+        CHECK(memcmp(&original, &decoded, sizeof(original)) == 0);
+    }
+    payload[0] = 2;
+    CHECK(nxs_runtime_diagnostics_decode(payload, sizeof(payload), &decoded) == NXS_RESULT_UNSUPPORTED_VERSION);
+    CHECK(memcmp(&original, &decoded, sizeof(original)) == 0);
+    payload[0] = 1;
+    payload[2] = 31;
+    CHECK(nxs_runtime_diagnostics_decode(payload, sizeof(payload), &decoded) == NXS_RESULT_INVALID_REPORT);
+    CHECK(memcmp(&original, &decoded, sizeof(original)) == 0);
+    CHECK(nxs_runtime_diagnostics_decode(NULL, sizeof(payload), &decoded) == NXS_RESULT_INVALID_REPORT);
+    CHECK(nxs_runtime_diagnostics_decode(expected, sizeof(expected), NULL) == NXS_RESULT_INVALID_REPORT);
+    memset(payload, 0xa5, sizeof(payload));
+    CHECK(nxs_runtime_diagnostics_encode(NULL, payload, sizeof(payload)) == NXS_RESULT_INVALID_REPORT);
+    CHECK(payload[0] == 0xa5 && payload[31] == 0xa5);
+    CHECK(nxs_runtime_diagnostics_encode(&original, payload, sizeof(payload) - 1) == NXS_RESULT_INVALID_REPORT);
+    CHECK(nxs_runtime_diagnostics_encode(&original, NULL, sizeof(payload)) == NXS_RESULT_INVALID_REPORT);
+}
+
+static void test_optional_protocol_revision(void) {
+    nxs_message_t request = {.operation = NXS_OPERATION_CAPABILITIES, .request_id = 99};
+    uint8_t report[NXS_REPORT_SIZE];
+    CHECK(nxs_message_encode(&request, report, sizeof(report)) == NXS_RESULT_OK);
+    CHECK(report[2] == 0);
+    report[2] = 1;
+    nxs_message_t decoded;
+    CHECK(nxs_message_decode(report, sizeof(report), &decoded) == NXS_RESULT_OK);
+    CHECK(decoded.protocol_minor == 1);
+    report[3] = NXS_OPERATION_DIAGNOSTICS;
+    CHECK(nxs_message_decode(report, sizeof(report), &decoded) == NXS_RESULT_OK);
+    CHECK(nxs_message_encode(&decoded, report, sizeof(report)) == NXS_RESULT_OK && report[2] == 1);
+    decoded.protocol_minor = 0;
+    CHECK(nxs_message_encode(&decoded, report, sizeof(report)) == NXS_RESULT_UNSUPPORTED_VERSION);
+    report[2] = 0;
+    CHECK(nxs_message_decode(report, sizeof(report), &decoded) == NXS_RESULT_UNSUPPORTED_VERSION);
+    report[2] = 2;
+    CHECK(nxs_message_decode(report, sizeof(report), &decoded) == NXS_RESULT_UNSUPPORTED_VERSION);
+}
+
 int main(int argument_count, char **arguments) {
     CHECK(argument_count == 2);
     test_golden_message(arguments[1]);
@@ -186,5 +242,7 @@ int main(int argument_count, char **arguments) {
     test_snapshot_rejection();
     test_capability_validation();
     test_runtime_status();
+    test_optional_protocol_revision();
+    test_diagnostic_payload();
     return nxs_test_finish("Protocol");
 }

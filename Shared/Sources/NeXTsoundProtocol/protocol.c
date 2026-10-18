@@ -61,7 +61,7 @@ static bool within_range(float value, nxs_parameter_t parameter) {
 }
 
 static bool operation_is_valid(nxs_operation_t operation) {
-    return operation >= NXS_OPERATION_CAPABILITIES && operation <= NXS_OPERATION_STATUS;
+    return operation >= NXS_OPERATION_CAPABILITIES && operation <= NXS_OPERATION_DIAGNOSTICS;
 }
 
 static nxs_result_t validate_message(const nxs_message_t *message) {
@@ -69,6 +69,10 @@ static nxs_result_t validate_message(const nxs_message_t *message) {
         (message->flags & ~NXS_FLAG_RESPONSE) != 0 || (unsigned int)message->result > NXS_RESULT_STORAGE_FAILED ||
         (!(message->flags & NXS_FLAG_RESPONSE) && message->result != NXS_RESULT_OK)) {
         return NXS_RESULT_INVALID_REPORT;
+    }
+    if (message->protocol_minor > NXS_PROTOCOL_MINOR ||
+        (message->operation == NXS_OPERATION_DIAGNOSTICS && message->protocol_minor < NXS_DIAGNOSTICS_PROTOCOL_MINOR)) {
+        return NXS_RESULT_UNSUPPORTED_VERSION;
     }
     return operation_is_valid(message->operation) ? NXS_RESULT_OK : NXS_RESULT_UNKNOWN_OPERATION;
 }
@@ -113,7 +117,7 @@ static bool capabilities_are_valid(const nxs_capabilities_t *capabilities) {
     if (!capabilities || capabilities->sample_rate_hz != NXS_SAMPLE_RATE_HZ || capabilities->system_clock_hz != NXS_SYSTEM_CLOCK_HZ ||
         capabilities->eq_band_count != NXS_EQ_BAND_COUNT || capabilities->sample_format_mask == 0 ||
         (capabilities->sample_format_mask & ~(NXS_FORMAT_PCM16 | NXS_FORMAT_PCM24)) ||
-        (capabilities->feature_flags & ~(NXS_FEATURE_PERSISTENCE | NXS_FEATURE_FLASH_VERIFIED)) ||
+        (capabilities->feature_flags & ~(NXS_FEATURE_PERSISTENCE | NXS_FEATURE_FLASH_VERIFIED | NXS_FEATURE_DIAGNOSTICS)) ||
         !text_is_valid(capabilities->device_serial) || !text_is_valid(capabilities->firmware_version)) {
         return false;
     }
@@ -229,7 +233,7 @@ nxs_result_t nxs_message_encode(const nxs_message_t *message, uint8_t *report, s
     memset(report, 0, length);
     report[0] = NXS_REPORT_ID;
     report[1] = NXS_PROTOCOL_MAJOR;
-    report[2] = NXS_PROTOCOL_MINOR;
+    report[2] = message->protocol_minor;
     report[3] = (uint8_t)message->operation;
     memcpy(report + 4, protocol_magic, sizeof(protocol_magic));
     report[8] = message->flags;
@@ -246,11 +250,12 @@ nxs_result_t nxs_message_decode(const uint8_t *report, size_t length, nxs_messag
         memcmp(report + 4, protocol_magic, sizeof(protocol_magic)) != 0) {
         return NXS_RESULT_INVALID_REPORT;
     }
-    if (report[1] != NXS_PROTOCOL_MAJOR || report[2] != NXS_PROTOCOL_MINOR) {
+    if (report[1] != NXS_PROTOCOL_MAJOR || report[2] > NXS_PROTOCOL_MINOR) {
         return NXS_RESULT_UNSUPPORTED_VERSION;
     }
     nxs_message_t candidate = {0};
     candidate.operation = (nxs_operation_t)report[3];
+    candidate.protocol_minor = report[2];
     candidate.flags = report[8];
     candidate.result = (nxs_result_t)report[9];
     candidate.payload_length = read_u16(report + 10);
@@ -414,5 +419,39 @@ nxs_result_t nxs_runtime_status_decode(const uint8_t *payload, size_t length, nx
         return NXS_RESULT_INVALID_PARAMETERS;
     }
     *status = candidate;
+    return NXS_RESULT_OK;
+}
+
+nxs_result_t nxs_runtime_diagnostics_encode(const nxs_runtime_diagnostics_t *diagnostics, uint8_t *payload, size_t length) {
+    if (!diagnostics || !payload || length != NXS_RUNTIME_DIAGNOSTICS_SIZE) {
+        return NXS_RESULT_INVALID_REPORT;
+    }
+    write_u16(payload, NXS_DIAGNOSTICS_VERSION);
+    write_u16(payload + 2, NXS_RUNTIME_DIAGNOSTICS_SIZE);
+    write_u32(payload + 4, diagnostics->ring_underrun_count);
+    write_u32(payload + 8, diagnostics->i2s_stall_count);
+    write_u32(payload + 12, diagnostics->rejected_packet_count);
+    write_u32(payload + 16, diagnostics->dsp_failure_count);
+    write_u32(payload + 20, diagnostics->deadline_miss_count);
+    write_u32(payload + 24, diagnostics->usb_suspend_count);
+    write_u32(payload + 28, diagnostics->usb_resume_count);
+    return NXS_RESULT_OK;
+}
+
+nxs_result_t nxs_runtime_diagnostics_decode(const uint8_t *payload, size_t length, nxs_runtime_diagnostics_t *diagnostics) {
+    if (!payload || !diagnostics || length != NXS_RUNTIME_DIAGNOSTICS_SIZE || read_u16(payload + 2) != NXS_RUNTIME_DIAGNOSTICS_SIZE) {
+        return NXS_RESULT_INVALID_REPORT;
+    }
+    if (read_u16(payload) != NXS_DIAGNOSTICS_VERSION) {
+        return NXS_RESULT_UNSUPPORTED_VERSION;
+    }
+    nxs_runtime_diagnostics_t candidate = {.ring_underrun_count = read_u32(payload + 4),
+                                           .i2s_stall_count = read_u32(payload + 8),
+                                           .rejected_packet_count = read_u32(payload + 12),
+                                           .dsp_failure_count = read_u32(payload + 16),
+                                           .deadline_miss_count = read_u32(payload + 20),
+                                           .usb_suspend_count = read_u32(payload + 24),
+                                           .usb_resume_count = read_u32(payload + 28)};
+    *diagnostics = candidate;
     return NXS_RESULT_OK;
 }

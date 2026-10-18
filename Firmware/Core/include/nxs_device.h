@@ -17,6 +17,7 @@ typedef struct {
     nxs_capabilities_t capabilities;
     nxs_snapshot_t active;
     nxs_runtime_status_t status;
+    nxs_runtime_diagnostics_t diagnostics;
     uint32_t generation;
     nxs_cached_reply_t cache[NXS_DEVICE_REPLY_CACHE_COUNT];
     size_t cache_next;
@@ -37,6 +38,7 @@ bool nxs_device_init(nxs_device_t *device, const char *serial, const char *firmw
 bool nxs_device_configure_storage(nxs_device_t *device, uint32_t flash_size_bytes, bool available, const nxs_stored_state_t *restored);
 /** Audio telemetry cannot replace control-owned persistence fields. Invalid telemetry leaves state unchanged. */
 bool nxs_device_update_audio_status(nxs_device_t *device, const nxs_runtime_status_t *status);
+bool nxs_device_update_diagnostics(nxs_device_t *device, const nxs_runtime_diagnostics_t *diagnostics);
 bool nxs_device_receive(nxs_device_t *device, const uint8_t *report, size_t length);
 bool nxs_device_response(const nxs_device_t *device, uint8_t *report, size_t length);
 /** Audio ownership transfer is supplied by the platform, after reading this immutable configuration. */

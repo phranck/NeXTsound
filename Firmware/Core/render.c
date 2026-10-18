@@ -96,6 +96,20 @@ bool nxs_renderer_process(nxs_renderer_t *renderer, const nxs_render_control_t *
     return true;
 }
 
+nxs_audio_observation_t nxs_renderer_observe(const nxs_renderer_t *renderer, uint32_t maximum_us, uint32_t i2s_stalls,
+                                             uint32_t rejected_packets, uint32_t deadline_misses) {
+    nxs_audio_observation_t observation = {.status = renderer->status,
+                                           .diagnostics = {.ring_underrun_count = renderer->status.underrun_count,
+                                                           .i2s_stall_count = i2s_stalls,
+                                                           .rejected_packet_count = rejected_packets,
+                                                           .dsp_failure_count = renderer->status.overrun_count,
+                                                           .deadline_miss_count = deadline_misses}};
+    observation.status.underrun_count += i2s_stalls;
+    observation.status.overrun_count += rejected_packets + deadline_misses;
+    observation.status.max_processing_us = maximum_us;
+    return observation;
+}
+
 bool nxs_renderer_is_quiet(const nxs_renderer_t *renderer) {
     return renderer->status.output_peak == 0 && renderer->transport_gain.value == 0 && renderer->transport_gain.remaining == 0 &&
            renderer->dsp.transition_remaining == 0 && !renderer->reset_pending;

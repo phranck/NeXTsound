@@ -19,6 +19,7 @@ static struct {
     bool maintenance_requested;
     bool maintenance_ready;
     nxs_usb_reset_request_t reset_request;
+    nxs_runtime_diagnostics_t diagnostics;
     unsigned int storage_erases;
     unsigned int storage_programs;
     uint8_t storage[NXS_STORAGE_SLOT_COUNT][NXS_STORAGE_SECTOR_BYTES];
@@ -74,11 +75,13 @@ bool nxs_audio_engine_take_result(bool *accepted) {
     return true;
 }
 
-void nxs_audio_engine_status(nxs_runtime_status_t *status) {
-    *status = (nxs_runtime_status_t){.block_deadline_us = NXS_DSP_BLOCK_DEADLINE_US,
-                                     .host_volume_db = mock.host_volume / (float)NXS_HOST_VOLUME_Q8_SCALE,
-                                     .host_muted = mock.host_muted,
-                                     .streaming = mock.streaming && !mock.suspended};
+void nxs_audio_engine_status(nxs_audio_observation_t *observation) {
+    *observation = (nxs_audio_observation_t){.status = {.block_deadline_us = NXS_DSP_BLOCK_DEADLINE_US,
+                                                        .host_volume_db = mock.host_volume / (float)NXS_HOST_VOLUME_Q8_SCALE,
+                                                        .host_muted = mock.host_muted,
+                                                        .streaming = mock.streaming && !mock.suspended},
+                                             .diagnostics = mock.diagnostics};
+    observation->diagnostics.rejected_packet_count = mock.rejected;
 }
 
 void nxs_audio_engine_transport(bool streaming, bool suspended, uint32_t epoch) {
@@ -449,6 +452,39 @@ static void test_reset_waits_for_audio_and_can_be_canceled(void) {
     CHECK(!mock.maintenance_requested && mock.epoch != previous_epoch && mock.streaming);
 }
 
+static void test_diagnostics_include_usb_events_and_survive_mount(void) {
+    initialize();
+    enable_storage(NULL);
+    set_alternate(2);
+    mock.diagnostics.ring_underrun_count = 3;
+    mock.diagnostics.i2s_stall_count = 5;
+    mock.diagnostics.dsp_failure_count = 7;
+    mock.diagnostics.deadline_miss_count = 11;
+    mock.rejected = 13;
+    tud_suspend_cb(false);
+    tud_resume_cb();
+    tud_suspend_cb(false);
+    tud_resume_cb();
+    tud_mount_cb();
+    nxs_message_t request = {.operation = NXS_OPERATION_DIAGNOSTICS, .protocol_minor = NXS_DIAGNOSTICS_PROTOCOL_MINOR, .request_id = 91};
+    uint8_t report[NXS_REPORT_SIZE];
+    CHECK(nxs_message_encode(&request, report, sizeof(report)) == NXS_RESULT_OK);
+    tud_hid_set_report_cb(0, NXS_REPORT_ID, HID_REPORT_TYPE_FEATURE, report + 1, NXS_REPORT_SIZE - 1u);
+    nxs_message_t reply = response(91, NXS_RESULT_OK);
+    nxs_runtime_diagnostics_t diagnostics;
+    CHECK(nxs_runtime_diagnostics_decode(reply.payload, reply.payload_length, &diagnostics) == NXS_RESULT_OK);
+    CHECK(reply.protocol_minor == 1 && reply.generation == 1);
+    CHECK(diagnostics.ring_underrun_count == 3 && diagnostics.i2s_stall_count == 5);
+    CHECK(diagnostics.dsp_failure_count == 7 && diagnostics.deadline_miss_count == 11 && diagnostics.rejected_packet_count == 13);
+    CHECK(diagnostics.usb_suspend_count == 2 && diagnostics.usb_resume_count == 2);
+    CHECK(mock.storage_erases == 0 && mock.storage_programs == 0 && mock.submitted == 0);
+    send(NXS_OPERATION_READ_STATE, 92, 0, NULL);
+    reply = response(92, NXS_RESULT_OK);
+    nxs_snapshot_t snapshot;
+    CHECK(nxs_snapshot_decode(reply.payload, reply.payload_length, &snapshot) == NXS_RESULT_OK && snapshot.muted == 1);
+    CHECK(reply.protocol_minor == 0 && reply.generation == 1);
+}
+
 static void test_storage_callbacks(void) {
     test_persistence_waits_for_audio_and_drains_usb();
     test_persistence_completes_after_session_reset();
@@ -458,6 +494,7 @@ static void test_basic_callbacks(void) {
     test_hid_bridge_and_owner_acknowledgement();
     test_clock_and_host_controls();
     test_packets_and_lifecycle();
+    test_diagnostics_include_usb_events_and_survive_mount();
 }
 
 int main(int count, char **arguments) {

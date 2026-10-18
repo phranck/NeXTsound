@@ -133,6 +133,7 @@ static void record_validation(void) {
     nxs_storage_record_t record;
     CHECK(nxs_storage_record_encode(&original, &record));
     CHECK(memcmp(record.bytes, "NXSP", 4) == 0);
+    CHECK(record.bytes[12] == 1 && record.bytes[13] == 0);
     CHECK(record.bytes[8] == 0x78 && record.bytes[9] == 0x56 && record.bytes[10] == 0x34 && record.bytes[11] == 0x12);
     CHECK(read_u32(record.bytes + TEST_CHECKSUM_OFFSET) == (uint32_t)crc32(0, record.bytes, TEST_CHECKSUM_OFFSET));
     CHECK(nxs_storage_record_decode(&record, &decoded));
@@ -161,10 +162,10 @@ static void record_validation(void) {
             write_u32(corrupt.bytes + 8, 0);
             break;
         case 3:
-            corrupt.bytes[12] = NXS_PROTOCOL_MAJOR + 1u;
+            corrupt.bytes[12] = NXS_SNAPSHOT_PROTOCOL_MAJOR + 1u;
             break;
         case 4:
-            corrupt.bytes[13] = NXS_PROTOCOL_MINOR + 1u;
+            corrupt.bytes[13] = NXS_SNAPSHOT_PROTOCOL_MINOR + 1u;
             break;
         case 5:
             corrupt.bytes[14] = NXS_SNAPSHOT_SIZE - 1u;

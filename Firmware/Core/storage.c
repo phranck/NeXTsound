@@ -65,8 +65,8 @@ bool nxs_storage_record_encode(const nxs_stored_state_t *state, nxs_storage_reco
     write_u16(candidate.bytes + 4, NXS_STORAGE_VERSION);
     write_u16(candidate.bytes + 6, NXS_STORAGE_PAGE_BYTES);
     write_u32(candidate.bytes + 8, state->generation);
-    candidate.bytes[12] = NXS_PROTOCOL_MAJOR;
-    candidate.bytes[13] = NXS_PROTOCOL_MINOR;
+    candidate.bytes[12] = NXS_SNAPSHOT_PROTOCOL_MAJOR;
+    candidate.bytes[13] = NXS_SNAPSHOT_PROTOCOL_MINOR;
     write_u16(candidate.bytes + 14, NXS_SNAPSHOT_SIZE);
     if (nxs_snapshot_encode(&state->snapshot, candidate.bytes + NXS_STORAGE_HEADER_BYTES, NXS_SNAPSHOT_SIZE) != NXS_RESULT_OK) {
         return false;
@@ -92,8 +92,8 @@ bool nxs_storage_record_decode(const nxs_storage_record_t *record, nxs_stored_st
     uint32_t digest = read_u32(bytes + NXS_STORAGE_CHECKSUM_OFFSET);
     size_t padding_start = NXS_STORAGE_HEADER_BYTES + NXS_SNAPSHOT_SIZE;
     if (memcmp(bytes, data_magic, sizeof(data_magic)) != 0 || read_u16(bytes + 4) != NXS_STORAGE_VERSION ||
-        read_u16(bytes + 6) != NXS_STORAGE_PAGE_BYTES || generation == 0 || bytes[12] != NXS_PROTOCOL_MAJOR ||
-        bytes[13] != NXS_PROTOCOL_MINOR || read_u16(bytes + 14) != NXS_SNAPSHOT_SIZE ||
+        read_u16(bytes + 6) != NXS_STORAGE_PAGE_BYTES || generation == 0 || bytes[12] != NXS_SNAPSHOT_PROTOCOL_MAJOR ||
+        bytes[13] != NXS_SNAPSHOT_PROTOCOL_MINOR || read_u16(bytes + 14) != NXS_SNAPSHOT_SIZE ||
         !all_erased(bytes + padding_start, NXS_STORAGE_CHECKSUM_OFFSET - padding_start) ||
         checksum(bytes, NXS_STORAGE_CHECKSUM_OFFSET) != digest || memcmp(commit, commit_magic, sizeof(commit_magic)) != 0 ||
         read_u32(commit + 4) != generation || read_u32(commit + 8) != digest || read_u32(commit + 12) != ~digest ||

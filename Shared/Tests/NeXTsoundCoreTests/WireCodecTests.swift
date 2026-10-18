@@ -15,7 +15,7 @@ struct WireCodecTests {
             try #require(UInt8(token, radix: 16))
         }
         #expect(bytes.count == WireCodec.reportSize)
-        let request = WireMessage(operation: .capabilities, requestID: 0x0102_0304, generation: 0x1122_3344)
+        let request = WireMessage(operation: .capabilities, requestID: 0x0102_0304, generation: 0x1122_3344, protocolMinor: 0)
         #expect(try WireCodec.encode(request) == Data(bytes))
         #expect(try WireCodec.decode(Data(bytes)) == request)
     }
@@ -103,6 +103,43 @@ struct WireCodecTests {
         status.isStreaming = true
         status.storageIsAvailable = true
         #expect(try WireCodec.decodeRuntimeStatus(WireCodec.encodeRuntimeStatus(status)) == status)
+    }
+
+    @Test func diagnosticRoundTripAndVersionValidation() throws {
+        var diagnostics = DeviceRuntimeDiagnostics()
+        diagnostics.ringUnderrunCount = 0x1234_5678
+        diagnostics.i2sStallCount = 2
+        diagnostics.rejectedPacketCount = .max
+        diagnostics.dspFailureCount = 4
+        diagnostics.deadlineMissCount = 5
+        diagnostics.usbSuspendCount = 6
+        diagnostics.usbResumeCount = 7
+        var payload = try WireCodec.encodeRuntimeDiagnostics(diagnostics)
+        #expect(payload.count == Int(NXS_RUNTIME_DIAGNOSTICS_SIZE))
+        #expect(payload.prefix(8) == Data([1, 0, 32, 0, 0x78, 0x56, 0x34, 0x12]))
+        #expect(try WireCodec.decodeRuntimeDiagnostics(payload) == diagnostics)
+        payload[0] = 2
+        #expect(throws: WireError(result: NXS_RESULT_UNSUPPORTED_VERSION)) { try WireCodec.decodeRuntimeDiagnostics(payload) }
+        payload[0] = 1
+        payload[2] = 31
+        #expect(throws: WireError.self) { try WireCodec.decodeRuntimeDiagnostics(payload) }
+        #expect(throws: WireError.self) { try WireCodec.decodeRuntimeDiagnostics(Data(repeating: 0, count: 31)) }
+        var capabilities = DeviceCapabilities(serial: "TESTDEVICE", firmwareVersion: "test")
+        capabilities.featureFlags = UInt16(NXS_FEATURE_DIAGNOSTICS)
+        #expect(try WireCodec.decodeCapabilities(WireCodec.encodeCapabilities(capabilities)).supportsDiagnostics)
+    }
+
+    @Test func diagnosticRequestsRequireMinorOneAndEchoTheRevision() throws {
+        let request = WireMessage(operation: .diagnostics, requestID: 17)
+        #expect(request.protocolMinor == 1)
+        #expect(try WireCodec.decode(WireCodec.encode(request)) == request)
+        var reply = request
+        reply.isResponse = true
+        try reply.validateResponse(to: request)
+        reply.protocolMinor = 0
+        #expect(throws: WireError.self) { try reply.validateResponse(to: request) }
+        let legacy = WireMessage(operation: .diagnostics, requestID: 18, protocolMinor: 0)
+        #expect(throws: WireError(result: NXS_RESULT_UNSUPPORTED_VERSION)) { try WireCodec.encode(legacy) }
     }
 
     @Test func acknowledgementsRequireMatchingRequestAndOperation() throws {

@@ -51,6 +51,8 @@ Suspend drains to a silent block, stops DMA/PIO, drives the three audio pins low
 
 Runtime status reports digital input peak after host-volume processing and final output peak after transport gating. Underruns combine post-prime input starvation and detected PIO TX stalls. Overruns combine rejected/dropped input, DSP failures, and processing-deadline misses. These are 32-bit boot-session counters.
 
+The read-only [diagnostic operation](Protocol.md#runtime-diagnostics-and-compatible-revisions) separates ring underruns, PIO stalls, rejected packets, DSP failures, and deadline misses. It also reports TinyUSB suspend/resume callback counts. The audio owner publishes source counters and aggregate status together. The USB owner adds its callback counts. Diagnostic reads do not change the active or saved profile.
+
 `max_processing_us` measures the audio-owner control dequeue, configuration application, rendering, and telemetry publication. It excludes waiting for DMA and the output submission that follows. The nominal block deadline is 1000 microseconds. These fields become physical observations only after the image runs on the intended specimen.
 
 ## Verification boundary

@@ -19,6 +19,7 @@ public enum WireOperation: CaseIterable, Equatable, Sendable {
     case applyState
     case persistState
     case status
+    case diagnostics
 }
 
 extension WireOperation {
@@ -29,6 +30,7 @@ extension WireOperation {
         case .applyState: NXS_OPERATION_APPLY_STATE
         case .persistState: NXS_OPERATION_PERSIST_STATE
         case .status: NXS_OPERATION_STATUS
+        case .diagnostics: NXS_OPERATION_DIAGNOSTICS
         }
     }
 
@@ -42,14 +44,22 @@ extension WireOperation {
 
 public struct WireMessage: Equatable, Sendable {
     public var operation: WireOperation
+    public var protocolMinor: UInt8
     public var requestID: UInt32
     public var generation: UInt32
     public var isResponse: Bool
     public var resultCode: UInt32
     public var payload: Data
 
-    public init(operation: WireOperation, requestID: UInt32, generation: UInt32 = 0, payload: Data = Data()) {
+    public init(
+        operation: WireOperation,
+        requestID: UInt32,
+        generation: UInt32 = 0,
+        payload: Data = Data(),
+        protocolMinor: UInt8 = UInt8(NXS_PROTOCOL_MINOR)
+    ) {
         self.operation = operation
+        self.protocolMinor = protocolMinor
         self.requestID = requestID
         self.generation = generation
         self.payload = payload
@@ -64,6 +74,7 @@ public extension WireMessage {
             isResponse,
             !request.isResponse,
             operation == request.operation,
+            protocolMinor == request.protocolMinor,
             requestID == request.requestID
         else {
             throw WireError(result: NXS_RESULT_INVALID_REPORT)
@@ -99,6 +110,10 @@ public struct DeviceCapabilities: Equatable, Sendable {
 
     public var supportsPersistence: Bool {
         featureFlags & UInt16(NXS_FEATURE_PERSISTENCE) != 0
+    }
+
+    public var supportsDiagnostics: Bool {
+        featureFlags & UInt16(NXS_FEATURE_DIAGNOSTICS) != 0
     }
 
     public var flashIsVerified: Bool {
@@ -143,5 +158,25 @@ public struct DeviceRuntimeStatus: Equatable, Sendable {
         isStreaming = false
         hostIsMuted = false
         storageIsAvailable = false
+    }
+}
+
+public struct DeviceRuntimeDiagnostics: Equatable, Sendable {
+    public var ringUnderrunCount: UInt32
+    public var i2sStallCount: UInt32
+    public var rejectedPacketCount: UInt32
+    public var dspFailureCount: UInt32
+    public var deadlineMissCount: UInt32
+    public var usbSuspendCount: UInt32
+    public var usbResumeCount: UInt32
+
+    public init() {
+        ringUnderrunCount = 0
+        i2sStallCount = 0
+        rejectedPacketCount = 0
+        dspFailureCount = 0
+        deadlineMissCount = 0
+        usbSuspendCount = 0
+        usbResumeCount = 0
     }
 }
