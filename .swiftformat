@@ -1,0 +1,16 @@
+--swift-version 6.0
+--indent 4
+--max-width 140
+--wrap-arguments before-first
+--wrap-parameters before-first
+--wrap-conditions before-first
+--guard-else next-line
+--enable wrapGuardStatementBodies
+--closing-paren balanced
+--call-site-paren balanced
+--allow-partial-wrapping false
+--trailing-commas collections-only
+--extension-acl on-extension
+--import-grouping testable-last,alpha
+--test-case-name-format standard-identifiers
+--exclude .build,.tools,Papers

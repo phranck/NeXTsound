@@ -1,0 +1,23 @@
+struct LayoutFixture {
+let value:Int
+init(
+value:Int,
+enabled:Bool
+){self.value=enabled ? value : 0}
+func sum(first:Int,second:Int)->Int {
+guard first>0,second>0 else{return 0}
+return first+second
+}
+func nested(name:String,values:[Int])->Bool {
+guard !values.isEmpty, // Preserve the comma in "a,b".
+["a,b","c"].contains(name) else{return false}
+print(
+"first",
+"second"
+)
+return true
+}
+func configured(highPassFrequency:Float,equalizerCenterFrequency:Float,equalizerGain:Float,equalizerQuality:Float,limiterThreshold:Float,limiterRelease:Float)->Float {
+highPassFrequency+equalizerCenterFrequency+equalizerGain+equalizerQuality+limiterThreshold+limiterRelease
+}
+}

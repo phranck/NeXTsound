@@ -1,0 +1,23 @@
+cmake_minimum_required(VERSION 3.22)
+project(NeXTsoundProtocol VERSION 0.1.0 LANGUAGES C)
+
+add_library(nxs_protocol STATIC Sources/NeXTsoundProtocol/protocol.c)
+target_include_directories(nxs_protocol PUBLIC Sources/NeXTsoundProtocol/include)
+target_compile_features(nxs_protocol PUBLIC c_std_11)
+target_compile_options(nxs_protocol PRIVATE -Wall -Wextra -Wpedantic -Werror)
+
+if(PROJECT_IS_TOP_LEVEL)
+    include(CTest)
+    option(NXS_ENABLE_SANITIZERS "Enable host address and undefined-behavior sanitizers" ON)
+    if(NXS_ENABLE_SANITIZERS AND CMAKE_C_COMPILER_ID MATCHES "Clang|GNU")
+        target_compile_options(nxs_protocol PUBLIC -fsanitize=address,undefined -fno-omit-frame-pointer)
+        target_link_options(nxs_protocol PUBLIC -fsanitize=address,undefined)
+    endif()
+    if(BUILD_TESTING)
+        add_executable(nxs_protocol_tests Tests/CProtocolTests/protocol_tests.c)
+        target_link_libraries(nxs_protocol_tests PRIVATE nxs_protocol)
+        target_compile_options(nxs_protocol_tests PRIVATE -Wall -Wextra -Wpedantic -Werror)
+        add_test(NAME protocol COMMAND nxs_protocol_tests
+            "${CMAKE_CURRENT_SOURCE_DIR}/Tests/NeXTsoundCoreTests/Fixtures/capabilities-request.hex")
+    endif()
+endif()

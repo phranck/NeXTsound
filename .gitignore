@@ -1,2 +1,6 @@
 Papers
 .DS_Store
+.build
+.tools
+.swiftpm
+DerivedData
