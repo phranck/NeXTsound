@@ -8,9 +8,8 @@ mkdir -p "$root/.tools/bin" "$root/.tools/packages"
 
 while IFS= read -r tool; do
     version=$(jq -r --arg tool "$tool" '.tools[$tool].version' "$manifest")
-    version_argument=$(jq -r --arg tool "$tool" '.tools[$tool].version_argument' "$manifest")
     executable="$root/.tools/bin/$tool"
-    if [ -x "$executable" ] && [ "$("$executable" "$version_argument")" = "$version" ]; then
+    if [ -x "$executable" ] && [ "$(tool_version "$tool")" = "$version" ]; then
         continue
     fi
     url=$(jq -r --arg tool "$tool" '.tools[$tool].url' "$manifest")
@@ -30,7 +29,7 @@ while IFS= read -r tool; do
     curl --fail --location --silent --show-error --retry 3 "$license_url" --output "$package/LICENSE"
     chmod +x "$binary"
     ln -sfn "$binary" "$executable"
-    actual=$("$executable" "$version_argument")
+    actual=$(tool_version "$tool")
     if [ "$actual" != "$version" ]; then
         printf 'Expected %s %s, found %s\n' "$tool" "$version" "$actual" >&2
         exit 1

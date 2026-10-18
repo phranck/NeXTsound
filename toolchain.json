@@ -24,6 +24,14 @@
     }
   },
   "tools": {
+    "xcodegen": {
+      "version": "2.45.4",
+      "version_argument": "--version",
+      "version_prefix": "Version: ",
+      "url": "https://github.com/yonaskolb/XcodeGen/releases/download/2.45.4/xcodegen.zip",
+      "sha256": "090ec29491aad50aec10631bf6e62253fed733c50f3aab0f5ffc86bc170bdbef",
+      "license_url": "https://raw.githubusercontent.com/yonaskolb/XcodeGen/2.45.4/LICENSE"
+    },
     "swiftformat": {
       "version": "0.64.0",
       "version_argument": "--version",

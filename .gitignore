@@ -5,3 +5,5 @@ Papers
 .tools
 .swiftpm
 DerivedData
+App/NeXTsound.xcodeproj
+App/Generated
