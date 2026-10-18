@@ -2,12 +2,9 @@
 #define NXS_STORAGE_H
 
 #include "nxs_protocol.h"
+#include "nxs_storage_layout.h"
 
 #define NXS_STORAGE_VERSION 1u
-#define NXS_STORAGE_SLOT_COUNT 2u
-#define NXS_STORAGE_SECTOR_BYTES 4096u
-#define NXS_STORAGE_PAGE_BYTES 256u
-#define NXS_STORAGE_RECORD_BYTES (2u * NXS_STORAGE_PAGE_BYTES)
 #define NXS_STORAGE_DATA_PAGE 0u
 #define NXS_STORAGE_COMMIT_PAGE 1u
 

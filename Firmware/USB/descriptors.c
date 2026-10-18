@@ -5,6 +5,7 @@
  * The upstream notice is retained in Firmware/ThirdParty/TinyUSB-examples-LICENSE.txt.
  */
 #include "nxs_usb.h"
+#include "pico/usb_reset_interface.h"
 #include "tusb.h"
 
 #include <string.h>
@@ -71,7 +72,16 @@ static const uint8_t configuration_descriptor[] = {
     TUD_AUDIO_DESC_STD_AS_INT(NXS_USB_AUDIO_STREAM_INTERFACE, 0, 0, 0),
     NXS_AUDIO_ALT_DESCRIPTOR(1, 2, 16),
     NXS_AUDIO_ALT_DESCRIPTOR(2, 3, 24),
-    TUD_HID_DESCRIPTOR(NXS_USB_HID_INTERFACE, 5, HID_ITF_PROTOCOL_NONE, sizeof(hid_report), NXS_USB_HID_ENDPOINT, 16, 16)};
+    TUD_HID_DESCRIPTOR(NXS_USB_HID_INTERFACE, 5, HID_ITF_PROTOCOL_NONE, sizeof(hid_report), NXS_USB_HID_ENDPOINT, 16, 16),
+    NXS_USB_RESET_DESCRIPTOR_LENGTH,
+    TUSB_DESC_INTERFACE,
+    NXS_USB_RESET_INTERFACE,
+    0,
+    0,
+    TUSB_CLASS_VENDOR_SPECIFIC,
+    RESET_INTERFACE_SUBCLASS,
+    RESET_INTERFACE_PROTOCOL,
+    6};
 
 _Static_assert(sizeof(configuration_descriptor) == NXS_USB_CONFIGURATION_LENGTH, "USB descriptor length mismatch");
 
@@ -98,7 +108,8 @@ const uint16_t *tud_descriptor_string_cb(uint8_t index, uint16_t language) {
         string_buffer[1] = 0x0409;
         return string_buffer;
     }
-    const char *strings[] = {NULL, "Layered", "NeXTsound development", device_serial, "NeXTsound Audio", "NeXTsound Control"};
+    const char *strings[] = {
+        NULL, "Layered", "NeXTsound development", device_serial, "NeXTsound Audio", "NeXTsound Control", "NeXTsound Maintenance"};
     if (index >= sizeof(strings) / sizeof(strings[0]) || !strings[index]) {
         return NULL;
     }

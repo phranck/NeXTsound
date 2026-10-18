@@ -5,6 +5,38 @@
 _Static_assert((NXS_AUDIO_RING_FRAMES & (NXS_AUDIO_RING_FRAMES - 1u)) == 0, "Audio ring requires a power-of-two capacity");
 _Static_assert(ATOMIC_INT_LOCK_FREE == 2, "Audio ring requires lock-free 32-bit indices");
 
+void nxs_audio_maintenance_init(nxs_audio_maintenance_t *maintenance) {
+    atomic_init(&maintenance->request_token, 0);
+    atomic_init(&maintenance->acknowledged_token, 0);
+    maintenance->next_token = 0;
+}
+
+void nxs_audio_maintenance_request(nxs_audio_maintenance_t *maintenance, bool requested) {
+    if (!requested) {
+        atomic_store_explicit(&maintenance->request_token, 0, memory_order_release);
+    } else if (atomic_load_explicit(&maintenance->request_token, memory_order_relaxed) == 0) {
+        uint32_t previous_ack = atomic_load_explicit(&maintenance->acknowledged_token, memory_order_acquire);
+        do {
+            ++maintenance->next_token;
+        } while (maintenance->next_token == 0 || maintenance->next_token == previous_ack);
+        atomic_store_explicit(&maintenance->request_token, maintenance->next_token, memory_order_release);
+    }
+}
+
+bool nxs_audio_maintenance_requested(const nxs_audio_maintenance_t *maintenance) {
+    return atomic_load_explicit(&maintenance->request_token, memory_order_acquire) != 0;
+}
+
+void nxs_audio_maintenance_acknowledge(nxs_audio_maintenance_t *maintenance, bool paused) {
+    uint32_t token = paused ? atomic_load_explicit(&maintenance->request_token, memory_order_acquire) : 0;
+    atomic_store_explicit(&maintenance->acknowledged_token, token, memory_order_release);
+}
+
+bool nxs_audio_maintenance_ready(const nxs_audio_maintenance_t *maintenance) {
+    uint32_t requested = atomic_load_explicit(&maintenance->request_token, memory_order_acquire);
+    return requested != 0 && requested == atomic_load_explicit(&maintenance->acknowledged_token, memory_order_acquire);
+}
+
 void nxs_audio_ring_init(nxs_audio_ring_t *ring) {
     atomic_init(&ring->read_index, 0);
     atomic_init(&ring->write_index, 0);

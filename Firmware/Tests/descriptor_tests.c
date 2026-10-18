@@ -1,5 +1,6 @@
 #include "nxs_test.h"
 #include "nxs_usb.h"
+#include "pico/usb_reset_interface.h"
 #include "tusb.h"
 
 static uint16_t read_u16(const uint8_t *bytes) {
@@ -15,7 +16,7 @@ int main(void) {
     size_t length = read_u16(configuration + 2);
     CHECK(length == NXS_USB_CONFIGURATION_LENGTH && configuration[4] == NXS_USB_INTERFACE_COUNT);
     uint8_t interface = 0xff, alternate = 0;
-    unsigned int formats = 0, feedback_endpoints = 0, hid_interfaces = 0;
+    unsigned int formats = 0, feedback_endpoints = 0, hid_interfaces = 0, reset_interfaces = 0;
     size_t hid_length = 0;
     for (size_t offset = 0; offset < length;) {
         const uint8_t *descriptor = configuration + offset;
@@ -26,6 +27,10 @@ int main(void) {
             if (descriptor[5] == TUSB_CLASS_HID) {
                 ++hid_interfaces;
                 CHECK(interface == NXS_USB_HID_INTERFACE && descriptor[4] == 1);
+            } else if (descriptor[5] == TUSB_CLASS_VENDOR_SPECIFIC) {
+                ++reset_interfaces;
+                CHECK(interface == NXS_USB_RESET_INTERFACE && descriptor[3] == 0 && descriptor[4] == 0);
+                CHECK(descriptor[6] == RESET_INTERFACE_SUBCLASS && descriptor[7] == RESET_INTERFACE_PROTOCOL);
             }
         } else if (descriptor[1] == TUSB_DESC_CS_INTERFACE && interface == NXS_USB_AUDIO_STREAM_INTERFACE &&
                    descriptor[2] == AUDIO_CS_AS_INTERFACE_FORMAT_TYPE) {
@@ -48,7 +53,7 @@ int main(void) {
         }
         offset += descriptor[0];
     }
-    CHECK(formats == 2 && feedback_endpoints == 2 && hid_interfaces == 1 && hid_length != 0);
+    CHECK(formats == 2 && feedback_endpoints == 2 && hid_interfaces == 1 && reset_interfaces == 1 && hid_length != 0);
     const uint8_t *report = tud_hid_descriptor_report_cb(0);
     uint32_t count = 0, size = 0, report_id = 0, page = 0, feature_bits = 0;
     for (size_t offset = 0; offset < hid_length;) {

@@ -21,6 +21,20 @@ typedef struct {
 } nxs_audio_ring_t;
 
 typedef struct {
+    _Atomic uint32_t request_token;
+    _Atomic uint32_t acknowledged_token;
+    uint32_t next_token;
+} nxs_audio_maintenance_t;
+
+void nxs_audio_maintenance_init(nxs_audio_maintenance_t *maintenance);
+/** Control owner only. Repeated requests keep their token until released. */
+void nxs_audio_maintenance_request(nxs_audio_maintenance_t *maintenance, bool requested);
+bool nxs_audio_maintenance_requested(const nxs_audio_maintenance_t *maintenance);
+/** Audio owner acknowledges only after stopping DMA/PIO and clears before output restart. */
+void nxs_audio_maintenance_acknowledge(nxs_audio_maintenance_t *maintenance, bool paused);
+bool nxs_audio_maintenance_ready(const nxs_audio_maintenance_t *maintenance);
+
+typedef struct {
     float value;
     float target;
     float step;

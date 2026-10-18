@@ -28,6 +28,41 @@ bool nxs_device_init(nxs_device_t *device, const char *serial, const char *firmw
     return true;
 }
 
+bool nxs_device_configure_storage(nxs_device_t *device, uint32_t flash_size_bytes, bool available, const nxs_stored_state_t *restored) {
+    if (!device || device->generation != 1 || device->response_available || device->apply_pending || device->persistence_pending ||
+        (flash_size_bytes != 0 && flash_size_bytes != NXS_FLASH_SUPPORTED_BYTES) || ((available || restored) && flash_size_bytes == 0)) {
+        return false;
+    }
+    nxs_dsp_configuration_t configuration;
+    if (restored && (restored->generation == 0 || !nxs_dsp_prepare(&restored->snapshot, &configuration))) {
+        return false;
+    }
+    device->capabilities.flash_size_bytes = flash_size_bytes;
+    device->capabilities.feature_flags = (flash_size_bytes ? NXS_FEATURE_FLASH_VERIFIED : 0u) | (available ? NXS_FEATURE_PERSISTENCE : 0u);
+    device->status.storage_available = available ? 1u : 0u;
+    if (restored) {
+        device->active = restored->snapshot;
+        device->generation = restored->generation;
+        device->status.persisted_generation = restored->generation;
+    }
+    return true;
+}
+
+bool nxs_device_update_audio_status(nxs_device_t *device, const nxs_runtime_status_t *status) {
+    if (!device || !status) {
+        return false;
+    }
+    nxs_runtime_status_t candidate = *status;
+    candidate.persisted_generation = device->status.persisted_generation;
+    candidate.storage_available = device->status.storage_available;
+    uint8_t payload[NXS_RUNTIME_STATUS_SIZE];
+    if (nxs_runtime_status_encode(&candidate, payload, sizeof(payload)) != NXS_RESULT_OK) {
+        return false;
+    }
+    device->status = candidate;
+    return true;
+}
+
 static nxs_message_t response_for(const nxs_device_t *device, const nxs_message_t *request, nxs_result_t result) {
     nxs_message_t response = {0};
     response.operation = request->operation;
@@ -72,12 +107,19 @@ static bool duplicate_request(nxs_device_t *device, const nxs_message_t *request
     return false;
 }
 
+static void begin_pending(nxs_device_t *device, const nxs_message_t *request, const uint8_t *report) {
+    device->pending_can_reply = true;
+    device->pending_request = *request;
+    memcpy(device->pending_report, report, NXS_REPORT_SIZE);
+}
+
 bool nxs_device_receive(nxs_device_t *device, const uint8_t *report, size_t length) {
     nxs_message_t request;
     if (!device || nxs_message_decode(report, length, &request) != NXS_RESULT_OK || (request.flags & NXS_FLAG_RESPONSE)) {
         return false;
     }
-    if (device->apply_pending && device->pending_can_reply && request.request_id == device->pending_request.request_id) {
+    if ((device->apply_pending || device->persistence_pending) && device->pending_can_reply &&
+        request.request_id == device->pending_request.request_id) {
         if (memcmp(report, device->pending_report, NXS_REPORT_SIZE) == 0) {
             device->pending_can_reply = true;
             return true;
@@ -106,10 +148,21 @@ bool nxs_device_receive(nxs_device_t *device, const uint8_t *report, size_t leng
             response.result = nxs_runtime_status_encode(&device->status, response.payload, response.payload_length);
             break;
         case NXS_OPERATION_PERSIST_STATE:
-            response.result = NXS_RESULT_STORAGE_UNAVAILABLE;
+            if (!device->status.storage_available) {
+                response.result = NXS_RESULT_STORAGE_UNAVAILABLE;
+            } else if (device->apply_pending || device->persistence_pending) {
+                response.result = NXS_RESULT_BUSY;
+            } else if (request.generation != device->generation) {
+                response.result = NXS_RESULT_STALE_GENERATION;
+            } else {
+                device->persistence_pending = true;
+                device->pending_snapshot = device->active;
+                begin_pending(device, &request, report);
+                return true;
+            }
             break;
         case NXS_OPERATION_APPLY_STATE:
-            if (device->apply_pending || device->generation == UINT32_MAX) {
+            if (device->apply_pending || device->persistence_pending || device->generation == UINT32_MAX) {
                 response.result = NXS_RESULT_BUSY;
             } else if (request.generation != device->generation) {
                 response.result = NXS_RESULT_STALE_GENERATION;
@@ -118,9 +171,7 @@ bool nxs_device_receive(nxs_device_t *device, const uint8_t *report, size_t leng
                 response.result = NXS_RESULT_INVALID_PARAMETERS;
             } else {
                 device->apply_pending = true;
-                device->pending_can_reply = true;
-                device->pending_request = request;
-                memcpy(device->pending_report, report, NXS_REPORT_SIZE);
+                begin_pending(device, &request, report);
                 return true;
             }
             break;
@@ -144,6 +195,15 @@ const nxs_dsp_configuration_t *nxs_device_pending_configuration(const nxs_device
     return device && device->apply_pending ? &device->pending_configuration : NULL;
 }
 
+static void complete_pending(nxs_device_t *device, nxs_result_t result) {
+    nxs_message_t response = response_for(device, &device->pending_request, result);
+    if (device->pending_can_reply) {
+        publish(device, &response, device->pending_report, true);
+    }
+    device->apply_pending = false;
+    device->persistence_pending = false;
+}
+
 bool nxs_device_complete_apply(nxs_device_t *device, nxs_result_t result) {
     if (!device || !device->apply_pending || (unsigned int)result > NXS_RESULT_STORAGE_FAILED) {
         return false;
@@ -152,11 +212,26 @@ bool nxs_device_complete_apply(nxs_device_t *device, nxs_result_t result) {
         device->active = device->pending_snapshot;
         ++device->generation;
     }
-    nxs_message_t response = response_for(device, &device->pending_request, result);
-    if (device->pending_can_reply) {
-        publish(device, &response, device->pending_report, true);
+    complete_pending(device, result);
+    return true;
+}
+
+bool nxs_device_pending_persistence(const nxs_device_t *device, nxs_stored_state_t *state) {
+    if (!device || !state || !device->persistence_pending) {
+        return false;
     }
-    device->apply_pending = false;
+    *state = (nxs_stored_state_t){.snapshot = device->pending_snapshot, .generation = device->pending_request.generation};
+    return true;
+}
+
+bool nxs_device_complete_persistence(nxs_device_t *device, nxs_result_t result) {
+    if (!device || !device->persistence_pending || (unsigned int)result > NXS_RESULT_STORAGE_FAILED) {
+        return false;
+    }
+    if (result == NXS_RESULT_OK) {
+        device->status.persisted_generation = device->pending_request.generation;
+    }
+    complete_pending(device, result);
     return true;
 }
 

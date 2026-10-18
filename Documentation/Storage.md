@@ -2,7 +2,7 @@
 
 The portable [`nxs_storage`](../Firmware/Core/include/nxs_storage.h) library validates, selects, and replaces saved snapshots. It uses the canonical protocol's snapshot codec. It does not serialize native structs or transport request IDs.
 
-This core is host-tested and cross-compiled. It is not yet connected to the device's persistence command. Geometry-gated platform callbacks and audio/XIP/USB coordination are still required before flash writes.
+The firmware connects this core to deferred device persistence through geometry-gated platform callbacks. Host integration tests and the RP2350 cross-build cover this connection. Installation and physical flash operations have not yet been exercised.
 
 ## Layout
 
@@ -56,8 +56,22 @@ The I/O callbacks address only a slot and one of its two pages. The platform mus
 
 A failed final read can leave a complete new record even though no success was acknowledged. A later boot or rescan can select it. Clients must read device state after an uncertain save rather than infer that the older record is still current.
 
+## Geometry and execution gates
+
+[`nxs_flash_geometry_decode`](../Firmware/Core/flash_geometry.c) accepts only the observed `85 20 16` JEDEC ID, compatible SFDP 1.0 metadata, a 4 MiB density, and a 4096-byte `20h` erase type. The matching [PY25Q32HB V1.7 datasheet](https://www.puyasemi.com/download_path/%E6%95%B0%E6%8D%AE%E6%89%8B%E5%86%8C/Flash%20%E8%8A%AF%E7%89%87/PY25Q32HB_Datasheet_V1.7.pdf) supplies the 256-byte page qualification. Unknown or malformed metadata disables writes. See [specimen identification and backup](Backup.md).
+
+A shared macro-only [layout header](../Firmware/Core/include/nxs_storage_layout.h) reserves sectors at offsets `0x3fe000` and `0x3ff000`. A linker assertion rejects firmware overlap, and the runtime geometry check independently rejects it. The build tests both an image ending exactly at the boundary and a one-byte overlap. The flash-linked targets select the SDK's read-only `boot2_generic_03h` setup rather than a setup that can write status registers. Its divider of four gives a calculated 37.5 MHz SPI read clock at 150 MHz, below the manufacturer's 55 MHz READ limit. This is not a runtime-headroom measurement.
+
+Before launching core 1 or initializing USB, core 0 reads JEDEC/SFDP metadata and scans the two records. A valid saved record initializes both the audio owner and the device generation. Otherwise the factory snapshot remains muted. Ambiguous records and I/O failures disable persistence. Capabilities and `storage_available` are enabled only when geometry, load status, and the SDK multicore flash-safety setup permit writes.
+
+A persistence request captures the active snapshot and generation. Its reply is deferred. The audio owner drains its final-output envelope, stops DMA/PIO, and acknowledges the current maintenance token. Fresh tokens prevent stale pause acknowledgements from authorizing another operation. The control core then invokes `flash_safe_execute`; its SDK multicore lockout parks core 1 and disables core 0 interrupts during each erase/program callback. Neither core-safe assumption is enabled. Flash-safe errors disable further writes for that boot.
+
+No TinyUSB work occurs inside the flash-disabled callback. The producer remains gated through the next `tud_task` pass after saving, queued audio is discarded, and a new stream epoch forces re-priming before output resumes. Device acknowledgement follows complete record readback. Audio telemetry updates preserve control-owned storage fields. Accepted persistence survives a USB session reset, but its old request ID/reply does not enter the new session.
+
+The SDK/picotool-compatible reset interface also requests audio maintenance. Reset is performed from the main loop only after quiescence, never from a USB callback. BOOTSEL requests retain PICOBOOT access and do not configure an activity GPIO.
+
 ## Host verification
 
 [`storage_tests.c`](../Firmware/Tests/storage_tests.c) uses fresh in-memory sectors. Its NOR model programs bits only from one to zero. Tests cover every byte-prefix cutoff across both program pages and a sector erase, every individual record-bit corruption, CRC-valid malformed headers/snapshots, I/O failures, conflicting generations, and a newest record corrupted before the next save.
 
-The host tests compare CRCs with zlib from the pinned Xcode SDK. Removing the data-CRC check or commit-magic check separately causes the corruption test to fail. With both checks present, 84338 assertions pass. These are software-model results, not physical power-loss tests or flash-execution timing measurements.
+The host tests compare CRCs with zlib from the pinned Xcode SDK. Removing the data-CRC check or commit-magic check separately causes the corruption test to fail. With both checks present, 84338 assertions pass. These are software-model results, not physical power-loss tests or flash-execution timing measurements. Geometry tests use only captured SFDP metadata, not original user flash. USB callback fixtures cover deferred saves, producer gating, post-flash draining, telemetry ownership, exact retries, and session-reset completion. The reset-driver fixture checks request type, interface, values, stages, and bus-reset cancellation. Removing telemetry-field ownership makes the actual callback regression fail.
