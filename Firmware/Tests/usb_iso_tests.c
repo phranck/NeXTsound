@@ -8,6 +8,9 @@
 
 usb_hw_t nxs_test_usb_hw, nxs_test_usb_set, nxs_test_usb_clear;
 _Alignas(4096) usb_device_dpram_t nxs_test_usb_dpram;
+static dcd_event_t recorded_events[4];
+static bool recorded_interrupts[4];
+static size_t event_count;
 
 _Noreturn void panic(const char *format, ...) {
     va_list arguments;
@@ -19,8 +22,41 @@ _Noreturn void panic(const char *format, ...) {
 }
 
 void dcd_event_handler(const dcd_event_t *event, bool in_interrupt) {
-    (void)event;
-    (void)in_interrupt;
+    CHECK(event_count < sizeof(recorded_events) / sizeof(recorded_events[0]));
+    recorded_events[event_count] = *event;
+    recorded_interrupts[event_count++] = in_interrupt;
+}
+
+static void check_power_notifications(void) {
+    CHECK(usb_hw->inte & USB_INTS_DEV_SUSPEND_BITS);
+    CHECK(usb_hw->inte & USB_INTS_DEV_RESUME_FROM_HOST_BITS);
+    CHECK(event_count == 0);
+    uint32_t output = usb_dpram->ep_buf_ctrl[1].out;
+    uint32_t feedback = usb_dpram->ep_buf_ctrl[1].in;
+    uint32_t hid = usb_dpram->ep_buf_ctrl[2].in;
+    uint32_t control = usb_dpram->ep_buf_ctrl[0].in;
+    usb_hw->ints = USB_INTS_DEV_SUSPEND_BITS;
+    dcd_int_handler(0);
+    CHECK(event_count == 1);
+    CHECK(recorded_events[0].event_id == DCD_EVENT_SUSPEND);
+    CHECK(recorded_events[0].rhport == 0 && recorded_interrupts[0]);
+    CHECK(nxs_test_usb_clear.sie_status == USB_SIE_STATUS_SUSPENDED_BITS);
+    usb_hw->ints = USB_INTS_DEV_RESUME_FROM_HOST_BITS;
+    dcd_int_handler(0);
+    CHECK(event_count == 2);
+    CHECK(recorded_events[1].event_id == DCD_EVENT_RESUME);
+    CHECK(recorded_events[1].rhport == 0 && recorded_interrupts[1]);
+    CHECK(nxs_test_usb_clear.sie_status == USB_SIE_STATUS_RESUME_BITS);
+    usb_hw->ints = USB_INTS_DEV_SUSPEND_BITS | USB_INTS_DEV_RESUME_FROM_HOST_BITS;
+    dcd_int_handler(0);
+    CHECK(event_count == 4);
+    CHECK(recorded_events[2].event_id == DCD_EVENT_SUSPEND && recorded_events[3].event_id == DCD_EVENT_RESUME);
+    CHECK(recorded_events[2].rhport == 0 && recorded_events[3].rhport == 0);
+    CHECK(recorded_interrupts[2] && recorded_interrupts[3]);
+    CHECK(nxs_test_usb_clear.sie_status == USB_SIE_STATUS_RESUME_BITS);
+    CHECK(usb_dpram->ep_buf_ctrl[1].out == output && usb_dpram->ep_buf_ctrl[1].in == feedback);
+    CHECK(usb_dpram->ep_buf_ctrl[2].in == hid && usb_dpram->ep_buf_ctrl[0].in == control);
+    usb_hw->ints = 0;
 }
 
 static tusb_desc_endpoint_t iso_descriptor(uint8_t endpoint, uint16_t bytes) {
@@ -76,6 +112,7 @@ int main(void) {
         CHECK(usb_dpram->ep_buf_ctrl[2].in == hid_pending);
         CHECK(usb_dpram->ep_buf_ctrl[0].in == control_pending);
     }
+    check_power_notifications();
     CHECK(dcd_deinit(0));
-    return nxs_test_finish("RP2 ISO endpoint restart");
+    return nxs_test_finish("RP2 ISO restart and power notifications");
 }

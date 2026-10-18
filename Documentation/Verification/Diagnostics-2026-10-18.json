@@ -502,6 +502,70 @@
     "accepted_as_suspend_cycle": false,
     "interpretation": "The interface accepts the timeout and acknowledges restoration. No firmware notification confirms an actual suspend/resume cycle. This does not establish why the legacy request or the interface policy fails to produce an observed cycle."
   },
+  "client_lifetime_attempts": {
+    "method": "Exact serial/VID/PID only. Request suspend without seize, close the helper's own device access, wait, reopen, request resume, and close. A second variant also releases its user client and recreates it on the same retained registry service before reopening.",
+    "requested_wait_seconds": 1,
+    "close_access_variant": {
+      "local_observation": "2026-10-18 15:06",
+      "host_api_results": "All observed calls return kIOReturnSuccess.",
+      "port_information_before_during_after": [24, 24, 24],
+      "suspend_notifications_before_and_after": [0, 0],
+      "resume_notifications_before_and_after": [0, 0]
+    },
+    "release_client_variant": {
+      "local_observation": "2026-10-18 15:08",
+      "host_api_results": "All observed calls return kIOReturnSuccess.",
+      "port_information_before_during_after": [24, 24, 24],
+      "suspend_notifications_before_and_after": [0, 0],
+      "resume_notifications_before_and_after": [0, 0],
+      "limitation": "Recreating a client before reading port information may itself affect power state. The firmware counters also remain zero; no cycle is accepted."
+    },
+    "both_variants": {
+      "accepted_as_suspend_cycle": false,
+      "active_and_persisted_generation": 7,
+      "profile_muted": true,
+      "default_output_uids_unchanged": true,
+      "system_wide_sleep_attempted": false,
+      "driver_capture_seize_or_detach_attempted": false,
+      "parent_hub_reset_attempted": false
+    },
+    "retained_owners_observed_after_helper_exit": {
+      "audio_interfaces": "usbaudiod",
+      "hid_interface": "AppleUserUSBHostHIDDevice",
+      "additional_device_user_client": "ChatGPT",
+      "additional_client_visible_in_followup": true,
+      "owners_closed_or_interrupted": false,
+      "causal_role": "Not established. These observations do not prove that a particular owner prevents suspend."
+    },
+    "interpretation": "Neither changing the helper's open state nor releasing its client confirms a physical cycle in these observations. The cause remains unknown."
+  },
+  "host_power_notification_regression": {
+    "source": "Firmware/Tests/usb_iso_tests.c",
+    "layer": "Host logical-register fixture compiling the actual vendored RP2 driver, not a physical USB controller or timing emulator.",
+    "covers": [
+      "Suspend and host-resume interrupt enable masks",
+      "Individual suspend and resume event IDs, root port, interrupt context, and status-clear alias writes",
+      "Suspend-before-resume notification order when both interrupt bits are latched",
+      "Unchanged pending ISO output, feedback, HID, and logical control buffer contents"
+    ],
+    "positive_assertions": 444,
+    "negative_controls": [
+      "Removing the suspend event produces CTest exit 8 at event_count == 1.",
+      "Removing the resume event produces CTest exit 8 at event_count == 2."
+    ],
+    "vendored_driver_restored_byte_identically": true,
+    "pinned_sdk_modified": false,
+    "complete_local_gate": {
+      "completed_local": "2026-10-18 15:18",
+      "ctest_cases": 20,
+      "positive_cases": 19,
+      "positive_assertions": 316522,
+      "expected_failure_controls": 1,
+      "swift_tests": 31,
+      "format_lint_release_cross_build_guards_shellcheck_actionlint": "Passed"
+    },
+    "accepted_as_physical_suspend_cycle": false
+  },
   "reboot": {
     "method": "SDK-compatible application/watchdog reset after audio quiescence.",
     "immediate_hid_set_report_result": "0xe00002ed",
