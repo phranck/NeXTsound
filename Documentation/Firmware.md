@@ -12,6 +12,8 @@ The script bootstraps the pinned project-local tools, builds all three firmware 
 
 `toolchain.json` supplies the board and dependency revisions. The program version identifies the Git revision and marks tracked working-tree changes. The audio firmware reserves 4 KiB stacks for both cores in the SDK's scratch banks. GCC emits `.su` frame reports beside its objects. These reports are not a measurement of interrupt-inclusive stack high-water use.
 
+The RP2 device port includes a [single-file ISO restart backport](../Firmware/ThirdParty/TinyUSB/README.md) from TinyUSB `102c199`. It aborts an existing ISO transfer before endpoint reactivation. The SDK's original port is compiled as an expected-failure regression control; the positive fixture compiles the actual replacement with the SDK's common RP2 source. No tracked SDK dependency is patched.
+
 ## USB interfaces
 
 [`descriptors.c`](../Firmware/USB/descriptors.c) and [`tusb_config.h`](../Firmware/USB/tusb_config.h) define the following interfaces:
@@ -59,7 +61,7 @@ bash Scripts/check.sh
 
 The complete gate checks source formatting, formatting regression fixtures, SwiftLint, sanitized C suites, Swift tests, the Release package, and all three RP2350 targets. Firmware integration tests inspect the actual descriptor arrays, exercise the real USB callbacks against a platform fixture, and model the generated PIO instructions under the configured shift/autopull assumptions. They do not emulate the USB controller, DMA timing, pad signals, or amplifier.
 
-Before installation, identify the intended specimen, establish physical flash geometry, preserve and verify its complete flash, and record restoration. A configured SDK flash size is not that measurement. The [October 18 storage verification](Verification/Storage-2026-10-18.json) establishes muted startup, targeted HID control, persistence/readback, reboot restoration, and recovery from controlled newest-record corruption on the named specimen. USB audio format/lifecycle behavior, full-load runtime headroom, I2S signals, wiring, and speaker safety remain on-device acceptance work in [issue 3](https://github.com/phranck/NeXTsound/issues/3), following the storage/backup slice in [issue 9](https://github.com/phranck/NeXTsound/issues/9).
+Before installation, identify the intended specimen, establish physical flash geometry, preserve and verify its complete flash, and record restoration. A configured SDK flash size is not that measurement. The [October 18 storage verification](Verification/Storage-2026-10-18.json) establishes muted startup, targeted HID control, persistence/readback, reboot restoration, and recovery from controlled newest-record corruption on the named specimen. The subsequent [native format verification](Verification/AudioFormats-2026-10-18.json) covers PCM16, packed PCM24, and PCM16 again, with concurrent HID reads and a successful software BOOTSEL roundtrip. It identifies a working-tree candidate rather than a clean release. Profile mute stayed enabled and neither default output UID changed. Each stable run had no sampled counter increment; stop transitions added one underrun each and remain under lifecycle review. Maximum nonflat DSP configuration, persistence during audio, suspend/resume, full-load headroom, I2S signals, wiring, and speaker safety remain acceptance work in [issue 3](https://github.com/phranck/NeXTsound/issues/3), following the storage/backup slice in [issue 9](https://github.com/phranck/NeXTsound/issues/9).
 
 ## Upstream notices
 

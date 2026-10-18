@@ -27,3 +27,19 @@ foreach(case mount packet short-read inflight storage-status storage-flow reset-
     add_test(NAME "control_${case}" COMMAND nxs_control_tests "${case}")
     set_tests_properties("control_${case}" PROPERTIES TIMEOUT 30)
 endforeach()
+
+function(nxs_add_rp2_iso_test name driver)
+    nxs_add_host_test("${name}" usb_iso_tests.c nxs_device)
+    set(target "nxs_${name}_tests")
+    target_sources("${target}" PRIVATE "${driver}" "${NXS_TINYUSB_SOURCE}/portable/raspberrypi/rp2040/rp2040_usb.c")
+    target_include_directories("${target}" PRIVATE Support/Pico ../USB)
+    target_include_directories("${target}" SYSTEM PRIVATE "${NXS_TINYUSB_SOURCE}"
+        "${NXS_TINYUSB_SOURCE}/portable/raspberrypi/rp2040"
+        "${NXS_REPOSITORY_ROOT}/.tools/pico-sdk/src/rp2350/hardware_regs/include"
+        "${NXS_REPOSITORY_ROOT}/.tools/pico-sdk/src/rp2350/hardware_structs/include")
+    target_compile_definitions("${target}" PRIVATE CFG_TUSB_MCU=OPT_MCU_RP2040 CFG_TUSB_OS=OPT_OS_NONE
+        PICO_RP2040_USB_DEVICE_UFRAME_FIX=0 PICO_RP2040_USB_DEVICE_ENUMERATION_FIX=0)
+endfunction()
+nxs_add_rp2_iso_test(rp2_iso "${CMAKE_CURRENT_SOURCE_DIR}/../ThirdParty/TinyUSB/rp2040/dcd_rp2040.c")
+nxs_add_rp2_iso_test(rp2_iso_unpatched "${NXS_TINYUSB_SOURCE}/portable/raspberrypi/rp2040/dcd_rp2040.c")
+set_tests_properties(rp2_iso_unpatched PROPERTIES WILL_FAIL TRUE)
