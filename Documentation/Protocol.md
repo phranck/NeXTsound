@@ -10,7 +10,7 @@ Run the complete shared-package checks from the repository root:
 bash Scripts/check.sh
 ```
 
-The script selects the Xcode build pinned in `toolchain.json`, installs the checksum-pinned local format/lint tools, checks source formatting and its regression fixtures, runs C host tests with address/undefined-behavior sanitizers, runs Swift tests, and builds the package in Release mode. It also cross-builds the [muted RP2350 DSP probe](DSP.md) using pinned project-local firmware tools. It does not access a USB device.
+The script selects the Xcode build pinned in `toolchain.json`, installs the checksum-pinned local format/lint tools, checks source formatting and its regression fixtures, runs C host tests with address/undefined-behavior sanitizers, runs Swift tests, and builds the package in Release mode. It also cross-builds the [RP2350 firmware and DSP probe](Firmware.md) using pinned project-local firmware tools, then checks the compiled USB descriptors and generated PIO instructions on the host. It does not access a USB device.
 
 ## Wire data
 
@@ -28,7 +28,11 @@ Capability text is bounded ASCII. Populate the device serial and firmware versio
 
 [`WireCodec`](../Shared/Sources/NeXTsoundCore/WireCodec.swift) bridges messages, DSP snapshots, capabilities, and runtime status to the C implementation. `WireMessage.validateResponse(to:)` checks response direction, request identity, operation identity, and the result code. USB transport completion alone is not an acknowledgement.
 
-The library encodes and validates data. Device command execution, audio-block application, persistence, and USB I/O belong to their device/transport implementations.
+The library encodes and validates data. [`Firmware/Core/device.c`](../Firmware/Core/device.c) implements capabilities, state, apply, and status execution. [`Firmware/USB/control.c`](../Firmware/USB/control.c) bridges TinyUSB to the codec. Apply succeeds only after audio-owner acceptance; transport completion does not advance the state generation. Persistent storage remains unavailable.
+
+TinyUSB removes the matching report-ID byte before the SET_REPORT callback and prefixes it around GET_REPORT. These callbacks handle 255 data bytes; the canonical codec and host transport handle all 256 bytes. A client must match the response operation and request ID rather than interpreting the previous reply as acknowledgement of a pending apply. Requests should be serialized.
+
+The control owner caches four completed request/reply pairs. An exact duplicate replays its original response. Reusing a cached ID with different contents is rejected. Retrying a completed failure, such as busy, requires a new request ID. Generation preconditions prevent an evicted successful apply from executing again. USB configuration and disconnect reset the session cache without discarding an already accepted in-flight apply. Request IDs belong to their connected session. An old session's pending apply neither reserves its ID in the new session nor publishes its old reply there.
 
 ## Sound profiles
 

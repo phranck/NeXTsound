@@ -59,6 +59,11 @@ bool nxs_dsp_prepare(const nxs_snapshot_t *snapshot, nxs_dsp_configuration_t *co
     return true;
 }
 
+static void reset_chain_history(nxs_dsp_chain_t *chain) {
+    memset(chain->delay, 0, sizeof(chain->delay));
+    chain->limiter_gain = 1.0f;
+}
+
 void nxs_dsp_init(nxs_dsp_t *engine) {
     if (!engine) {
         return;
@@ -66,7 +71,17 @@ void nxs_dsp_init(nxs_dsp_t *engine) {
     memset(engine, 0, sizeof(*engine));
     nxs_snapshot_t initial = nxs_default_snapshot();
     nxs_dsp_prepare(&initial, &engine->chains[0].configuration);
-    engine->chains[0].limiter_gain = 1.0f;
+    reset_chain_history(&engine->chains[0]);
+}
+
+void nxs_dsp_reset_history(nxs_dsp_t *engine) {
+    if (!engine) {
+        return;
+    }
+    for (size_t chain = 0; chain < 2; ++chain) {
+        reset_chain_history(&engine->chains[chain]);
+    }
+    engine->meter = (nxs_dsp_meter_t){0};
 }
 
 bool nxs_dsp_apply(nxs_dsp_t *engine, const nxs_dsp_configuration_t *configuration) {
@@ -105,8 +120,7 @@ static float process_chain(nxs_dsp_chain_t *chain, float sample) {
     }
     sample *= chain->configuration.attenuation;
     if (!isfinite(sample)) {
-        memset(chain->delay, 0, sizeof(chain->delay));
-        chain->limiter_gain = 1.0f;
+        reset_chain_history(chain);
         return 0.0f;
     }
     float magnitude = fabsf(sample);

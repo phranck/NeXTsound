@@ -11,5 +11,5 @@ cmake -S "$root/Firmware" -B "$root/.build/firmware" -G Ninja \
     -DPICOTOOL_FORCE_FETCH_FROM_GIT=ON \
     -DPICOTOOL_FETCH_FROM_GIT_PATH="$root/.tools/picotool"
 cmake --build "$root/.build/firmware" --parallel
-"$root/.tools/arm/bin/arm-none-eabi-size" "$root/.build/firmware/nxs_dsp_probe.elf"
-"$root/.tools/picotool/picotool/picotool" info -a "$root/.build/firmware/nxs_dsp_probe.uf2"
+"$root/.tools/arm/bin/arm-none-eabi-size" "$root/.build/firmware/nxs_firmware.elf"
+"$root/.tools/picotool/picotool/picotool" info -a "$root/.build/firmware/nxs_firmware.uf2"

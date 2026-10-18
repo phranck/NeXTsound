@@ -11,6 +11,11 @@ extern "C" {
 
 #define NXS_PROTOCOL_MAJOR 1u
 #define NXS_PROTOCOL_MINOR 0u
+/** TinyUSB example identity for private bench builds, not an allocated release VID/PID. */
+#define NXS_USB_VENDOR_ID 0xcafeu
+#define NXS_USB_PRODUCT_ID 0x4014u
+#define NXS_HID_USAGE_PAGE 0xff4eu
+#define NXS_HID_USAGE 1u
 #define NXS_REPORT_ID 1u
 #define NXS_REPORT_SIZE 256u
 #define NXS_HEADER_SIZE 20u
@@ -21,6 +26,8 @@ extern "C" {
 #define NXS_EQ_BAND_COUNT 5u
 #define NXS_SAMPLE_RATE_HZ 48000u
 #define NXS_SYSTEM_CLOCK_HZ 150000000u
+#define NXS_HOST_VOLUME_MIN_DB (-80.0f)
+#define NXS_HOST_VOLUME_MAX_DB 0.0f
 #define NXS_FLAG_RESPONSE 1u
 #define NXS_FORMAT_PCM16 1u
 #define NXS_FORMAT_PCM24 2u
@@ -123,6 +130,7 @@ nxs_parameter_range_t nxs_parameter_range(nxs_parameter_t parameter);
 nxs_snapshot_t nxs_default_snapshot(void);
 nxs_capabilities_t nxs_default_capabilities(void);
 bool nxs_snapshot_is_valid(const nxs_snapshot_t *snapshot);
+bool nxs_host_volume_is_valid(float volume_db);
 const char *nxs_result_description(nxs_result_t result);
 
 /** Failure leaves the caller's destination unchanged. Padding must be zero. */
