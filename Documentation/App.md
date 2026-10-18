@@ -29,6 +29,12 @@ An accepted edit advances the profile revision atomically. Failed edits and exha
 
 The analytical preview uses the shared DSP coefficients. It excludes attenuation, mute, and nonlinear limiting and is not an acoustic measurement. The display clips graph coordinates at its labeled vertical range without altering the underlying settings.
 
+## Fixed enclosure data
+
+The [scalar enclosure record](Verification/Enclosure-2026-10-18.json) supplies geometric references for the planned driver workflow. It records the mounting interface, source digest, coordinate system, named air region, method, and remaining uncertainties. The source CAD and working geometry stay private outside Git.
+
+Its air region uses an explicit virtual front closure. It is not a qualified sealed acoustic volume. The remaining component displacement and leakage are unknown. Catalog eligibility must check the entire mounting/clearance envelope, and the calculation must retain these model conditions. The current offline editor does not yet consume this record.
+
 ## Reproducible configuration
 
 - `toolchain.json` owns the Xcode and generator pins.
@@ -50,4 +56,4 @@ The renderer creates its own hidden offscreen window with activation prohibited.
 
 Document/model tests cover canonical round trips, malformed input, directory rejection, revision/identity failures, atomic edits, metadata preservation, analytical response, and display geometry. The directory case was observed crashing before checking `isRegularFile` ahead of `regularFileContents`.
 
-[Verification evidence](Verification/Workbench-2026-10-18.json) separates builds, model tests, and offscreen rendering. Native menu/dialog interaction, a visible GUI session, and runtime behavior on macOS 15 have not been exercised by these checks. Speaker/enclosure editing and volatile A/B are tracked in [issue 15](https://github.com/phranck/NeXTsound/issues/15).
+[Verification evidence](Verification/Workbench-2026-10-18.json) separates builds, model tests, and offscreen rendering. Native menu/dialog interaction, a visible GUI session, and runtime behavior on macOS 15 have not been exercised by these checks. The next workflow uses the fixed Sound Box enclosure and a catalog of mechanically fitting full-range drivers from different manufacturers. Driver lookup, offline data, and online refresh are tracked in [issue 15](https://github.com/phranck/NeXTsound/issues/15). [Issue 17](https://github.com/phranck/NeXTsound/issues/17) establishes the fixed geometry and fit constraints. [Issue 19](https://github.com/phranck/NeXTsound/issues/19) calculates and optimizes the profile from the available usable parameters, while [issue 20](https://github.com/phranck/NeXTsound/issues/20) adds volatile A/B. These are planned features, not capabilities of the current offline editor.
