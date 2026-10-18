@@ -1,0 +1,344 @@
+{
+  "format_version": 1,
+  "observed_at": "2026-10-18T11:19:55.605417+02:00",
+  "specimen": {
+    "chip": "RP2350/QFN60",
+    "serial": "D4CDD489AFE28CC5",
+    "jedec": "852016",
+    "physical_pcb_model_verified": false
+  },
+  "firmware": {
+    "commit": "7a033203f84650c2f35942493568c70e9ff2f15b",
+    "bytes": 122880,
+    "sha256": "c59b8ae746e012ef3988a628b320241fd48bf90b186758f3d8b05d0113d7bc4c",
+    "program_family": "0xe48bff59",
+    "program_blocks": 239,
+    "range_start_inclusive": "0x10000000",
+    "range_end_exclusive": "0x1000ef00",
+    "ignored_absolute_metadata_blocks": [
+      0
+    ],
+    "original_slots_erased": true
+  },
+  "tools": {
+    "picotool": "2.3.1",
+    "pico_sdk": "2.2.0",
+    "arm_gcc": "15.3.1",
+    "xcode": "27.0 (27A266a)"
+  },
+  "initial_runtime": [
+    {
+      "kind": "capabilities",
+      "serial": "D4CDD489AFE28CC5",
+      "firmware": "7a033203",
+      "clock_hz": 150000000,
+      "flash_bytes": 4194304,
+      "features": 3
+    },
+    {
+      "kind": "state",
+      "generation": 1,
+      "muted": 1,
+      "attenuation_db": -24
+    },
+    {
+      "kind": "status",
+      "persisted_generation": 0,
+      "storage_available": 1,
+      "streaming": 0,
+      "input_peak": 0,
+      "output_peak": 0,
+      "underruns": 0,
+      "overruns": 0,
+      "max_processing_us": 833,
+      "deadline_us": 1000
+    }
+  ],
+  "first_save": [
+    {
+      "kind": "capabilities",
+      "serial": "D4CDD489AFE28CC5",
+      "firmware": "7a033203",
+      "clock_hz": 150000000,
+      "flash_bytes": 4194304,
+      "features": 3
+    },
+    {
+      "kind": "state",
+      "generation": 1,
+      "muted": 1,
+      "attenuation_db": -24
+    },
+    {
+      "kind": "status",
+      "persisted_generation": 0,
+      "storage_available": 1,
+      "streaming": 0,
+      "input_peak": 0,
+      "output_peak": 0,
+      "underruns": 0,
+      "overruns": 0,
+      "max_processing_us": 836,
+      "deadline_us": 1000
+    },
+    {
+      "kind": "status",
+      "persisted_generation": 2,
+      "storage_available": 1,
+      "streaming": 0,
+      "input_peak": 0,
+      "output_peak": 0,
+      "underruns": 0,
+      "overruns": 0,
+      "max_processing_us": 836,
+      "deadline_us": 1000
+    },
+    {
+      "kind": "muted_save_verified"
+    }
+  ],
+  "watchdog_restore": [
+    {
+      "kind": "capabilities",
+      "serial": "D4CDD489AFE28CC5",
+      "firmware": "7a033203",
+      "clock_hz": 150000000,
+      "flash_bytes": 4194304,
+      "features": 3
+    },
+    {
+      "kind": "state",
+      "generation": 2,
+      "muted": 1,
+      "attenuation_db": -18
+    },
+    {
+      "kind": "status",
+      "persisted_generation": 2,
+      "storage_available": 1,
+      "streaming": 0,
+      "input_peak": 0,
+      "output_peak": 0,
+      "underruns": 0,
+      "overruns": 0,
+      "max_processing_us": 910,
+      "deadline_us": 1000
+    }
+  ],
+  "two_valid_records": [
+    {
+      "slot": 0,
+      "valid": true,
+      "generation": 2,
+      "muted": 1,
+      "attenuation_db": -18
+    },
+    {
+      "slot": 1,
+      "valid": true,
+      "generation": 3,
+      "muted": 1,
+      "attenuation_db": -21
+    },
+    {
+      "load_result": 1,
+      "selected_slot": 1,
+      "generation": 3,
+      "muted": 1,
+      "attenuation_db": -21
+    }
+  ],
+  "fault_injection": {
+    "method": "BOOTSEL loader replaces only owned slot 1 with one stored-data-CRC bit changed",
+    "sector_address": "0x103ff000",
+    "bytes": 4096,
+    "power_loss_test": false
+  },
+  "corruption_fallback": [
+    {
+      "kind": "capabilities",
+      "serial": "D4CDD489AFE28CC5",
+      "firmware": "7a033203",
+      "clock_hz": 150000000,
+      "flash_bytes": 4194304,
+      "features": 3
+    },
+    {
+      "kind": "state",
+      "generation": 2,
+      "muted": 1,
+      "attenuation_db": -18
+    },
+    {
+      "kind": "status",
+      "persisted_generation": 2,
+      "storage_available": 1,
+      "streaming": 0,
+      "input_peak": 0,
+      "output_peak": 0,
+      "underruns": 0,
+      "overruns": 0,
+      "max_processing_us": 929,
+      "deadline_us": 1000
+    }
+  ],
+  "recovered_records": [
+    {
+      "slot": 0,
+      "valid": true,
+      "generation": 2,
+      "muted": 1,
+      "attenuation_db": -18
+    },
+    {
+      "slot": 1,
+      "valid": true,
+      "generation": 3,
+      "muted": 1,
+      "attenuation_db": -24
+    },
+    {
+      "load_result": 1,
+      "selected_slot": 1,
+      "generation": 3,
+      "muted": 1,
+      "attenuation_db": -24
+    }
+  ],
+  "older_sector_byte_identical": true,
+  "final_runtime": [
+    {
+      "kind": "capabilities",
+      "serial": "D4CDD489AFE28CC5",
+      "firmware": "7a033203",
+      "clock_hz": 150000000,
+      "flash_bytes": 4194304,
+      "features": 3
+    },
+    {
+      "kind": "state",
+      "generation": 3,
+      "muted": 1,
+      "attenuation_db": -24
+    },
+    {
+      "kind": "status",
+      "persisted_generation": 3,
+      "storage_available": 1,
+      "streaming": 0,
+      "input_peak": 0,
+      "output_peak": 0,
+      "underruns": 0,
+      "overruns": 0,
+      "max_processing_us": 910,
+      "deadline_us": 1000
+    }
+  ],
+  "audio_defaults_during_controlled_reenumeration": [
+    {
+      "kind": "audio_default_identity",
+      "role": 0,
+      "uid": "BuiltInHeadphoneOutputDevice",
+      "name": "External Headphones"
+    },
+    {
+      "kind": "audio_default_identity",
+      "role": 1,
+      "uid": "BuiltInHeadphoneOutputDevice",
+      "name": "External Headphones"
+    }
+  ],
+  "audio_default_uid_comparison_passed": true,
+  "initial_audio_baseline_limitation": "The first pre-install sample recorded numeric handles only; the controlled BOOTSEL/runtime cycle repeats the comparison using stable UIDs.",
+  "limits": {
+    "usb_audio_stream_started": false,
+    "audible_test_performed": false,
+    "electrical_signals_measured": false,
+    "full_load_headroom_measured": false,
+    "runtime_stack_high_water_measured": false,
+    "original_firmware_restoration_exercised": false
+  },
+  "host_harness_sha256": "01ed5b935087dce37dbccc31059cec69dd69bf840021125e497c869e9a6d2949",
+  "first_save_replies": [
+    {
+      "kind": "reply",
+      "operation": 1,
+      "request_id": 1014283778,
+      "result": 0,
+      "generation": 1,
+      "elapsed_us": 1371
+    },
+    {
+      "kind": "reply",
+      "operation": 2,
+      "request_id": 1014283779,
+      "result": 0,
+      "generation": 1,
+      "elapsed_us": 1183
+    },
+    {
+      "kind": "reply",
+      "operation": 5,
+      "request_id": 1014283780,
+      "result": 0,
+      "generation": 1,
+      "elapsed_us": 1141
+    },
+    {
+      "kind": "reply",
+      "operation": 3,
+      "request_id": 1014283781,
+      "result": 0,
+      "generation": 2,
+      "elapsed_us": 2927
+    },
+    {
+      "kind": "reply",
+      "operation": 3,
+      "request_id": 1014283781,
+      "result": 0,
+      "generation": 2,
+      "elapsed_us": 1105
+    },
+    {
+      "kind": "reply",
+      "operation": 2,
+      "request_id": 1014283782,
+      "result": 0,
+      "generation": 2,
+      "elapsed_us": 1077
+    },
+    {
+      "kind": "reply",
+      "operation": 4,
+      "request_id": 1014283783,
+      "result": 5,
+      "generation": 2,
+      "elapsed_us": 1115
+    },
+    {
+      "kind": "reply",
+      "operation": 4,
+      "request_id": 1014283784,
+      "result": 0,
+      "generation": 2,
+      "elapsed_us": 6978
+    },
+    {
+      "kind": "reply",
+      "operation": 4,
+      "request_id": 1014283784,
+      "result": 0,
+      "generation": 2,
+      "elapsed_us": 1077
+    },
+    {
+      "kind": "reply",
+      "operation": 5,
+      "request_id": 1014283785,
+      "result": 0,
+      "generation": 2,
+      "elapsed_us": 1052
+    }
+  ]
+}

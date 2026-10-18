@@ -16,7 +16,7 @@ Use the USB-enabled `picotool` 2.3.1 for hardware operations. The project-local 
 
 On October 18, 2026, the intended specimen reported ROM chip ID/USB serial `D4CDD489AFE28CC5`, RP2350/QFN60. The RAM probe returned JEDEC `852016`, SFDP 1.0, a nine-DWORD basic table, 33554432 density bits, and 4096-byte sector erase with opcode `0x20`. Thus its physical flash capacity is 4194304 bytes. The probe reported a 150000000 Hz system clock through the SDK clock API.
 
-The JEDEC tuple matches the [PY25Q32HB manufacturer's identification table](https://www.puyasemi.com/download_path/%E6%95%B0%E6%8D%AE%E6%89%8B%E5%86%8C/Flash%20%E8%8A%AF%E7%89%87/PY25Q32HB_Datasheet_V1.7.pdf#page=67). Its [Page Program specification](https://www.puyasemi.com/download_path/%E6%95%B0%E6%8D%AE%E6%89%8B%E5%86%8C/Flash%20%E8%8A%AF%E7%89%87/PY25Q32HB_Datasheet_V1.7.pdf#page=55) defines 256-byte pages and aligned full-page writes. The observed basic SFDP revision does not contain the later page-size DWORD. Page size therefore comes from the matching manufacturer's specification, not a measured program operation. Package markings and the physical PCB model remain unverified by these software observations.
+The JEDEC tuple matches the [PY25Q32HB manufacturer's identification table](https://www.puyasemi.com/download_path/%E6%95%B0%E6%8D%AE%E6%89%8B%E5%86%8C/Flash%20%E8%8A%AF%E7%89%87/PY25Q32HB_Datasheet_V1.7.pdf#page=67). Its [Page Program specification](https://www.puyasemi.com/download_path/%E6%95%B0%E6%8D%AE%E6%89%8B%E5%86%8C/Flash%20%E8%8A%AF%E7%89%87/PY25Q32HB_Datasheet_V1.7.pdf#page=55) defines 256-byte pages and aligned full-page writes. The observed basic SFDP revision does not contain the later page-size DWORD. Page size therefore comes from the matching manufacturer's specification, not that SFDP revision. Later aligned firmware writes and readback are a separate [device verification](Storage.md#device-verification). Package markings and the physical PCB model remain unverified by these software observations.
 
 The original MicroPython v1.29.0 image uses a `pico2` firmware target and SDK 2.3.0. Its embedded filesystem spans `0x10100000` through `0x10400000`. This describes the saved image, not the physical board model.
 
@@ -33,10 +33,20 @@ cmp "$BACKUP/mapped-flash-a.bin" "$BACKUP/mapped-flash-b.bin"
 shasum -a 256 "$BACKUP/mapped-flash-a.bin" "$BACKUP/mapped-flash-b.bin"
 ```
 
-Both observed 4194304-byte captures have SHA-256 `d0edc9763780aee891a36a572759da4883b03f2f34cadd31a5564d5711270414`. A third full read after the RAM probe matches them byte for byte. The original flash contents are unchanged. The backup includes the filesystem; do not inspect or publish its user data as test fixtures.
+Both observed 4194304-byte captures have SHA-256 `d0edc9763780aee891a36a572759da4883b03f2f34cadd31a5564d5711270414`. A third full read after the RAM probe matches them byte for byte. This comparison was completed before NeXTsound installation. All three original images are retained unchanged and read-only. The backup includes the filesystem; do not inspect or publish its user data as test fixtures.
 
 ## Retain a restoration path
 
 Store target-specific `RESTORE.md` instructions beside the images and a manifest recording their range, byte count, hashes, chip ID, metadata source, and verification results. Before restoration, reconfirm the exact specimen, file size, and hash. Restore the full raw image to explicit offset `0x10000000` with `picotool load --ignore-partitions -v`, using the same device filters. Read the complete range back and compare it before rebooting. Do not change protection, OTP, or security settings to bypass an error.
 
-For this specimen, restoration is documented but not exercised. The board remains in BOOTSEL; no NeXTsound image is installed in flash. Persistence stays unavailable until the storage implementation and coordinated flash-write path are complete. A verified backup does not qualify amplifier wiring, I2S signals, runtime headroom, or speaker safety.
+For this specimen, restoration is documented but not exercised. Muted NeXTsound build `7a033203` is now installed. Targeted persistence, reboot, and controlled record-corruption checks passed; the [verification record](Verification/Storage-2026-10-18.json) distinguishes those observations from host models.
+
+The installed development firmware can return this selected specimen to BOOTSEL without changing an activity GPIO:
+
+```bash
+picotool reboot -u -f --vid 0xcafe --pid 0x4014 --ser D4CDD489AFE28CC5
+# Wait for BOOTSEL USB enumeration before checking the ROM identity.
+picotool info -d --vid 0x2e8a --pid 0x000f --ser D4CDD489AFE28CC5
+```
+
+A successful reset request does not mean the new USB instance has already enumerated. The observed first immediate identity query raced enumeration; a bounded wait then confirmed the intended ROM identity. Firmware-assisted reset is not a substitute for physical BOOTSEL access when firmware cannot run. A verified backup does not qualify amplifier wiring, I2S signals, runtime headroom, or speaker safety.

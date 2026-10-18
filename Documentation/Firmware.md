@@ -59,7 +59,7 @@ bash Scripts/check.sh
 
 The complete gate checks source formatting, formatting regression fixtures, SwiftLint, sanitized C suites, Swift tests, the Release package, and all three RP2350 targets. Firmware integration tests inspect the actual descriptor arrays, exercise the real USB callbacks against a platform fixture, and model the generated PIO instructions under the configured shift/autopull assumptions. They do not emulate the USB controller, DMA timing, pad signals, or amplifier.
 
-Before installation, identify the intended specimen, establish physical flash geometry, preserve and verify its complete flash, and record restoration. A configured SDK flash size is not that measurement. USB enumeration, format/lifecycle behavior, runtime headroom, I2S signals, wiring, and speaker safety remain on-device acceptance work in [issue 3](https://github.com/phranck/NeXTsound/issues/3), following the storage/backup slice in [issue 9](https://github.com/phranck/NeXTsound/issues/9).
+Before installation, identify the intended specimen, establish physical flash geometry, preserve and verify its complete flash, and record restoration. A configured SDK flash size is not that measurement. The [October 18 storage verification](Verification/Storage-2026-10-18.json) establishes muted startup, targeted HID control, persistence/readback, reboot restoration, and recovery from controlled newest-record corruption on the named specimen. USB audio format/lifecycle behavior, full-load runtime headroom, I2S signals, wiring, and speaker safety remain on-device acceptance work in [issue 3](https://github.com/phranck/NeXTsound/issues/3), following the storage/backup slice in [issue 9](https://github.com/phranck/NeXTsound/issues/9).
 
 ## Upstream notices
 

@@ -2,7 +2,7 @@
 
 The portable [`nxs_storage`](../Firmware/Core/include/nxs_storage.h) library validates, selects, and replaces saved snapshots. It uses the canonical protocol's snapshot codec. It does not serialize native structs or transport request IDs.
 
-The firmware connects this core to deferred device persistence through geometry-gated platform callbacks. Host integration tests and the RP2350 cross-build cover this connection. Installation and physical flash operations have not yet been exercised.
+The firmware connects this core to deferred device persistence through geometry-gated platform callbacks. Host integration tests and the RP2350 cross-build cover this connection. Muted build `7a033203` was installed on specimen `D4CDD489AFE28CC5` on October 18, 2026. Targeted HID, persistence, reboot, and controlled corruption checks passed. See the [structured device observations](Verification/Storage-2026-10-18.json).
 
 ## Layout
 
@@ -69,6 +69,16 @@ A persistence request captures the active snapshot and generation. Its reply is 
 No TinyUSB work occurs inside the flash-disabled callback. The producer remains gated through the next `tud_task` pass after saving, queued audio is discarded, and a new stream epoch forces re-priming before output resumes. Device acknowledgement follows complete record readback. Audio telemetry updates preserve control-owned storage fields. Accepted persistence survives a USB session reset, but its old request ID/reply does not enter the new session.
 
 The SDK/picotool-compatible reset interface also requests audio maintenance. Reset is performed from the main loop only after quiescence, never from a USB callback. BOOTSEL requests retain PICOBOOT access and do not configure an activity GPIO.
+
+## Device verification
+
+The intended specimen booted with generation 1, profile mute enabled, attenuation at -24 dB, and no persisted generation. HID reported the matching serial, firmware revision, 4 MiB geometry, and both storage feature flags. Applying and saving a muted -18 dB configuration produced generation 2, which survived the SDK-compatible watchdog reboot. Exact apply/save retries replayed their replies; a stale-generation save was rejected.
+
+A second save produced a valid generation 3 record in the other sector. BOOTSEL readback and the canonical host storage decoder verified both records. A controlled BOOTSEL write changed one stored-CRC bit in the owned newest test sector only. The firmware then loaded generation 2. Saving again repaired the inactive sector with a new valid generation 3 at -24 dB. Complete sector readback confirmed that the surviving older sector remained byte-identical. The final reboot restored the new generation 3 with mute still enabled.
+
+Both BOOTSEL and flash reboot paths were exercised. A controlled BOOTSEL/runtime re-enumeration retained the stable `BuiltInHeadphoneOutputDevice` UID for both system output roles; numeric handles alone were not a sufficient comparison. The harness never selected a system output or disabled profile mute.
+
+These were control/storage tests without a USB audio stream. They do not establish full-load audio headroom, electrical I2S behavior, suspend current, runtime stack high-water use, or physical power-loss recovery. The injected corrupt record was written by the bootloader, not produced by interrupting a firmware write. Original-firmware restoration remains documented but unexercised.
 
 ## Host verification
 
