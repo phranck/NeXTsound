@@ -3,6 +3,26 @@
     "version": "27.0",
     "build": "27A266a"
   },
+  "firmware": {
+    "board": "waveshare_rp2350_zero",
+    "arm": {
+      "version": "15.3.1",
+      "distribution": "15.3.rel2",
+      "host": "Darwin-arm64",
+      "url": "https://gitlab.arm.com/api/v4/projects/tooling%2Fgnu-toolchains-for-arm/packages/generic/gnu-toolchain/15.3.rel2/arm-gnu-toolchain-15.3.rel2-darwin-arm64-arm-none-eabi.tar.xz",
+      "sha256": "f011e4832046155f06408dda6b252b21b139a8159c8529802227371f06656c60"
+    },
+    "pico_sdk": {
+      "version": "2.2.0",
+      "url": "https://github.com/raspberrypi/pico-sdk.git",
+      "commit": "a1438dff1d38bd9c65dbd693f0e5db4b9ae91779",
+      "tinyusb_commit": "86ad6e56c1700e85f1c5678607a762cfe3aa2f47"
+    },
+    "picotool": {
+      "version": "2.3.1",
+      "commit": "2041936441b48a3cc53ae3da9e805229fe8f4e18"
+    }
+  },
   "tools": {
     "swiftformat": {
       "version": "0.64.0",

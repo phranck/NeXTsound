@@ -17,4 +17,5 @@ cmake --build "$root/.build/c-protocol"
 ctest --test-dir "$root/.build/c-protocol" --output-on-failure
 swift test --package-path "$root/Shared"
 swift build --package-path "$root/Shared" --configuration release
+bash "$root/Scripts/firmware.sh"
 git -C "$root" diff --check

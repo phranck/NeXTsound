@@ -6,6 +6,12 @@ target_include_directories(nxs_protocol PUBLIC Sources/NeXTsoundProtocol/include
 target_compile_features(nxs_protocol PUBLIC c_std_11)
 target_compile_options(nxs_protocol PRIVATE -Wall -Wextra -Wpedantic -Werror)
 
+add_library(nxs_dsp STATIC Sources/NeXTsoundDSP/dsp.c)
+target_include_directories(nxs_dsp PUBLIC Sources/NeXTsoundDSP/include)
+target_link_libraries(nxs_dsp PUBLIC nxs_protocol m)
+target_compile_features(nxs_dsp PUBLIC c_std_11)
+target_compile_options(nxs_dsp PRIVATE -Wall -Wextra -Wpedantic -Werror)
+
 if(PROJECT_IS_TOP_LEVEL)
     include(CTest)
     option(NXS_ENABLE_SANITIZERS "Enable host address and undefined-behavior sanitizers" ON)
@@ -19,5 +25,9 @@ if(PROJECT_IS_TOP_LEVEL)
         target_compile_options(nxs_protocol_tests PRIVATE -Wall -Wextra -Wpedantic -Werror)
         add_test(NAME protocol COMMAND nxs_protocol_tests
             "${CMAKE_CURRENT_SOURCE_DIR}/Tests/NeXTsoundCoreTests/Fixtures/capabilities-request.hex")
+        add_executable(nxs_dsp_tests Tests/CDSPTests/dsp_tests.c)
+        target_link_libraries(nxs_dsp_tests PRIVATE nxs_dsp)
+        target_compile_options(nxs_dsp_tests PRIVATE -Wall -Wextra -Wpedantic -Werror)
+        add_test(NAME dsp COMMAND nxs_dsp_tests)
     endif()
 endif()

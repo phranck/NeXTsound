@@ -1,0 +1,49 @@
+# Portable mono DSP
+
+`Shared/Sources/NeXTsoundDSP` is the C processing engine shared by the firmware build and the Swift EQ preview. Its declarations are in [`nxs_dsp.h`](../Shared/Sources/NeXTsoundDSP/include/nxs_dsp.h).
+
+## Signal path
+
+The engine accepts normalized interleaved stereo and produces mono. Each input channel is bounded to full scale; nonfinite input samples become zero. The signal path is stereo averaging, a second-order Butterworth high-pass, five peaking filters, attenuation, peak limiting, and mute. Filter and parameter limits come from the protocol target.
+
+The limiter has instantaneous attack and a configurable exponential gain release. Its output is bounded by the configured digital peak ceiling. This is not a thermal or excursion protection model for a loudspeaker.
+
+Mute suppresses output while the filters continue processing. Initialization uses the canonical muted default settings.
+
+## Audio ownership
+
+Call `nxs_dsp_prepare` outside the audio thread to compute a complete configuration. Invalid snapshots leave the destination unchanged. The audio thread owns its `nxs_dsp_t` and calls `nxs_dsp_apply` at a block boundary. A second apply is refused while a transition is active.
+
+The engine crossfades two complete processing chains over `NXS_DSP_TRANSITION_FRAMES`. During a transition, the output also obeys the incoming configuration's limiter ceiling. Old and new chains have independent delay and limiter state. The extra work of a transition belongs in the eventual on-device runtime budget.
+
+`nxs_dsp_process` accepts no more than `NXS_DSP_BLOCK_FRAMES` per call. Rejection leaves the engine unchanged. It allocates no memory and calls no USB or flash API. The caller provides input/output buffers and handles device synchronization.
+
+## EQ preview
+
+`nxs_dsp_eq_magnitude` evaluates the same coefficients used by the processing engine. Swift's `EQResponse` prepares those coefficients once and exposes the result in decibels. The preview includes the linear high-pass and EQ stages only. It excludes attenuation, mute, and nonlinear limiting and does not describe the speaker's acoustic response.
+
+## Build and test
+
+Run all shared tests, formatting/lint checks, the Release package build, and the RP2350 cross-build:
+
+```bash
+bash Scripts/check.sh
+```
+
+Build only the firmware probe:
+
+```bash
+bash Scripts/firmware.sh
+```
+
+The firmware bootstrap currently supports an Apple Silicon macOS build host. `toolchain.json` pins the compiler archive/checksum, SDK commit, TinyUSB commit, and build-time picotool commit. Tools and dependencies are installed under ignored `.tools`. The first run downloads them. The local and CI gates use the same manifest.
+
+`Firmware/probe.c` requests the canonical 150 MHz clock and exercises the muted engine without configuring USB, UART output, or I²S. Outputs are under `.build/firmware`, including `nxs_dsp_probe.elf` and `nxs_dsp_probe.uf2`. This probe is not the USB audio firmware. The build script never installs it or accesses a device. The SDK's configured flash size is not a physical flash measurement.
+
+Host tests cover stereo normalization, analytic and processed filter response, DC rejection with a Float32 tolerance, limiting/release, transitions, malformed settings/samples, configuration aliasing, and parameter corners. The cross-build establishes that the RP2350 target compiles and links. Runtime timing, I²S signals, USB behavior, and speaker safety require separate hardware verification.
+
+## Upstream material
+
+The transposed direct-form biquad step is adapted from [DSPi v1.1.5](https://github.com/WeebLabs/DSPi/blob/5d4dd00f82637fdf8d275f80aeaff0fd7b62719a/firmware/DSPi/dsp_biquad.h). The source identifies the upstream revision and the NeXTsound adaptation date. The unchanged [GPLv3 text](../Shared/Sources/NeXTsoundDSP/LICENSE) accompanies this target.
+
+[Pico SDK 2.2.0](https://github.com/raspberrypi/pico-sdk/tree/a1438dff1d38bd9c65dbd693f0e5db4b9ae91779) retains its [BSD-3-Clause notice](https://github.com/raspberrypi/pico-sdk/blob/a1438dff1d38bd9c65dbd693f0e5db4b9ae91779/LICENSE.TXT) in the fetched checkout. The firmware build uses the SDK rather than copying board-support sources into this repository.

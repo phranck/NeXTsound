@@ -66,7 +66,7 @@ static bool operation_is_valid(nxs_operation_t operation) {
 
 static nxs_result_t validate_message(const nxs_message_t *message) {
     if (!message || message->payload_length > NXS_PAYLOAD_CAPACITY || message->request_id == 0 ||
-        (message->flags & ~NXS_FLAG_RESPONSE) != 0 || message->result < NXS_RESULT_OK || message->result > NXS_RESULT_STORAGE_FAILED ||
+        (message->flags & ~NXS_FLAG_RESPONSE) != 0 || (unsigned int)message->result > NXS_RESULT_STORAGE_FAILED ||
         (!(message->flags & NXS_FLAG_RESPONSE) && message->result != NXS_RESULT_OK)) {
         return NXS_RESULT_INVALID_REPORT;
     }
@@ -141,7 +141,7 @@ static bool runtime_status_is_valid(const nxs_runtime_status_t *status) {
 }
 
 nxs_parameter_range_t nxs_parameter_range(nxs_parameter_t parameter) {
-    if (parameter < 0 || parameter >= NXS_PARAMETER_COUNT) {
+    if ((unsigned int)parameter >= NXS_PARAMETER_COUNT) {
         return (nxs_parameter_range_t){0.0f, 0.0f};
     }
     return parameter_ranges[parameter];

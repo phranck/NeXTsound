@@ -7,7 +7,13 @@ let package = Package(
     products: [.library(name: "NeXTsoundCore", targets: ["NeXTsoundCore"])],
     targets: [
         .target(name: "NeXTsoundProtocol", publicHeadersPath: "include"),
-        .target(name: "NeXTsoundCore", dependencies: ["NeXTsoundProtocol"]),
+        .target(
+            name: "NeXTsoundDSP",
+            dependencies: ["NeXTsoundProtocol"],
+            publicHeadersPath: "include",
+            linkerSettings: [.linkedLibrary("m")]
+        ),
+        .target(name: "NeXTsoundCore", dependencies: ["NeXTsoundProtocol", "NeXTsoundDSP"]),
         .testTarget(name: "NeXTsoundCoreTests", dependencies: ["NeXTsoundCore", "NeXTsoundProtocol"], resources: [.copy("Fixtures")]),
     ],
     cLanguageStandard: .c11
