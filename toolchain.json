@@ -1,0 +1,22 @@
+{
+  "xcode": {
+    "version": "27.0",
+    "build": "27A266a"
+  },
+  "tools": {
+    "swiftformat": {
+      "version": "0.64.0",
+      "version_argument": "--version",
+      "url": "https://github.com/nicklockwood/SwiftFormat/releases/download/0.64.0/swiftformat.zip",
+      "sha256": "95ea62625d0b898a7af870293311ae6f09e4a3147ecd900593687e4b9ab2fd98",
+      "license_url": "https://raw.githubusercontent.com/nicklockwood/SwiftFormat/0.64.0/LICENSE.md"
+    },
+    "swiftlint": {
+      "version": "0.65.0",
+      "version_argument": "version",
+      "url": "https://github.com/realm/SwiftLint/releases/download/0.65.0/portable_swiftlint.zip",
+      "sha256": "d6cb0aa7a2f5f1ef306fc9e37bcb54dc9a26facc8f7784ac0c3dd3eccf5c6ba6",
+      "license_url": "https://raw.githubusercontent.com/realm/SwiftLint/0.65.0/LICENSE"
+    }
+  }
+}
