@@ -106,14 +106,40 @@ public struct USBHostBoardTransport: BoardTransport, @unchecked Sendable {
         let current = try await Self.exchange(WireMessage(operation: .capabilities, requestID: .random(in: 1 ... .max)))
         let payload = try WireCodec.encodeDeviceName(name)
         let request = WireMessage(operation: .setName, requestID: .random(in: 1 ... .max), generation: current.generation, payload: payload)
-        _ = try await Self.exchange(request)
+        _ = try await Self.exchangeUntilComplete(request)
     }
 }
 
 private extension USBHostBoardTransport {
     static func exchange(_ request: WireMessage) async throws -> WireMessage {
+        let response = try await transfer(request)
+        try response.validateResponse(to: request)
+        return response
+    }
+
+    /// Polls for an operation's reply without resending it as a new request each time: the
+    /// device replies to a persist/set-name request only once its flash write completes, which
+    /// outlasts the request's own USB transaction, so the first few polls observe an unrelated
+    /// reply still sitting in the device's response buffer. Resending the identical bytes is
+    /// safe, because the device recognizes it as the same request already in flight.
+    static func exchangeUntilComplete(_ request: WireMessage, overallTimeout: Duration = .seconds(10)) async throws -> WireMessage {
+        let deadline = ContinuousClock.now + overallTimeout
+        while true {
+            let response = try await transfer(request)
+            if response.matchesRequest(request) {
+                try response.validateResponse(to: request)
+                return response
+            }
+            guard ContinuousClock.now < deadline else {
+                throw BoardTransportError.timeout
+            }
+            try await Task.sleep(for: .milliseconds(50))
+        }
+    }
+
+    static func transfer(_ request: WireMessage) async throws -> WireMessage {
         try await withThrowingTaskGroup(of: WireMessage.self) { group in
-            group.addTask { try await Self.exchangeOffQueue(request) }
+            group.addTask { try await Self.transferOffQueue(request) }
             group.addTask {
                 try await Task.sleep(for: Self.timeout)
                 throw BoardTransportError.timeout
@@ -126,11 +152,11 @@ private extension USBHostBoardTransport {
         }
     }
 
-    static func exchangeOffQueue(_ request: WireMessage) async throws -> WireMessage {
+    static func transferOffQueue(_ request: WireMessage) async throws -> WireMessage {
         try await withCheckedThrowingContinuation { continuation in
             queue.async {
                 do {
-                    try continuation.resume(returning: exchangeOnQueue(request))
+                    try continuation.resume(returning: transferOnQueue(request))
                 } catch {
                     continuation.resume(throwing: error)
                 }
@@ -138,7 +164,7 @@ private extension USBHostBoardTransport {
         }
     }
 
-    static func exchangeOnQueue(_ request: WireMessage) throws -> WireMessage {
+    static func transferOnQueue(_ request: WireMessage) throws -> WireMessage {
         let encoded = try WireCodec.encode(request)
         guard encoded.count == WireCodec.reportSize else {
             throw BoardTransportError.invalidReport
@@ -164,8 +190,6 @@ private extension USBHostBoardTransport {
             throw BoardTransportError.transportFailed(bytesRead)
         }
 
-        let response = try WireCodec.decode(Data(getBuffer))
-        try response.validateResponse(to: request)
-        return response
+        return try WireCodec.decode(Data(getBuffer))
     }
 }

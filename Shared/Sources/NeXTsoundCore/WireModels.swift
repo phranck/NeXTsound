@@ -61,13 +61,15 @@ public struct WireMessage: Equatable, Sendable {
 }
 
 public extension WireMessage {
+    /// True once this reply's identity matches the request, regardless of its result code.
+    /// An operation that completes asynchronously on the device (persist, set name) replies
+    /// later than its own USB transaction, so a poll may observe an unrelated reply first.
+    func matchesRequest(_ request: Self) -> Bool {
+        isResponse && !request.isResponse && operation == request.operation && requestID == request.requestID
+    }
+
     func validateResponse(to request: Self) throws {
-        guard
-            isResponse,
-            !request.isResponse,
-            operation == request.operation,
-            requestID == request.requestID
-        else {
+        guard matchesRequest(request) else {
             throw WireError(result: NXS_RESULT_INVALID_REPORT)
         }
         guard resultCode == NXS_RESULT_OK.rawValue else {
