@@ -1,0 +1,42 @@
+{
+  "date": "2026-10-19",
+  "scope": "Let the owner set a persisted custom SoundBox name, issue 24.",
+  "base_revision": "bb051aa781c65bcfe7501f7020e0d9cdd102a51b",
+  "branch": "issue/24-persisted-soundbox-name",
+  "platform": {
+    "minimum_macos": "15.0",
+    "xcode": "27.0",
+    "xcodegen": "2.45.4",
+    "libusb": "1.0.30 (Homebrew, arm64, unpinned)"
+  },
+  "gate": {
+    "completed_local": "2026-10-19T21:28:29+02:00",
+    "shared_swift_tests": 35,
+    "app_swift_tests": 62,
+    "ctest_cases": 18,
+    "swiftlint_violations": 0,
+    "format_layout_fixtures": true,
+    "rp2350_targets_and_guards": true,
+    "native_debug_build": true,
+    "native_release_build": true,
+    "release_packages": true,
+    "shellcheck": true,
+    "actionlint": true
+  },
+  "root_cause": "SET_NAME completes asynchronously on the device, exactly like PERSIST_STATE: the firmware defers its reply until the flash write finishes, well after the one SET_REPORT/GET_REPORT USB transaction that carried the request. USBHostBoardTransport had only ever performed the synchronous CAPABILITIES exchange, so its one-shot transfer returned whatever reply was still sitting in the device's shared response buffer from the exchange immediately before it, which failed WireMessage.validateResponse as an operation/request-ID mismatch.",
+  "fix": "USBHostBoardTransport.exchangeUntilComplete resends the identical SET_NAME request and polls its GET_REPORT every 50ms, up to a ten-second budget, until the device's own matchesRequest check, split out of validateResponse, confirms the reply belongs to this request. The device treats an identical resend as the same request already in flight rather than a new one, so this is safe.",
+  "board_access_performed": true,
+  "board_access_description": "Built this branch's firmware (nxs_firmware.uf2) and flashed it onto the bench specimen (serial D4CDD489AFE28CC5) via picotool 2.3.1 after a firmware-assisted BOOTSEL reboot, confirming chipid 0xd4cdd489afe28cc5 before writing. Then, against the running firmware: a direct SET_NAME exchange, using USBHostBoardTransport directly because this session's Xcode device-interaction tooling only drives iOS Simulator UI rather than a native macOS app, renamed the device to \"Bedroom SoundBox\". A CAPABILITIES exchange confirmed the new deviceName immediately, a firmware-assisted reboot re-enumerated the device, and ioreg's kUSBProductString, the IOKit property system_profiler and Sound settings read, was checked before and after. The name was then cleared back to empty and the device rebooted again to confirm the descriptor falls back to the fixed literal.",
+  "board_access_result": "Before rename, kUSBProductString was \"NeXTsound development\". The first rename attempt initially appeared to fail in the app layer with WireError \"Invalid report\", but the firmware had already persisted the name; this is the bug documented under root_cause and fix above, fixed and re-verified with a clean run. After the fix, SET_NAME succeeded, the immediate CAPABILITIES reply already showed deviceName \"Bedroom SoundBox\", and after the reboot kUSBProductString read \"Bedroom SoundBox\", exactly the property system_profiler SPUSBDataType and Audio MIDI Setup/Sound settings read from a USB device. Clearing the name and rebooting again returned kUSBProductString to \"NeXTsound development\". system_profiler itself returned no output for this device in this sandboxed shell on every attempt, so the system_profiler-rendered view was not directly observed; ioreg is the same underlying IOKit source those tools read from.",
+  "audio_playback_performed": false,
+  "system_audio_output_changed": false,
+  "system_wide_sleep_performed": false,
+  "input_models_modified_or_published": false,
+  "limits": [
+    "Verified against one bench specimen only; other specimens or firmware revisions are not covered.",
+    "The rename itself was driven directly through USBHostBoardTransport, not through the app's GUI; the SwiftUI rename control (pencil button, popover form) is covered by the Swift unit tests and an offscreen render, not by this hardware run.",
+    "system_profiler SPUSBDataType produced no output for this device in this sandboxed shell; the new name was confirmed via ioreg's kUSBProductString, the same IOKit property those tools read, not via system_profiler or Sound settings' own rendering.",
+    "The underlying generation counter is shared with the DSP snapshot; this run never exercised the live DSP apply/persist workflow (issue 16), which remains unverified against real hardware.",
+    "No physical, acoustic, speaker-protection, or enclosure-volume claim follows."
+  ]
+}
