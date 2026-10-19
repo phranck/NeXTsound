@@ -11,9 +11,9 @@ public enum FactoryPreset: String, CaseIterable, Identifiable, Sendable {
 
     public var name: String {
         switch self {
-        case .flat: "Flat"
-        case .warm: "Warm"
-        case .speech: "Speech"
+        case .flat: String(localized: "Flat")
+        case .warm: String(localized: "Warm")
+        case .speech: String(localized: "Speech")
         }
     }
 }

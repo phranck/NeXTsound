@@ -3,6 +3,7 @@ import PackageDescription
 
 let package = Package(
     name: "NeXTsoundShared",
+    defaultLocalization: "en",
     platforms: [.macOS(.v15)],
     products: [.library(name: "NeXTsoundCore", targets: ["NeXTsoundCore"])],
     targets: [
@@ -13,7 +14,7 @@ let package = Package(
             publicHeadersPath: "include",
             linkerSettings: [.linkedLibrary("m")]
         ),
-        .target(name: "NeXTsoundCore", dependencies: ["NeXTsoundProtocol", "NeXTsoundDSP"]),
+        .target(name: "NeXTsoundCore", dependencies: ["NeXTsoundProtocol", "NeXTsoundDSP"], resources: [.process("Resources")]),
         .testTarget(name: "NeXTsoundCoreTests", dependencies: ["NeXTsoundCore", "NeXTsoundProtocol"], resources: [.copy("Fixtures")]),
     ],
     cLanguageStandard: .c11

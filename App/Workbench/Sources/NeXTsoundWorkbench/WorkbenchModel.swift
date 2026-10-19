@@ -24,15 +24,17 @@ public final class WorkbenchModel {
 
     public var storageStatus: String {
         if !isReady {
-            return "Loading profiles…"
+            return String(localized: "Loading profiles…")
         }
         if let storageError {
-            return "Changes are not saved. \(storageError)"
+            return String(localized: "Changes are not saved. \(storageError)")
         }
         if storage == nil {
-            return "Temporary profile session"
+            return String(localized: "Temporary profile session")
         }
-        return savedRevision == library.revision ? "Profiles saved on this Mac" : "Saving profiles…"
+        return savedRevision == library.revision
+            ? String(localized: "Profiles saved on this Mac")
+            : String(localized: "Saving profiles…")
     }
 
     public init(library: ProfileLibrary = ProfileLibrary(), storage: (any ProfileLibraryStorage)? = nil, boards: BoardMonitor? = nil) {

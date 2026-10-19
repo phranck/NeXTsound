@@ -121,7 +121,7 @@ private extension BoardMonitor {
                 }
                 let enumeratedSerial = identity.enumeratedSerial
                 if let enumeratedSerial, !enumeratedSerial.isEmpty, enumeratedSerial != capabilities.serial {
-                    state = .mismatched("The reported serial does not match the enumerated device.")
+                    state = .mismatched(String(localized: "The reported serial does not match the enumerated device."))
                 } else {
                     state = .verified(capabilities)
                 }

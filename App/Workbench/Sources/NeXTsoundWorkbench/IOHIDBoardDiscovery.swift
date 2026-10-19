@@ -11,10 +11,10 @@ public enum BoardTransportError: Error, Equatable, LocalizedError, Sendable {
 
     public var errorDescription: String? {
         switch self {
-        case .timeout: "The board did not reply in time."
-        case .invalidReport: "The capability report could not be built."
-        case let .transportFailed(code): "The board rejected the request (code \(code))."
-        case .notConnected: "No SoundBox is connected."
+        case .timeout: String(localized: "The board did not reply in time.")
+        case .invalidReport: String(localized: "The capability report could not be built.")
+        case let .transportFailed(code): String(localized: "The board rejected the request (code \(code)).")
+        case .notConnected: String(localized: "No SoundBox is connected.")
         }
     }
 }
