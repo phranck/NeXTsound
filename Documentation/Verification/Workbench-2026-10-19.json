@@ -1,0 +1,85 @@
+{
+  "date": "2026-10-19",
+  "scope": "Ordinary-window workbench with an internal profile library, local persistence, import/export, and read-only board discovery, issue 21.",
+  "base_revision": "aaa6f914e0eab1a5e9d708f4eb6b039285c310a9",
+  "branch": "issue/21-main-workbench",
+  "platform": {
+    "minimum_macos": "15.0",
+    "xcode": "27.0",
+    "xcode_build": "27A266a",
+    "xcodegen": "2.45.4"
+  },
+  "gate": {
+    "completed_local": "2026-10-19T00:44:13+02:00",
+    "shared_swift_tests": 29,
+    "app_swift_tests": 59,
+    "ctest_cases": 18,
+    "swiftlint_violations": 0,
+    "format_layout_fixtures": true,
+    "rp2350_targets_and_guards": true,
+    "native_debug_build": true,
+    "native_release_build": true,
+    "release_packages": true,
+    "shellcheck": true,
+    "actionlint": true
+  },
+  "rendering": {
+    "method": "NSHostingView in the renderer process's own hidden offscreen window; application activation prohibited. Not a running app screenshot.",
+    "fixtures": "Single in-memory profile library holding the muted Warm preset with no selected speaker or enclosure.",
+    "views": [
+      {
+        "width_points": 1080,
+        "height_points": 680,
+        "appearance": "dark",
+        "window_visible": false,
+        "text_fields": 8,
+        "text_field_font_points": 13,
+        "text_field_height_points": 22
+      },
+      {
+        "width_points": 1080,
+        "height_points": 680,
+        "appearance": "light",
+        "window_visible": false,
+        "text_fields": 8,
+        "text_field_font_points": 13,
+        "text_field_height_points": 22
+      },
+      {
+        "width_points": 1280,
+        "height_points": 860,
+        "appearance": "dark",
+        "window_visible": false,
+        "text_fields": 8,
+        "text_field_font_points": 13,
+        "text_field_height_points": 22
+      },
+      {
+        "width_points": 1280,
+        "height_points": 860,
+        "appearance": "light",
+        "window_visible": false,
+        "text_fields": 8,
+        "text_field_font_points": 13,
+        "text_field_height_points": 22
+      }
+    ],
+    "minimum_view_scrolls_vertically": true,
+    "interactive_native_menu_dialog_tests": false,
+    "product_gui_launched": false
+  },
+  "board_access_performed": true,
+  "board_access_description": "Passive IOHIDManager enumeration of the bench specimen (serial D4CDD489AFE28CC5, VID:PID cafe:4014) plus one read-only capabilities Feature-report exchange, outside the product GUI. No apply, persist, or reset request was sent.",
+  "board_access_result": "Enumeration and identity matched; the capabilities reply itself did not arrive intact over the live USB transport. Tracked separately in issue 22; the workbench surfaces this as detected-but-unverified rather than a false verified state.",
+  "audio_playback_performed": false,
+  "system_audio_output_changed": false,
+  "system_wide_sleep_performed": false,
+  "input_models_modified_or_published": false,
+  "limits": [
+    "No visible product GUI or interactive native file/menu workflow was exercised.",
+    "macOS 15 is the deployment minimum, not a separately tested runtime.",
+    "The live board capabilities round trip does not yet succeed; see issue 22.",
+    "No physical, acoustic, speaker-protection, or enclosure-volume claim follows.",
+    "Speaker/enclosure editor, model-based calculation, volatile A/B, and the DSP-apply/persist workflow remain separate delivery slices (issues 15, 16, 19, 20)."
+  ]
+}

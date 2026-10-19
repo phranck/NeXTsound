@@ -1,6 +1,6 @@
-# Native offline workbench
+# Native workbench
 
-NeXTsound includes a SwiftUI document-based app targeting macOS 15 and later. The current slice edits local profiles only. It does not discover USB devices, apply settings to a board, play audio, or change the system audio output. Live device integration is tracked in [issue 16](https://github.com/phranck/NeXTsound/issues/16).
+NeXTsound is a SwiftUI app with one ordinary main window targeting macOS 15 and later, managing a local profile library. It discovers compatible SoundBoxes and shows their connection status, serial, and firmware version through a read-only capabilities query. It does not apply settings to a board, persist to board flash, reset the board, play audio, or change the system audio output. The remaining live write/apply workflow is tracked in [issue 16](https://github.com/phranck/NeXTsound/issues/16); the live capabilities round trip against real firmware is tracked in [issue 22](https://github.com/phranck/NeXTsound/issues/22).
 
 ## Build
 
@@ -19,15 +19,21 @@ Build products:
 
 The complete repository gate is `bash Scripts/check.sh`. It includes shared and app package tests, formatting/lint, Release packages, all RP2350 targets and guards, and both native app configurations.
 
-## Profile documents
+## Profile library
 
-`ProfileDocument` wraps the existing `SoundProfile`. Its file contents are the canonical validated JSON, not a separate app schema. The native file extension is `.nxsprofile`; JSON profiles can also be opened. The app registers as the owner of its own format and as an alternate handler for generic JSON.
+`ProfileLibrary` is the internally managed collection of profiles; `ProfileLibraryStore` persists it as validated atomic local JSON under Application Support, independent of any file the user opens or saves. `ProfileFile` wraps the existing `SoundProfile` for exactly one purpose: it is the `FileDocument` adapter behind SwiftUI's `fileImporter`/`fileExporter`, so a profile's canonical validated JSON can be imported or exported explicitly. The native file extension is `.nxsprofile`; JSON profiles can also be imported. The app owns the exported `.nxsprofile` UTI but is not registered as a document editor for it or for generic JSON, since neither drives the app's lifecycle.
 
-Apple's [FileDocument](https://developer.apple.com/documentation/swiftui/filedocument) and [DocumentGroup](https://developer.apple.com/documentation/swiftui/documentgroup) supply document open/save, multiple documents, change tracking, and undo for document-value changes. Serialization is not main-actor isolated. The toolbar delegates open/save to the native document responder chain.
+`WorkbenchModel` is the single `@Observable` source of truth: it owns the library, mediates every mutation through validation, registers native undo via the window's `UndoManager`, and debounces persistence. A failed load never blocks editing or quitting; it surfaces through the storage status line while edits continue in memory until storage recovers.
 
-An accepted edit advances the profile revision atomically. Failed edits and exhausted revisions leave the document unchanged. An incomplete name can remain in the editor but fails validation when saved. A preset replaces DSP settings and preset origin without discarding document identity, name, speaker, or enclosure snapshots. Starting presets remain digitally muted.
+An accepted edit advances the profile revision atomically. Failed edits and exhausted revisions leave the library unchanged. An incomplete name can remain in the editor but fails validation on export. A preset replaces DSP settings and preset origin without discarding a profile's identity, name, speaker, or enclosure snapshots. Starting presets remain digitally muted.
 
 The analytical preview uses the shared DSP coefficients. It excludes attenuation, mute, and nonlinear limiting and is not an acoustic measurement. The display clips graph coordinates at its labeled vertical range without altering the underlying settings.
+
+## Board discovery
+
+`BoardMonitor` tracks one `BoardConnectionState`: disconnected, detected (matched by USB identity, not yet verified), verified (with the firmware's reported `DeviceCapabilities`), or mismatched (an invalid reply or a reported serial that disagrees with the enumerated device). `IOHIDBoardDiscovery` finds compatible boards through `IOHIDManager`, matching the canonical vendor/product ID and HID usage from `BoardIdentity`, without seizing the device. `IOHIDBoardTransport` sends exactly one non-mutating capabilities request as a HID Feature report and validates its reply's identity, operation, and size before decoding it; it never sends an apply, persist, or reset request. Report exchange runs off the main thread; reconnecting after a disconnect never resends a stale reply.
+
+Both discovery and transport are protocols so tests inject fakes for disconnect/reconnect, stale or malformed replies, and identity mismatches without a physical board.
 
 ## Fixed enclosure data
 
@@ -39,11 +45,11 @@ Its air region uses an explicit virtual front closure. It is not a qualified sea
 
 - `toolchain.json` owns the Xcode and generator pins.
 - `App/Workbench/Package.swift` owns the native deployment minimum.
-- `ProfileDocument` owns the document type identifier and file extension.
+- `ProfileFile` owns the exported profile's type identifier and file extension.
 - `WorkbenchLayout` owns default/minimum view sizes.
 - `ResponsePlotGeometry` owns the plotted gain limit.
 
-`Scripts/app.sh` derives generator environment values from these sources. `NeXTsoundWorkbenchRender --document-type` emits document-type JSON without creating a window or initializing the rendering application. The generated Xcode project and property lists stay ignored. The generator runs from its packaged executable so its bundled setting presets remain available.
+`Scripts/app.sh` derives generator environment values from these sources. `NeXTsoundWorkbenchRender --document-type` emits the exported profile's type JSON without creating a window or initializing the rendering application. The generated Xcode project and property lists stay ignored. The generator runs from its packaged executable so its bundled setting presets remain available.
 
 ## Tests and rendering
 
@@ -54,6 +60,6 @@ xcrun swift run --package-path App/Workbench NeXTsoundWorkbenchRender "$PWD/.bui
 
 The renderer creates its own hidden offscreen window with activation prohibited. It writes light/dark images at the default and minimum sizes, plus native control bounds and font measurements. These images show the implemented SwiftUI content, not screenshots of a running NeXTsound application. At minimum height, the editor supports vertical scrolling.
 
-Document/model tests cover canonical round trips, malformed input, directory rejection, revision/identity failures, atomic edits, metadata preservation, analytical response, and display geometry. The directory case was observed crashing before checking `isRegularFile` ahead of `regularFileContents`.
+Tests cover canonical round trips, malformed input, directory rejection, revision/identity failures, atomic edits, metadata preservation, analytical response, display geometry, library validation/limits, store load/save/corruption recovery, board disconnect/reconnect, stale and malformed replies, identity mismatch, and a broken store never blocking the model from becoming ready. The directory case was observed crashing before checking `isRegularFile` ahead of `regularFileContents`.
 
-[Verification evidence](Verification/Workbench-2026-10-18.json) separates builds, model tests, and offscreen rendering. Native menu/dialog interaction, a visible GUI session, and runtime behavior on macOS 15 have not been exercised by these checks. The next workflow uses the fixed Sound Box enclosure and a catalog of mechanically fitting full-range drivers from different manufacturers. Driver lookup, offline data, and online refresh are tracked in [issue 15](https://github.com/phranck/NeXTsound/issues/15). [Issue 17](https://github.com/phranck/NeXTsound/issues/17) establishes the fixed geometry and fit constraints. [Issue 19](https://github.com/phranck/NeXTsound/issues/19) calculates and optimizes the profile from the available usable parameters, while [issue 20](https://github.com/phranck/NeXTsound/issues/20) adds volatile A/B. These are planned features, not capabilities of the current offline editor.
+[Verification evidence](Verification/Workbench-2026-10-19.json) separates builds, model/library/store/board tests, offscreen rendering, and the one read-only hardware capabilities exchange performed outside the product GUI. Native menu/dialog interaction, a visible GUI session, and runtime behavior on macOS 15 have not been exercised by these checks. The next workflow uses the fixed Sound Box enclosure and a catalog of mechanically fitting full-range drivers from different manufacturers. Driver lookup, offline data, and online refresh are tracked in [issue 15](https://github.com/phranck/NeXTsound/issues/15). [Issue 17](https://github.com/phranck/NeXTsound/issues/17) establishes the fixed geometry and fit constraints. [Issue 19](https://github.com/phranck/NeXTsound/issues/19) calculates and optimizes the profile from the available usable parameters, while [issue 20](https://github.com/phranck/NeXTsound/issues/20) adds volatile A/B. These are planned features, not capabilities of the current workbench.

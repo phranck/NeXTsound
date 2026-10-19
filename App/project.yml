@@ -33,17 +33,6 @@ targets:
         NSPrincipalClass: NSApplication
         NSHighResolutionCapable: true
         LSApplicationCategoryType: public.app-category.music
-        CFBundleDocumentTypes:
-          - CFBundleTypeName: NeXTsound profile
-            CFBundleTypeRole: Editor
-            LSHandlerRank: Owner
-            LSItemContentTypes:
-              - ${NXS_PROFILE_IDENTIFIER}
-          - CFBundleTypeName: JSON profile
-            CFBundleTypeRole: Editor
-            LSHandlerRank: Alternate
-            LSItemContentTypes:
-              - public.json
         UTExportedTypeDeclarations:
           - UTTypeIdentifier: ${NXS_PROFILE_IDENTIFIER}
             UTTypeDescription: NeXTsound sound profile

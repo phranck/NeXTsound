@@ -12,7 +12,7 @@ enum RenderWorkbench {
             throw CocoaError(.fileWriteInvalidFileName)
         }
         if CommandLine.arguments[1] == "--document-type" {
-            let metadata = ["identifier": ProfileDocument.typeIdentifier, "file_extension": ProfileDocument.fileExtension]
+            let metadata = ["identifier": ProfileFile.typeIdentifier, "file_extension": ProfileFile.fileExtension]
             let data = try JSONEncoder().encode(metadata)
             guard let json = String(bytes: data, encoding: .utf8) else {
                 throw CocoaError(.fileWriteInapplicableStringEncoding)
@@ -36,8 +36,9 @@ private extension RenderWorkbench {
         let appearance = scheme == .dark ? "dark" : "light"
         let nativeAppearance = NSAppearance(named: scheme == .dark ? .darkAqua : .aqua)
         NSApp.appearance = nativeAppearance
-        let document = ProfileDocument(profile: FactoryPreset.warm.makeProfile())
-        let content = WorkbenchView(document: .constant(document))
+        let profile = FactoryPreset.warm.makeProfile()
+        let model = try WorkbenchModel(library: ProfileLibrary(profiles: [profile], selectedID: profile.id))
+        let content = WorkbenchView(model: model)
             .environment(\.colorScheme, scheme)
         let host = NSHostingView(rootView: content)
         host.appearance = nativeAppearance

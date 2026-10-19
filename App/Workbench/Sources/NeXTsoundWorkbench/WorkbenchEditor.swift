@@ -3,12 +3,13 @@ import SwiftUI
 
 struct WorkbenchEditor: View {
     @Binding var profile: SoundProfile
+    let connectionState: BoardConnectionState
     @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 18) {
-                WorkbenchHeading()
+                WorkbenchHeading(connectionState: connectionState)
                 TextField("Profile name", text: $profile.name)
                     .textFieldStyle(.roundedBorder)
                     .accessibilityLabel("Profile name")
@@ -30,6 +31,8 @@ struct WorkbenchEditor: View {
 }
 
 private struct WorkbenchHeading: View {
+    let connectionState: BoardConnectionState
+
     var body: some View {
         HStack(alignment: .firstTextBaseline) {
             VStack(alignment: .leading, spacing: 4) {
@@ -39,8 +42,28 @@ private struct WorkbenchHeading: View {
                     .foregroundStyle(.secondary)
             }
             Spacer()
-            Label("Offline", systemImage: "doc")
+            ConnectionBadge(state: connectionState)
+        }
+    }
+}
+
+private struct ConnectionBadge: View {
+    let state: BoardConnectionState
+
+    var body: some View {
+        switch state {
+        case .disconnected:
+            Label("No SoundBox", systemImage: "cable.connector.slash")
                 .foregroundStyle(.secondary)
+        case .detected:
+            Label("Checking…", systemImage: "cable.connector")
+                .foregroundStyle(.secondary)
+        case .verified:
+            Label("SoundBox connected", systemImage: "cable.connector")
+                .foregroundStyle(.secondary)
+        case .mismatched:
+            Label("SoundBox not verified", systemImage: "exclamationmark.triangle")
+                .foregroundStyle(.red)
         }
     }
 }
@@ -53,7 +76,7 @@ private struct ProfileValidationNotice: View {
             Label(message, systemImage: "exclamationmark.triangle")
                 .foregroundStyle(.red)
         } else {
-            Text("Save profile writes a local document. It does not store settings on a device.")
+            Text("Editing this profile never changes a connected SoundBox.")
                 .foregroundStyle(.secondary)
         }
     }
