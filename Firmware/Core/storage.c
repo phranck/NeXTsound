@@ -6,7 +6,8 @@
 #define NXS_STORAGE_CHECKSUM_OFFSET (NXS_STORAGE_PAGE_BYTES - 4u)
 #define NXS_STORAGE_COMMIT_HEADER_BYTES 16u
 
-_Static_assert(NXS_STORAGE_HEADER_BYTES + NXS_SNAPSHOT_SIZE <= NXS_STORAGE_CHECKSUM_OFFSET, "Snapshot must fit in one data page");
+_Static_assert(NXS_STORAGE_HEADER_BYTES + NXS_SNAPSHOT_SIZE + NXS_DEVICE_NAME_LENGTH <= NXS_STORAGE_CHECKSUM_OFFSET,
+               "Snapshot and device name must fit in one data page");
 _Static_assert(NXS_STORAGE_RECORD_BYTES <= NXS_STORAGE_SECTOR_BYTES, "Records must fit in isolated sectors");
 
 static const uint8_t data_magic[] = {'N', 'X', 'S', 'P'};
@@ -68,7 +69,9 @@ bool nxs_storage_record_encode(const nxs_stored_state_t *state, nxs_storage_reco
     candidate.bytes[12] = NXS_PROTOCOL_MAJOR;
     candidate.bytes[13] = NXS_PROTOCOL_MINOR;
     write_u16(candidate.bytes + 14, NXS_SNAPSHOT_SIZE);
-    if (nxs_snapshot_encode(&state->snapshot, candidate.bytes + NXS_STORAGE_HEADER_BYTES, NXS_SNAPSHOT_SIZE) != NXS_RESULT_OK) {
+    if (nxs_snapshot_encode(&state->snapshot, candidate.bytes + NXS_STORAGE_HEADER_BYTES, NXS_SNAPSHOT_SIZE) != NXS_RESULT_OK ||
+        nxs_device_name_encode(state->device_name, candidate.bytes + NXS_STORAGE_HEADER_BYTES + NXS_SNAPSHOT_SIZE,
+                               NXS_DEVICE_NAME_LENGTH) != NXS_RESULT_OK) {
         return false;
     }
     uint32_t digest = checksum(candidate.bytes, NXS_STORAGE_CHECKSUM_OFFSET);
@@ -90,7 +93,7 @@ bool nxs_storage_record_decode(const nxs_storage_record_t *record, nxs_stored_st
     const uint8_t *commit = bytes + NXS_STORAGE_PAGE_BYTES;
     uint32_t generation = read_u32(bytes + 8);
     uint32_t digest = read_u32(bytes + NXS_STORAGE_CHECKSUM_OFFSET);
-    size_t padding_start = NXS_STORAGE_HEADER_BYTES + NXS_SNAPSHOT_SIZE;
+    size_t padding_start = NXS_STORAGE_HEADER_BYTES + NXS_SNAPSHOT_SIZE + NXS_DEVICE_NAME_LENGTH;
     if (memcmp(bytes, data_magic, sizeof(data_magic)) != 0 || read_u16(bytes + 4) != NXS_STORAGE_VERSION ||
         read_u16(bytes + 6) != NXS_STORAGE_PAGE_BYTES || generation == 0 || bytes[12] != NXS_PROTOCOL_MAJOR ||
         bytes[13] != NXS_PROTOCOL_MINOR || read_u16(bytes + 14) != NXS_SNAPSHOT_SIZE ||
@@ -101,7 +104,9 @@ bool nxs_storage_record_decode(const nxs_storage_record_t *record, nxs_stored_st
         return false;
     }
     nxs_stored_state_t candidate = {.generation = generation};
-    if (nxs_snapshot_decode(bytes + NXS_STORAGE_HEADER_BYTES, NXS_SNAPSHOT_SIZE, &candidate.snapshot) != NXS_RESULT_OK) {
+    if (nxs_snapshot_decode(bytes + NXS_STORAGE_HEADER_BYTES, NXS_SNAPSHOT_SIZE, &candidate.snapshot) != NXS_RESULT_OK ||
+        nxs_device_name_decode(bytes + NXS_STORAGE_HEADER_BYTES + NXS_SNAPSHOT_SIZE, NXS_DEVICE_NAME_LENGTH, candidate.device_name) !=
+            NXS_RESULT_OK) {
         return false;
     }
     *state = candidate;

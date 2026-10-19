@@ -58,6 +58,7 @@ bool nxs_usb_configure_storage(const nxs_storage_io_t *io, uint32_t flash_size_b
         return false;
     }
     storage_io = io;
+    nxs_usb_set_product_name(device.capabilities.device_name);
     return true;
 }
 
@@ -74,6 +75,9 @@ static void advance_maintenance(void) {
         if (persistence && nxs_audio_engine_maintenance_ready()) {
             nxs_result_t result = nxs_storage_save(storage_io, &state);
             (void)nxs_device_complete_persistence(&device, result);
+            if (result == NXS_RESULT_OK) {
+                nxs_usb_set_product_name(device.capabilities.device_name);
+            }
             /* Keep the producer gated while the next tud_task drains transfers queued during flash access. */
             maintenance_release_pending = true;
         }

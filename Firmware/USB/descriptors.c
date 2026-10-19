@@ -11,6 +11,7 @@
 #include <string.h>
 
 static const char *device_serial;
+static const char *product_name;
 static uint16_t string_buffer[64];
 
 static const tusb_desc_device_t device_descriptor = {.bLength = sizeof(tusb_desc_device_t),
@@ -89,6 +90,10 @@ void nxs_usb_set_serial(const char *serial) {
     device_serial = serial;
 }
 
+void nxs_usb_set_product_name(const char *name) {
+    product_name = (name && name[0]) ? name : NULL;
+}
+
 const uint8_t *tud_descriptor_device_cb(void) {
     return (const uint8_t *)&device_descriptor;
 }
@@ -108,8 +113,13 @@ const uint16_t *tud_descriptor_string_cb(uint8_t index, uint16_t language) {
         string_buffer[1] = 0x0409;
         return string_buffer;
     }
-    const char *strings[] = {
-        NULL, "Layered", "NeXTsound development", device_serial, "NeXTsound Audio", "NeXTsound Control", "NeXTsound Maintenance"};
+    const char *strings[] = {NULL,
+                             "Layered",
+                             product_name ? product_name : "NeXTsound development",
+                             device_serial,
+                             "NeXTsound Audio",
+                             "NeXTsound Control",
+                             "NeXTsound Maintenance"};
     if (index >= sizeof(strings) / sizeof(strings[0]) || !strings[index]) {
         return NULL;
     }

@@ -25,6 +25,9 @@ public struct BoardIdentitySnapshot: Equatable, Sendable {
 public protocol BoardTransport: Sendable {
     /// Sends the non-mutating capabilities request and returns its validated reply. Never applies, persists, or resets.
     func requestCapabilities() async throws -> DeviceCapabilities
+    /// Writes a new persisted device name to the board. The new name is visible to macOS
+    /// only after the board next resets or is replugged.
+    func setDeviceName(_ name: String) async throws
 }
 
 public protocol BoardDiscovery: Sendable {
@@ -45,6 +48,7 @@ public final class BoardMonitor {
     @ObservationIgnored private var hasStarted = false
     @ObservationIgnored private var queryTask: Task<Void, Never>?
     @ObservationIgnored private var generation = 0
+    @ObservationIgnored private var transport: (any BoardTransport)?
 
     public init(isEnabled: Bool = true, discovery: (any BoardDiscovery)? = nil) {
         self.isEnabled = isEnabled
@@ -79,6 +83,24 @@ public extension BoardMonitor {
         discovery.stop()
         disconnected()
     }
+
+    /// Renames the connected board and refreshes the displayed capabilities to reflect it.
+    /// The new name becomes visible to macOS itself only after the board resets or is replugged.
+    func setDeviceName(_ name: String) async throws {
+        guard let transport else {
+            throw BoardTransportError.notConnected
+        }
+        let current = generation
+        try await transport.setDeviceName(name)
+        guard generation == current else {
+            return
+        }
+        let capabilities = try await transport.requestCapabilities()
+        guard generation == current else {
+            return
+        }
+        state = .verified(capabilities)
+    }
 }
 
 private extension BoardMonitor {
@@ -86,6 +108,7 @@ private extension BoardMonitor {
         generation += 1
         let current = generation
         state = .detected
+        self.transport = transport
         queryTask?.cancel()
         queryTask = Task { [weak self] in
             do {
@@ -118,6 +141,7 @@ private extension BoardMonitor {
         generation += 1
         queryTask?.cancel()
         queryTask = nil
+        transport = nil
         state = .disconnected
     }
 }

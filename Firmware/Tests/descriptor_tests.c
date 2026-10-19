@@ -3,6 +3,8 @@
 #include "pico/usb_reset_interface.h"
 #include "tusb.h"
 
+#include <string.h>
+
 static uint16_t read_u16(const uint8_t *bytes) {
     return (uint16_t)(bytes[0] | ((uint16_t)bytes[1] << 8));
 }
@@ -93,5 +95,15 @@ int main(void) {
     const uint16_t *serial = tud_descriptor_string_cb(3, 0x0409);
     CHECK(serial != NULL && (serial[0] & 0xffu) == 22);
     CHECK(tud_descriptor_string_cb(255, 0x0409) == NULL);
+
+    const uint16_t *default_product = tud_descriptor_string_cb(2, 0x0409);
+    CHECK(default_product != NULL && (default_product[0] & 0xffu) == 2u * strlen("NeXTsound development") + 2u);
+    nxs_usb_set_product_name("Bedroom SoundBox");
+    const uint16_t *custom_product = tud_descriptor_string_cb(2, 0x0409);
+    CHECK(custom_product != NULL && (custom_product[0] & 0xffu) == 2u * strlen("Bedroom SoundBox") + 2u);
+    CHECK(custom_product[1] == 'B');
+    nxs_usb_set_product_name("");
+    const uint16_t *cleared_product = tud_descriptor_string_cb(2, 0x0409);
+    CHECK(cleared_product != NULL && (cleared_product[0] & 0xffu) == 2u * strlen("NeXTsound development") + 2u);
     return nxs_test_finish("USB descriptor");
 }

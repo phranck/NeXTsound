@@ -25,19 +25,22 @@ enum RenderWorkbench {
         NSApplication.shared.setActivationPolicy(.prohibited)
         for scheme in [ColorScheme.light, .dark] {
             for size in [WorkbenchLayout.defaultSize, WorkbenchLayout.minimumSize] {
-                try render(size: size, scheme: scheme, destination: destination)
+                try render(size: size, scheme: scheme, connected: false, destination: destination)
             }
         }
+        try render(size: WorkbenchLayout.defaultSize, scheme: .light, connected: true, destination: destination)
     }
 }
 
 private extension RenderWorkbench {
-    static func render(size: CGSize, scheme: ColorScheme, destination: URL) throws {
+    static func render(size: CGSize, scheme: ColorScheme, connected: Bool, destination: URL) throws {
         let appearance = scheme == .dark ? "dark" : "light"
         let nativeAppearance = NSAppearance(named: scheme == .dark ? .darkAqua : .aqua)
         NSApp.appearance = nativeAppearance
         let profile = FactoryPreset.warm.makeProfile()
-        let model = try WorkbenchModel(library: ProfileLibrary(profiles: [profile], selectedID: profile.id))
+        let boards = connected ? BoardMonitor(discovery: PreviewBoardDiscovery()) : nil
+        let model = try WorkbenchModel(library: ProfileLibrary(profiles: [profile], selectedID: profile.id), boards: boards)
+        model.boards.start()
         let content = WorkbenchView(model: model)
             .environment(\.colorScheme, scheme)
         let host = NSHostingView(rootView: content)
@@ -67,7 +70,7 @@ private extension RenderWorkbench {
         guard let data = bitmap.representation(using: .png, properties: [:]) else {
             throw CocoaError(.fileWriteUnknown)
         }
-        let stem = "workbench-\(Int(size.width))x\(Int(size.height))-\(appearance)"
+        let stem = "workbench-\(Int(size.width))x\(Int(size.height))-\(appearance)" + (connected ? "-connected" : "")
         try data.write(to: destination.appendingPathComponent(stem + ".png"), options: .atomic)
         let report = RenderReport(
             width: size.width,
@@ -115,4 +118,26 @@ private struct ControlReport: Codable {
     let frame: [Double]
     let fontPoints: Double?
     let enabled: Bool
+}
+
+/// A fixed, instantly-verified board used only to render the connected UI state offscreen.
+private struct PreviewBoardTransport: BoardTransport {
+    func requestCapabilities() async throws -> DeviceCapabilities {
+        var capabilities = DeviceCapabilities(serial: "D4CDD489AFE28CC5", firmwareVersion: "1.2.0")
+        capabilities.deviceName = "Bedroom SoundBox"
+        return capabilities
+    }
+
+    func setDeviceName(_: String) async throws {}
+}
+
+private final class PreviewBoardDiscovery: BoardDiscovery, @unchecked Sendable {
+    func start(
+        onConnect: @escaping @Sendable (BoardIdentitySnapshot, any BoardTransport) -> Void,
+        onDisconnect _: @escaping @Sendable () -> Void
+    ) {
+        onConnect(BoardIdentitySnapshot(vendorID: 0x2E8A, productID: 0x000A, enumeratedSerial: "D4CDD489AFE28CC5"), PreviewBoardTransport())
+    }
+
+    func stop() {}
 }

@@ -22,6 +22,21 @@ static nxs_message_t response(nxs_device_t *device, uint32_t identifier, nxs_res
     return nxs_test_response(report, identifier, result);
 }
 
+static void send_name(nxs_device_t *device, uint32_t identifier, uint32_t generation, const char *name) {
+    nxs_message_t request = {0};
+    request.operation = NXS_OPERATION_SET_NAME;
+    request.request_id = identifier;
+    request.generation = generation;
+    request.payload_length = NXS_DEVICE_NAME_LENGTH;
+    if (name) {
+        size_t length = strlen(name) < NXS_DEVICE_NAME_LENGTH ? strlen(name) : NXS_DEVICE_NAME_LENGTH - 1;
+        memcpy(request.payload, name, length);
+    }
+    uint8_t report[NXS_REPORT_SIZE];
+    CHECK(nxs_message_encode(&request, report, sizeof(report)) == NXS_RESULT_OK);
+    CHECK(nxs_device_receive(device, report, sizeof(report)));
+}
+
 static void test_discovery(void) {
     nxs_device_t device;
     init(&device);
@@ -248,6 +263,61 @@ static void test_persistence_session_reset(void) {
     CHECK(status.persisted_generation == 1 && status.storage_available && reply.generation == 1);
 }
 
+static void test_set_name(void) {
+    nxs_device_t device;
+    init(&device);
+    send_name(&device, 1, 1, "Bedroom SoundBox");
+    response(&device, 1, NXS_RESULT_STORAGE_UNAVAILABLE);
+    CHECK(!device.name_pending);
+    nxs_device_reset_session(&device);
+
+    CHECK(nxs_device_configure_storage(&device, NXS_FLASH_SUPPORTED_BYTES, true, NULL));
+    send_name(&device, 2, 0, "Bedroom SoundBox");
+    response(&device, 2, NXS_RESULT_STALE_GENERATION);
+    CHECK(!device.name_pending);
+
+    nxs_snapshot_t next = nxs_default_snapshot();
+    next.attenuation_db = -12;
+    send(&device, NXS_OPERATION_APPLY_STATE, 3, 1, &next);
+    send_name(&device, 4, 1, "Bedroom SoundBox");
+    response(&device, 4, NXS_RESULT_BUSY);
+    CHECK(!device.name_pending);
+    CHECK(nxs_device_complete_apply(&device, NXS_RESULT_OK));
+    response(&device, 3, NXS_RESULT_OK);
+    CHECK(device.generation == 2);
+
+    send_name(&device, 5, 2, "\n");
+    response(&device, 5, NXS_RESULT_INVALID_PARAMETERS);
+    CHECK(!device.name_pending);
+
+    nxs_stored_state_t pending = {.generation = 777};
+    send_name(&device, 6, 2, "Bedroom SoundBox");
+    CHECK(device.name_pending && !device.apply_pending && !device.persistence_pending);
+    send(&device, NXS_OPERATION_PERSIST_STATE, 7, 2, NULL);
+    response(&device, 7, NXS_RESULT_BUSY);
+    send_name(&device, 8, 2, "Office SoundBox");
+    response(&device, 8, NXS_RESULT_BUSY);
+    CHECK(nxs_device_pending_persistence(&device, &pending));
+    CHECK(pending.generation == 3 && strcmp(pending.device_name, "Bedroom SoundBox") == 0);
+    CHECK(nxs_device_complete_persistence(&device, NXS_RESULT_OK));
+    nxs_message_t reply = response(&device, 6, NXS_RESULT_OK);
+    CHECK(reply.generation == 3 && device.generation == 3 && device.status.persisted_generation == 3);
+    CHECK(!device.name_pending && strcmp(device.capabilities.device_name, "Bedroom SoundBox") == 0);
+
+    send(&device, NXS_OPERATION_CAPABILITIES, 9, 0, NULL);
+    reply = response(&device, 9, NXS_RESULT_OK);
+    nxs_capabilities_t capabilities;
+    CHECK(nxs_capabilities_decode(reply.payload, reply.payload_length, &capabilities) == NXS_RESULT_OK);
+    CHECK(strcmp(capabilities.device_name, "Bedroom SoundBox") == 0);
+
+    send_name(&device, 10, 3, NULL);
+    CHECK(nxs_device_pending_persistence(&device, &pending));
+    CHECK(pending.generation == 4 && pending.device_name[0] == 0);
+    CHECK(nxs_device_complete_persistence(&device, NXS_RESULT_STORAGE_FAILED));
+    response(&device, 10, NXS_RESULT_STORAGE_FAILED);
+    CHECK(device.generation == 3 && strcmp(device.capabilities.device_name, "Bedroom SoundBox") == 0);
+}
+
 int main(void) {
     test_discovery();
     test_apply_acknowledgement_and_duplicates();
@@ -256,5 +326,6 @@ int main(void) {
     test_storage_boot_and_audio_status();
     test_persistence_acknowledgement();
     test_persistence_session_reset();
+    test_set_name();
     return nxs_test_finish("Device control");
 }

@@ -4,12 +4,13 @@ import SwiftUI
 struct WorkbenchEditor: View {
     @Binding var profile: SoundProfile
     let connectionState: BoardConnectionState
+    let onRenameBoard: (String) async -> Void
     @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 18) {
-                WorkbenchHeading(connectionState: connectionState)
+                WorkbenchHeading(connectionState: connectionState, onRenameBoard: onRenameBoard)
                 TextField("Profile name", text: $profile.name)
                     .textFieldStyle(.roundedBorder)
                     .accessibilityLabel("Profile name")
@@ -32,6 +33,8 @@ struct WorkbenchEditor: View {
 
 private struct WorkbenchHeading: View {
     let connectionState: BoardConnectionState
+    let onRenameBoard: (String) async -> Void
+    @State private var isRenaming = false
 
     var body: some View {
         HStack(alignment: .firstTextBaseline) {
@@ -43,7 +46,48 @@ private struct WorkbenchHeading: View {
             }
             Spacer()
             ConnectionBadge(state: connectionState)
+            if case let .verified(capabilities) = connectionState {
+                Button("Rename SoundBox", systemImage: "pencil") { isRenaming = true }
+                    .labelStyle(.iconOnly)
+                    .popover(isPresented: $isRenaming) {
+                        BoardRenameForm(currentName: capabilities.deviceName) { name in
+                            isRenaming = false
+                            Task { await onRenameBoard(name) }
+                        }
+                    }
+            }
         }
+    }
+}
+
+private struct BoardRenameForm: View {
+    let currentName: String
+    let onSubmit: (String) -> Void
+    @State private var name: String
+
+    init(currentName: String, onSubmit: @escaping (String) -> Void) {
+        self.currentName = currentName
+        self.onSubmit = onSubmit
+        _name = State(initialValue: currentName)
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("SoundBox name")
+                .font(.headline)
+            TextField("SoundBox name", text: $name)
+                .textFieldStyle(.roundedBorder)
+                .frame(width: 220)
+                .onSubmit { onSubmit(name) }
+            Text("The new name appears in macOS only after the board resets or is replugged.")
+                .foregroundStyle(.secondary)
+            HStack {
+                Spacer()
+                Button("Apply") { onSubmit(name) }
+                    .keyboardShortcut(.defaultAction)
+            }
+        }
+        .padding(16)
     }
 }
 
@@ -81,7 +125,8 @@ private extension ConnectionBadge {
         guard case let .verified(capabilities) = state else {
             return nil
         }
-        return "Firmware \(capabilities.firmwareVersion)"
+        let firmware = "Firmware \(capabilities.firmwareVersion)"
+        return capabilities.deviceName.isEmpty ? firmware : "\(capabilities.deviceName) · \(firmware)"
     }
 
     var iconColor: Color {

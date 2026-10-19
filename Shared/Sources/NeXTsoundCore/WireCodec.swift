@@ -64,6 +64,7 @@ public extension WireCodec {
         value.feature_flags = capabilities.featureFlags
         try writeString(capabilities.serial, to: &value.device_serial)
         try writeString(capabilities.firmwareVersion, to: &value.firmware_version)
+        try writeString(capabilities.deviceName, to: &value.device_name)
         try withUnsafeMutableBytes(of: &value.ranges) { bytes in
             let destination = bytes.bindMemory(to: nxs_parameter_range_t.self)
             for parameter in DSPParameter.allCases {
@@ -88,7 +89,8 @@ public extension WireCodec {
         )
         var capabilities = try DeviceCapabilities(
             serial: readString(value.device_serial),
-            firmwareVersion: readString(value.firmware_version)
+            firmwareVersion: readString(value.firmware_version),
+            deviceName: readString(value.device_name)
         )
         capabilities.sampleRateHz = value.sample_rate_hz
         capabilities.systemClockHz = value.system_clock_hz
@@ -143,6 +145,48 @@ public extension WireCodec {
         status.hostIsMuted = value.host_muted != 0
         status.storageIsAvailable = value.storage_available != 0
         return status
+    }
+
+    static func encodeDeviceName(_ name: String) throws -> Data {
+        var nameBuffer = [CChar](repeating: 0, count: Int(NXS_DEVICE_NAME_LENGTH))
+        let bytes = Array(name.utf8)
+        guard
+            bytes.count < nameBuffer.count,
+            !bytes.contains(0)
+        else {
+            throw WireError(result: NXS_RESULT_INVALID_PARAMETERS)
+        }
+        for (index, byte) in bytes.enumerated() {
+            nameBuffer[index] = CChar(bitPattern: byte)
+        }
+        var payloadBytes = [UInt8](repeating: 0, count: Int(NXS_DEVICE_NAME_LENGTH))
+        try nameBuffer.withUnsafeBufferPointer { namePointer in
+            try payloadBytes.withUnsafeMutableBufferPointer { payloadPointer in
+                try check(nxs_device_name_encode(namePointer.baseAddress, payloadPointer.baseAddress, payloadPointer.count))
+            }
+        }
+        return Data(payloadBytes)
+    }
+
+    static func decodeDeviceName(_ payload: Data) throws -> String {
+        guard payload.count == Int(NXS_DEVICE_NAME_LENGTH) else {
+            throw WireError(result: NXS_RESULT_INVALID_REPORT)
+        }
+        var nameBuffer = [CChar](repeating: 0, count: Int(NXS_DEVICE_NAME_LENGTH))
+        try payload.withUnsafeBytes { bytes in
+            try nameBuffer.withUnsafeMutableBufferPointer { namePointer in
+                guard let address = bytes.baseAddress?.assumingMemoryBound(to: UInt8.self) else {
+                    throw WireError(result: NXS_RESULT_INVALID_REPORT)
+                }
+                try check(nxs_device_name_decode(address, payload.count, namePointer.baseAddress))
+            }
+        }
+        let terminatorIndex = nameBuffer.firstIndex(of: 0) ?? nameBuffer.count
+        let utf8Bytes = nameBuffer[..<terminatorIndex].map { UInt8(bitPattern: $0) }
+        guard let decoded = String(bytes: utf8Bytes, encoding: .utf8) else {
+            throw WireError(result: NXS_RESULT_INVALID_PARAMETERS)
+        }
+        return decoded
     }
 }
 
