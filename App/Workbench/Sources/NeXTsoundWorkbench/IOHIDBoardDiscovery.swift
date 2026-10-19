@@ -67,7 +67,7 @@ private extension IOHIDBoardDiscovery {
         let instance = Unmanaged<IOHIDBoardDiscovery>.fromOpaque(context).takeUnretainedValue()
         let serial = IOHIDDeviceGetProperty(device, kIOHIDSerialNumberKey as CFString) as? String
         let identity = BoardIdentitySnapshot(vendorID: BoardIdentity.vendorID, productID: BoardIdentity.productID, enumeratedSerial: serial)
-        instance.onConnect?(identity, USBHostBoardTransport(device: device))
+        instance.onConnect?(identity, USBHostBoardTransport())
     }
 
     static let removalCallback: IOHIDDeviceCallback = { context, _, _, _ in
@@ -81,24 +81,22 @@ private extension IOHIDBoardDiscovery {
 
 /// Exchanges exactly one Feature report per call: a capabilities `SET_REPORT` followed by its `GET_REPORT` reply.
 ///
-/// Uses raw USB control transfers against the HID interface's default control endpoint rather than
-/// `IOHIDDeviceSetReport`/`GetReport`. On this composite descriptor (Audio + HID + vendor reset),
+/// Uses a raw USB class control transfer through libusb rather than `IOHIDDeviceSetReport`/`GetReport`
+/// or Apple's IOUSBHost framework. On this composite descriptor (Audio + HID + vendor reset),
 /// `IOHIDDeviceGetReport`'s synchronous Feature-report path truncates the 255-byte reply to 1 byte and
-/// destabilizes the live USB connection (issue #22); a class-specific control transfer carrying the full
-/// 256-byte report, including the report-ID byte, does not. `IOUSBHostObject.sendDeviceRequest` is marked
-/// `NS_REFINED_FOR_SWIFT` but Apple never shipped the promised overlay, so `NXSUSBHostInterfaceShim`
-/// (a tiny Objective-C class in the NXSUSBHostShim target) re-exposes the same method as an ordinary
-/// Swift-callable one.
+/// destabilizes the live USB connection; `IOUSBHostInterface`/`IOUSBHostDevice` both require exclusive
+/// access to the interface or the whole device, which collides with CoreAudio and the system HID driver
+/// already holding the other interfaces of this same device (issue #22). libusb's control-transfer path
+/// does not require claiming anything, so it coexists with both.
 public struct USBHostBoardTransport: BoardTransport, @unchecked Sendable {
-    let device: IOHIDDevice
-
     private static let queue = DispatchQueue(label: "work.layered.NeXTsound.board-report")
     private static let timeout = Duration.seconds(2)
 
+    public init() {}
+
     public func requestCapabilities() async throws -> DeviceCapabilities {
-        nonisolated(unsafe) let device = device
         let message = try await withThrowingTaskGroup(of: WireMessage.self) { group in
-            group.addTask { try await Self.exchange(device: device) }
+            group.addTask { try await Self.exchange() }
             group.addTask {
                 try await Task.sleep(for: Self.timeout)
                 throw BoardTransportError.timeout
@@ -114,11 +112,11 @@ public struct USBHostBoardTransport: BoardTransport, @unchecked Sendable {
 }
 
 private extension USBHostBoardTransport {
-    static func exchange(device: IOHIDDevice) async throws -> WireMessage {
+    static func exchange() async throws -> WireMessage {
         try await withCheckedThrowingContinuation { continuation in
             queue.async {
                 do {
-                    try continuation.resume(returning: exchangeOnQueue(device: device))
+                    try continuation.resume(returning: exchangeOnQueue())
                 } catch {
                     continuation.resume(throwing: error)
                 }
@@ -126,56 +124,35 @@ private extension USBHostBoardTransport {
         }
     }
 
-    static func exchangeOnQueue(device: IOHIDDevice) throws -> WireMessage {
+    static func exchangeOnQueue() throws -> WireMessage {
         let request = WireMessage(operation: .capabilities, requestID: .random(in: 1 ... .max))
         let encoded = try WireCodec.encode(request)
         guard encoded.count == WireCodec.reportSize else {
             throw BoardTransportError.invalidReport
         }
 
-        let hostInterface = try openInterface(device: device)
-        let wValue = UInt16(WireCodec.reportID) | 0x0300
-        let wIndex = UInt16(BoardIdentity.hidInterfaceNumber)
-
-        let setRequest = IOUSBDeviceRequest(bmRequestType: 0x21, bRequest: 9, wValue: wValue, wIndex: wIndex, wLength: UInt16(encoded.count))
-        var setBytesTransferred: UInt = 0
-        try NXSUSBHostInterfaceShim.sendDeviceRequest(
-            setRequest,
-            to: hostInterface,
-            data: NSMutableData(data: encoded),
-            bytesTransferred: &setBytesTransferred,
-            completionTimeout: 2.0
-        )
-        guard setBytesTransferred == encoded.count else {
-            throw BoardTransportError.invalidReport
+        let reportValue = UInt16(WireCodec.reportID) | 0x0300
+        var getBuffer = [UInt8](repeating: 0, count: WireCodec.reportSize)
+        let bytesRead = encoded.withUnsafeBytes { setBuffer -> Int32 in
+            getBuffer.withUnsafeMutableBufferPointer { getBuffer -> Int32 in
+                nxs_libusb_exchange_feature_report(
+                    UInt16(BoardIdentity.vendorID),
+                    UInt16(BoardIdentity.productID),
+                    UInt16(BoardIdentity.hidInterfaceNumber),
+                    reportValue,
+                    setBuffer.bindMemory(to: UInt8.self).baseAddress,
+                    getBuffer.baseAddress,
+                    getBuffer.count,
+                    UInt32(timeout.components.seconds * 1000)
+                )
+            }
+        }
+        guard bytesRead == WireCodec.reportSize else {
+            throw BoardTransportError.transportFailed(bytesRead)
         }
 
-        guard let getData = NSMutableData(length: WireCodec.reportSize) else {
-            throw BoardTransportError.invalidReport
-        }
-        let getRequest = IOUSBDeviceRequest(bmRequestType: 0xa1, bRequest: 1, wValue: wValue, wIndex: wIndex, wLength: UInt16(WireCodec.reportSize))
-        var getBytesTransferred: UInt = 0
-        try NXSUSBHostInterfaceShim.sendDeviceRequest(
-            getRequest,
-            to: hostInterface,
-            data: getData,
-            bytesTransferred: &getBytesTransferred,
-            completionTimeout: 2.0
-        )
-        guard getBytesTransferred == WireCodec.reportSize else {
-            throw BoardTransportError.invalidReport
-        }
-
-        let response = try WireCodec.decode(getData as Data)
+        let response = try WireCodec.decode(Data(getBuffer))
         try response.validateResponse(to: request)
         return response
-    }
-
-    static func openInterface(device: IOHIDDevice) throws -> IOUSBHostInterface {
-        let service = IOHIDDeviceGetService(device)
-        guard service != IO_OBJECT_NULL else {
-            throw BoardTransportError.invalidReport
-        }
-        return try IOUSBHostInterface(__ioService: service, options: [], queue: queue, interestHandler: nil)
     }
 }

@@ -3,7 +3,7 @@ import SwiftUI
 
 @main
 struct NeXTsoundApp: App {
-    @State private var model = WorkbenchModel(storage: try? ProfileLibraryStore.standard())
+    @State private var model = WorkbenchModel(storage: try? ProfileLibraryStore.standard(), boards: BoardMonitor())
 
     var body: some Scene {
         WindowGroup {
