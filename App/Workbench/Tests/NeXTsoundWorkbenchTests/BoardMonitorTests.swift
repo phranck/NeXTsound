@@ -144,6 +144,57 @@ struct BoardMonitorTests {
         }
         #expect(verified)
     }
+
+    @Test func settingTheDeviceNameRefreshesTheVerifiedCapabilities() async throws {
+        let discovery = FakeBoardDiscovery()
+        let monitor = BoardMonitor(discovery: discovery)
+        monitor.start()
+        let capabilities = fixtureCapabilities()
+        var renamedCapabilities = capabilities
+        renamedCapabilities.deviceName = "Bedroom SoundBox"
+        discovery.simulateConnect(
+            BoardIdentitySnapshot(vendorID: 1, productID: 2, enumeratedSerial: capabilities.serial),
+            transport: FakeBoardTransport(behavior: .success(renamedCapabilities))
+        )
+        _ = await waitFor(monitor) {
+            if case .verified = $0 {
+                true
+            } else {
+                false
+            }
+        }
+        try await monitor.setDeviceName("Bedroom SoundBox")
+        #expect(monitor.state == .verified(renamedCapabilities))
+    }
+
+    @Test func settingTheDeviceNameFailsWithoutAConnectedBoard() async {
+        let monitor = BoardMonitor(discovery: FakeBoardDiscovery())
+        await #expect(throws: BoardTransportError.notConnected) {
+            try await monitor.setDeviceName("Bedroom SoundBox")
+        }
+    }
+
+    @Test func aFailedRenameLeavesTheStateUnchanged() async throws {
+        let discovery = FakeBoardDiscovery()
+        let monitor = BoardMonitor(discovery: discovery)
+        monitor.start()
+        let capabilities = fixtureCapabilities()
+        discovery.simulateConnect(
+            BoardIdentitySnapshot(vendorID: 1, productID: 2, enumeratedSerial: capabilities.serial),
+            transport: FakeBoardTransport(behavior: .success(capabilities), renameError: .invalidReport)
+        )
+        _ = await waitFor(monitor) {
+            if case .verified = $0 {
+                true
+            } else {
+                false
+            }
+        }
+        await #expect(throws: BoardTransportError.invalidReport) {
+            try await monitor.setDeviceName("Bedroom SoundBox")
+        }
+        #expect(monitor.state == .verified(capabilities))
+    }
 }
 
 @MainActor

@@ -74,6 +74,7 @@ struct FakeBoardTransport: BoardTransport {
     }
 
     var behavior: Behavior
+    var renameError: BoardTransportError?
 
     func requestCapabilities() async throws -> DeviceCapabilities {
         switch behavior {
@@ -85,6 +86,12 @@ struct FakeBoardTransport: BoardTransport {
         case .hangs:
             try await Task.sleep(for: .seconds(3600))
             throw BoardTransportError.timeout
+        }
+    }
+
+    func setDeviceName(_: String) async throws {
+        if let renameError {
+            throw renameError
         }
     }
 }

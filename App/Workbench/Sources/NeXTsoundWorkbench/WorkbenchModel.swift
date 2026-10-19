@@ -108,6 +108,16 @@ public extension WorkbenchModel {
             errorMessage = error.localizedDescription
         }
     }
+
+    /// Writes a new persisted name to the connected SoundBox. The new name is visible to macOS
+    /// only after the board next resets or is replugged.
+    func renameBoard(_ name: String) async {
+        do {
+            try await boards.setDeviceName(name)
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
 }
 
 private extension WorkbenchModel {

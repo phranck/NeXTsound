@@ -12,7 +12,7 @@ public struct WorkbenchView: View {
             ProfileSidebar(model: model, undoManager: undoManager)
                 .navigationSplitViewColumnWidth(min: 210, ideal: 230, max: 280)
         } detail: {
-            WorkbenchEditor(profile: profileBinding, connectionState: model.boards.state)
+            WorkbenchEditor(profile: profileBinding, connectionState: model.boards.state, onRenameBoard: { await model.renameBoard($0) })
         }
         .font(.body)
         .tint(WorkbenchTheme.amber)

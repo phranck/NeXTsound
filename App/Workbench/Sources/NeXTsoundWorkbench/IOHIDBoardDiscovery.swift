@@ -7,12 +7,14 @@ public enum BoardTransportError: Error, Equatable, LocalizedError, Sendable {
     case timeout
     case invalidReport
     case transportFailed(Int32)
+    case notConnected
 
     public var errorDescription: String? {
         switch self {
         case .timeout: "The board did not reply in time."
         case .invalidReport: "The capability report could not be built."
-        case let .transportFailed(code): "The board rejected the capability request (code \(code))."
+        case let .transportFailed(code): "The board rejected the request (code \(code))."
+        case .notConnected: "No SoundBox is connected."
         }
     }
 }
@@ -95,8 +97,23 @@ public struct USBHostBoardTransport: BoardTransport, @unchecked Sendable {
     public init() {}
 
     public func requestCapabilities() async throws -> DeviceCapabilities {
-        let message = try await withThrowingTaskGroup(of: WireMessage.self) { group in
-            group.addTask { try await Self.exchange() }
+        let request = WireMessage(operation: .capabilities, requestID: .random(in: 1 ... .max))
+        let message = try await Self.exchange(request)
+        return try WireCodec.decodeCapabilities(message.payload)
+    }
+
+    public func setDeviceName(_ name: String) async throws {
+        let current = try await Self.exchange(WireMessage(operation: .capabilities, requestID: .random(in: 1 ... .max)))
+        let payload = try WireCodec.encodeDeviceName(name)
+        let request = WireMessage(operation: .setName, requestID: .random(in: 1 ... .max), generation: current.generation, payload: payload)
+        _ = try await Self.exchange(request)
+    }
+}
+
+private extension USBHostBoardTransport {
+    static func exchange(_ request: WireMessage) async throws -> WireMessage {
+        try await withThrowingTaskGroup(of: WireMessage.self) { group in
+            group.addTask { try await Self.exchangeOffQueue(request) }
             group.addTask {
                 try await Task.sleep(for: Self.timeout)
                 throw BoardTransportError.timeout
@@ -107,16 +124,13 @@ public struct USBHostBoardTransport: BoardTransport, @unchecked Sendable {
             group.cancelAll()
             return result
         }
-        return try WireCodec.decodeCapabilities(message.payload)
     }
-}
 
-private extension USBHostBoardTransport {
-    static func exchange() async throws -> WireMessage {
+    static func exchangeOffQueue(_ request: WireMessage) async throws -> WireMessage {
         try await withCheckedThrowingContinuation { continuation in
             queue.async {
                 do {
-                    try continuation.resume(returning: exchangeOnQueue())
+                    try continuation.resume(returning: exchangeOnQueue(request))
                 } catch {
                     continuation.resume(throwing: error)
                 }
@@ -124,8 +138,7 @@ private extension USBHostBoardTransport {
         }
     }
 
-    static func exchangeOnQueue() throws -> WireMessage {
-        let request = WireMessage(operation: .capabilities, requestID: .random(in: 1 ... .max))
+    static func exchangeOnQueue(_ request: WireMessage) throws -> WireMessage {
         let encoded = try WireCodec.encode(request)
         guard encoded.count == WireCodec.reportSize else {
             throw BoardTransportError.invalidReport
