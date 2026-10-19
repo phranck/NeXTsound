@@ -12,7 +12,6 @@ struct ProfileSidebar: View {
             PresetsSection { model.applyPreset($0, undoManager: undoManager) }
             SpeakerSection(speaker: model.profile.speaker)
             EnclosureSection(enclosure: model.profile.enclosure)
-            BoardStatusSection(state: model.boards.state)
             StorageStatusSection(status: model.storageStatus)
         }
         .listStyle(.sidebar)
@@ -93,34 +92,6 @@ private struct EnclosureVolumeLabel: View {
         } else {
             Text("Volume not set")
                 .foregroundStyle(.secondary)
-        }
-    }
-}
-
-private struct BoardStatusSection: View {
-    let state: BoardConnectionState
-
-    var body: some View {
-        Section("SoundBox") {
-            switch state {
-            case .disconnected:
-                Label("Not connected", systemImage: "cable.connector.slash")
-                    .foregroundStyle(.secondary)
-            case .detected:
-                Label("Checking device…", systemImage: "cable.connector")
-                    .foregroundStyle(.secondary)
-            case let .verified(capabilities):
-                VStack(alignment: .leading, spacing: 4) {
-                    Label("Connected", systemImage: "cable.connector")
-                    Text("Serial \(capabilities.serial)")
-                        .foregroundStyle(.secondary)
-                    Text("Firmware \(capabilities.firmwareVersion)")
-                        .foregroundStyle(.secondary)
-                }
-            case let .mismatched(reason):
-                Label(reason, systemImage: "exclamationmark.triangle")
-                    .foregroundStyle(.red)
-            }
         }
     }
 }

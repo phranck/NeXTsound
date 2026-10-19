@@ -6,7 +6,7 @@
 
 #define NXS_USB_AUDIO_CONTROL_INTERFACE 0u
 #define NXS_USB_AUDIO_STREAM_INTERFACE 1u
-#define NXS_USB_HID_INTERFACE 2u
+/* NXS_USB_HID_INTERFACE is defined in the shared nxs_protocol.h; the Mac app reads the same constant. */
 #define NXS_USB_RESET_INTERFACE 3u
 #define NXS_USB_INTERFACE_COUNT 4u
 #define NXS_USB_RESET_DESCRIPTOR_LENGTH 9u

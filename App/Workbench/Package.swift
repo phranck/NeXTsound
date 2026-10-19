@@ -10,7 +10,12 @@ let package = Package(
     ],
     dependencies: [.package(path: "../../Shared")],
     targets: [
-        .target(name: "NeXTsoundWorkbench", dependencies: [.product(name: "NeXTsoundCore", package: "Shared")]),
+        .target(
+            name: "NXSUSBHostShim",
+            cSettings: [.unsafeFlags(["-I/opt/homebrew/include"])],
+            linkerSettings: [.unsafeFlags(["-L/opt/homebrew/lib", "-lusb-1.0"])]
+        ),
+        .target(name: "NeXTsoundWorkbench", dependencies: ["NXSUSBHostShim", .product(name: "NeXTsoundCore", package: "Shared")]),
         .executableTarget(
             name: "NeXTsoundWorkbenchRender",
             dependencies: ["NeXTsoundWorkbench", .product(name: "NeXTsoundCore", package: "Shared")],
