@@ -39,6 +39,8 @@ nxs_usb_reset_request_t nxs_usb_pending_reset(void);
 
 /** The validated serial string must remain alive for the USB session. */
 void nxs_usb_set_serial(const char *serial);
+/** Empty or NULL falls back to the fixed default string; the validated name must remain alive for the USB session. */
+void nxs_usb_set_product_name(const char *name);
 bool nxs_usb_init(const char *serial, const char *version);
 bool nxs_usb_configure_storage(const nxs_storage_io_t *io, uint32_t flash_size_bytes, const nxs_stored_state_t *restored);
 void nxs_usb_task(void);

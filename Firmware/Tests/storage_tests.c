@@ -59,6 +59,7 @@ static void check_state(const nxs_stored_state_t *actual, const nxs_stored_state
     CHECK(nxs_snapshot_encode(&actual->snapshot, actual_payload, sizeof(actual_payload)) == NXS_RESULT_OK);
     CHECK(nxs_snapshot_encode(&expected->snapshot, expected_payload, sizeof(expected_payload)) == NXS_RESULT_OK);
     CHECK(memcmp(actual_payload, expected_payload, sizeof(actual_payload)) == 0);
+    CHECK(strcmp(actual->device_name, expected->device_name) == 0);
 }
 
 static void fake_init(fake_flash_t *flash) {
@@ -148,7 +149,7 @@ static void record_validation(void) {
             CHECK(memcmp(&decoded, unchanged, sizeof(decoded)) == 0);
         }
     }
-    for (unsigned int malformed = 0; malformed < 11; ++malformed) {
+    for (unsigned int malformed = 0; malformed < 12; ++malformed) {
         nxs_storage_record_t corrupt = record;
         switch (malformed) {
         case 0:
@@ -170,7 +171,7 @@ static void record_validation(void) {
             corrupt.bytes[14] = NXS_SNAPSHOT_SIZE - 1u;
             break;
         case 6:
-            corrupt.bytes[TEST_PAYLOAD_OFFSET + NXS_SNAPSHOT_SIZE] = 0;
+            corrupt.bytes[TEST_PAYLOAD_OFFSET + NXS_SNAPSHOT_SIZE] = 0x01;
             break;
         case 7:
             corrupt.bytes[TEST_PAYLOAD_OFFSET + 22] = 1;
@@ -183,6 +184,9 @@ static void record_validation(void) {
             break;
         case 10:
             corrupt.bytes[NXS_STORAGE_PAGE_BYTES + 16] = 0;
+            break;
+        case 11:
+            corrupt.bytes[TEST_PAYLOAD_OFFSET + NXS_SNAPSHOT_SIZE + NXS_DEVICE_NAME_LENGTH] = 0;
             break;
         }
         refresh_checksum(&corrupt);
@@ -345,11 +349,41 @@ static void io_failures_and_media_changes(void) {
     check_state(&restored, &newer);
 }
 
+static void device_name_persistence(void) {
+    fake_flash_t flash;
+    fake_init(&flash);
+    nxs_storage_io_t io = fake_io(&flash);
+    nxs_stored_state_t named = make_state(1, -18.0f);
+    strcpy(named.device_name, "Bedroom SoundBox");
+    CHECK(nxs_storage_save(&io, &named) == NXS_RESULT_OK);
+    nxs_stored_state_t restored;
+    unsigned int slot;
+    CHECK(nxs_storage_read(&io, &restored, &slot) == NXS_STORAGE_LOADED);
+    check_state(&restored, &named);
+
+    nxs_stored_state_t renamed = make_state(2, -18.0f);
+    strcpy(renamed.device_name, "Office SoundBox");
+    CHECK(nxs_storage_save(&io, &renamed) == NXS_RESULT_OK);
+    CHECK(nxs_storage_read(&io, &restored, &slot) == NXS_STORAGE_LOADED);
+    check_state(&restored, &renamed);
+
+    nxs_stored_state_t cleared = make_state(3, -18.0f);
+    CHECK(nxs_storage_save(&io, &cleared) == NXS_RESULT_OK);
+    CHECK(nxs_storage_read(&io, &restored, &slot) == NXS_STORAGE_LOADED);
+    check_state(&restored, &cleared);
+
+    nxs_stored_state_t invalid_name = make_state(4, -18.0f);
+    invalid_name.device_name[0] = '\n';
+    nxs_storage_record_t record;
+    CHECK(!nxs_storage_record_encode(&invalid_name, &record));
+}
+
 int main(void) {
     record_validation();
     selection_and_generation();
     interrupted_programs();
     interrupted_erases();
     io_failures_and_media_changes();
+    device_name_persistence();
     return nxs_test_finish("Recoverable storage");
 }

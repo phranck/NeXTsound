@@ -198,6 +198,21 @@ static nxs_message_t response(uint32_t identifier, nxs_result_t result) {
     return nxs_test_response(report, identifier, result);
 }
 
+static void send_name(uint32_t identifier, uint32_t generation, const char *name) {
+    nxs_message_t request = {0};
+    request.operation = NXS_OPERATION_SET_NAME;
+    request.request_id = identifier;
+    request.generation = generation;
+    request.payload_length = NXS_DEVICE_NAME_LENGTH;
+    if (name) {
+        size_t length = strlen(name) < NXS_DEVICE_NAME_LENGTH ? strlen(name) : NXS_DEVICE_NAME_LENGTH - 1;
+        memcpy(request.payload, name, length);
+    }
+    uint8_t report[NXS_REPORT_SIZE];
+    CHECK(nxs_message_encode(&request, report, sizeof(report)) == NXS_RESULT_OK);
+    tud_hid_set_report_cb(0, NXS_REPORT_ID, HID_REPORT_TYPE_FEATURE, report + 1, NXS_REPORT_SIZE - 1u);
+}
+
 static void set_alternate(uint8_t alternate) {
     tusb_control_request_t request = {
         .bmRequestType = 0x01, .bRequest = TUSB_REQ_SET_INTERFACE, .wIndex = NXS_USB_AUDIO_STREAM_INTERFACE, .wValue = alternate};
@@ -449,9 +464,34 @@ static void test_reset_waits_for_audio_and_can_be_canceled(void) {
     CHECK(!mock.maintenance_requested && mock.epoch != previous_epoch && mock.streaming);
 }
 
+static void test_name_persistence_updates_product_string(void) {
+    initialize();
+    enable_storage(NULL);
+    const uint16_t *default_product = tud_descriptor_string_cb(2, 0x0409);
+    CHECK(default_product != NULL && (default_product[0] & 0xffu) == 2u * strlen("NeXTsound development") + 2u);
+    send_name(1, 1, "Bedroom SoundBox");
+    nxs_usb_task();
+    CHECK(mock.maintenance_requested && !mock.maintenance_ready && mock.storage_erases == 0);
+    const uint16_t *pending_product = tud_descriptor_string_cb(2, 0x0409);
+    CHECK(pending_product != NULL && (pending_product[0] & 0xffu) == 2u * strlen("NeXTsound development") + 2u);
+    mock.maintenance_ready = true;
+    nxs_usb_task();
+    nxs_message_t reply = response(1, NXS_RESULT_OK);
+    CHECK(reply.generation == 2 && mock.storage_erases == 1);
+    const uint16_t *custom_product = tud_descriptor_string_cb(2, 0x0409);
+    CHECK(custom_product != NULL && (custom_product[0] & 0xffu) == 2u * strlen("Bedroom SoundBox") + 2u);
+    CHECK(custom_product[1] == 'B');
+    nxs_storage_record_t record;
+    memcpy(record.bytes, mock.storage[0], sizeof(record.bytes));
+    nxs_stored_state_t stored;
+    CHECK(nxs_storage_record_decode(&record, &stored));
+    CHECK(strcmp(stored.device_name, "Bedroom SoundBox") == 0);
+}
+
 static void test_storage_callbacks(void) {
     test_persistence_waits_for_audio_and_drains_usb();
     test_persistence_completes_after_session_reset();
+    test_name_persistence_updates_product_string();
 }
 
 static void test_basic_callbacks(void) {

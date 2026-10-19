@@ -15,6 +15,8 @@ typedef struct {
 typedef struct {
     nxs_snapshot_t snapshot;
     uint32_t generation;
+    /** Empty when no custom name is stored; see NXS_OPERATION_SET_NAME. */
+    char device_name[NXS_DEVICE_NAME_LENGTH];
 } nxs_stored_state_t;
 
 typedef enum { NXS_STORAGE_EMPTY, NXS_STORAGE_LOADED, NXS_STORAGE_AMBIGUOUS, NXS_STORAGE_READ_FAILED } nxs_storage_load_result_t;
