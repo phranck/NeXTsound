@@ -51,19 +51,44 @@ private struct ConnectionBadge: View {
     let state: BoardConnectionState
 
     var body: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "cpu")
+                .symbolRenderingMode(.hierarchical)
+                .font(.largeTitle)
+                .foregroundStyle(iconColor)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                if let subtitle {
+                    Text(subtitle)
+                        .foregroundStyle(.secondary)
+                }
+            }
+        }
+    }
+}
+
+private extension ConnectionBadge {
+    var title: String {
         switch state {
-        case .disconnected:
-            Label("No SoundBox", systemImage: "cable.connector.slash")
-                .foregroundStyle(.secondary)
-        case .detected:
-            Label("Checking…", systemImage: "cable.connector")
-                .foregroundStyle(.secondary)
-        case .verified:
-            Label("SoundBox connected", systemImage: "cable.connector")
-                .foregroundStyle(.secondary)
-        case .mismatched:
-            Label("SoundBox not verified", systemImage: "exclamationmark.triangle")
-                .foregroundStyle(.red)
+        case .disconnected: "SoundBox not connected"
+        case .detected: "Checking SoundBox…"
+        case .verified: "SoundBox connected"
+        case .mismatched: "SoundBox not verified"
+        }
+    }
+
+    var subtitle: String? {
+        guard case let .verified(capabilities) = state else {
+            return nil
+        }
+        return "Firmware \(capabilities.firmwareVersion)"
+    }
+
+    var iconColor: Color {
+        switch state {
+        case .disconnected, .detected: .secondary
+        case .verified: .green
+        case .mismatched: .red
         }
     }
 }
