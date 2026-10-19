@@ -113,11 +113,13 @@ const uint16_t *tud_descriptor_string_cb(uint8_t index, uint16_t language) {
         string_buffer[1] = 0x0409;
         return string_buffer;
     }
+    /* Index 4 is the Audio Control interface's own iInterface string (see TUD_AUDIO_DESC_STD_AC
+     * below); macOS Sound settings names the device from this string, not from iProduct (index 2). */
     const char *strings[] = {NULL,
                              "Layered",
                              product_name ? product_name : "NeXTsound development",
                              device_serial,
-                             "NeXTsound Audio",
+                             product_name ? product_name : "NeXTsound Audio",
                              "NeXTsound Control",
                              "NeXTsound Maintenance"};
     if (index >= sizeof(strings) / sizeof(strings[0]) || !strings[index]) {
