@@ -15,10 +15,7 @@ let package = Package(
             cSettings: [.unsafeFlags(["-I/opt/homebrew/include"])],
             linkerSettings: [.unsafeFlags(["-L/opt/homebrew/lib", "-lusb-1.0"])]
         ),
-        .target(
-            name: "NeXTsoundWorkbench",
-            dependencies: ["NXSUSBHostShim", .product(name: "NeXTsoundCore", package: "Shared")]
-        ),
+        .target(name: "NeXTsoundWorkbench", dependencies: ["NXSUSBHostShim", .product(name: "NeXTsoundCore", package: "Shared")]),
         .executableTarget(
             name: "NeXTsoundWorkbenchRender",
             dependencies: ["NeXTsoundWorkbench", .product(name: "NeXTsoundCore", package: "Shared")],

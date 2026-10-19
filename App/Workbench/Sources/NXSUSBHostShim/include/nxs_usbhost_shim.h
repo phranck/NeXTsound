@@ -16,15 +16,7 @@
 ///
 /// Returns the number of bytes read back on success (normally `reportLength`), or a negative
 /// libusb error code (see `libusb.h`) on failure.
-int nxs_libusb_exchange_feature_report(
-    uint16_t vendorID,
-    uint16_t productID,
-    uint16_t interfaceNumber,
-    uint16_t reportValue,
-    const uint8_t *setBuffer,
-    uint8_t *getBuffer,
-    size_t reportLength,
-    unsigned int timeoutMilliseconds
-);
+int nxs_libusb_exchange_feature_report(uint16_t vendorID, uint16_t productID, uint16_t interfaceNumber, uint16_t reportValue,
+                                       const uint8_t *setBuffer, uint8_t *getBuffer, size_t reportLength, unsigned int timeoutMilliseconds);
 
 #endif

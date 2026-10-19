@@ -10,6 +10,9 @@ settings:
     CODE_SIGNING_ALLOWED: NO
     MARKETING_VERSION: "0.1.0"
     CURRENT_PROJECT_VERSION: "1"
+    # NXSUSBHostShim links Homebrew's libusb, which Homebrew only ships for arm64 on Apple Silicon.
+    ARCHS: arm64
+    VALID_ARCHS: arm64
 packages:
   Workbench:
     path: Workbench
