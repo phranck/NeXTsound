@@ -16,6 +16,8 @@ extern "C" {
 #define NXS_USB_PRODUCT_ID 0x4014u
 #define NXS_HID_USAGE_PAGE 0xff4eu
 #define NXS_HID_USAGE 1u
+/** The HID interface's index in the composite USB configuration (Audio Control, Audio Stream, HID, Reset). */
+#define NXS_USB_HID_INTERFACE 2u
 #define NXS_REPORT_ID 1u
 #define NXS_REPORT_SIZE 256u
 #define NXS_HEADER_SIZE 20u
