@@ -1,0 +1,39 @@
+{
+  "date": "2026-10-19",
+  "scope": "Show the custom SoundBox name in macOS Sound settings too, issue 27.",
+  "base_revision": "cae257e0abdee35a5312c90322218eed5509758a",
+  "branch": "issue/27-sound-settings-audio-name",
+  "platform": {
+    "minimum_macos": "15.0",
+    "xcode": "27.0",
+    "xcodegen": "2.45.4",
+    "libusb": "1.0.30 (Homebrew, arm64, unpinned)"
+  },
+  "gate": {
+    "shared_swift_tests": 35,
+    "app_swift_tests": 62,
+    "ctest_cases": 18,
+    "swiftlint_violations": 0,
+    "format_layout_fixtures": true,
+    "rp2350_targets_and_guards": true,
+    "native_debug_build": true,
+    "native_release_build": true,
+    "release_packages": true,
+    "shellcheck": true,
+    "actionlint": true
+  },
+  "root_cause": "The USB Audio Class device carries two separate name strings. tud_descriptor_string_cb (Firmware/USB/descriptors.c) only made string index 2 (iProduct, the device-level name) dynamic after issue 24. Index 4 is the Audio Control interface's own iInterface string, set via TUD_AUDIO_DESC_STD_AC(NXS_USB_AUDIO_CONTROL_INTERFACE, 0, 4) in the configuration descriptor, and stayed the fixed literal \"NeXTsound Audio\". macOS names the device in Sound settings, Audio MIDI Setup, and system_profiler SPAudioDataType from this interface string, not from iProduct.",
+  "fix": "Index 4 now falls back to product_name the same way index 2 already does, with its own fallback literal (\"NeXTsound Audio\") when unset.",
+  "board_access_performed": true,
+  "board_access_description": "The bench specimen (serial D4CDD489AFE28CC5) already carried the custom name \"NeXT SoundBox mini\", set earlier through the app's own rename UI. This branch's firmware was built and flashed onto it via picotool after a firmware-assisted BOOTSEL reboot, confirming chipid 0xd4cdd489afe28cc5 before writing, then rebooted back into application mode.",
+  "board_access_result": "Before the fix, system_profiler SPAudioDataType listed the device as \"NeXTsound Audio\" while ioreg's kUSBProductString already correctly read \"NeXT SoundBox mini\" (the issue 24 fix). After this fix and the reboot, system_profiler SPAudioDataType lists the device as \"NeXT SoundBox mini\", matching the device-level name.",
+  "audio_playback_performed": false,
+  "system_audio_output_changed": false,
+  "system_wide_sleep_performed": false,
+  "input_models_modified_or_published": false,
+  "limits": [
+    "Verified against one bench specimen only; other specimens or firmware revisions are not covered.",
+    "Only the Audio Control interface string (index 4) was corrected; the HID and vendor reset interface strings (indices 5 and 6) remain the project's own fixed internal names, which no macOS user-facing surface reads.",
+    "No physical, acoustic, speaker-protection, or enclosure-volume claim follows."
+  ]
+}
