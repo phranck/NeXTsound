@@ -129,6 +129,8 @@ private struct PreviewBoardTransport: BoardTransport {
     }
 
     func setDeviceName(_: String) async throws {}
+
+    func applyState(_: DeviceSnapshot) async throws {}
 }
 
 private final class PreviewBoardDiscovery: BoardDiscovery, @unchecked Sendable {

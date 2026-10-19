@@ -108,6 +108,18 @@ public struct USBHostBoardTransport: BoardTransport, @unchecked Sendable {
         let request = WireMessage(operation: .setName, requestID: .random(in: 1 ... .max), generation: current.generation, payload: payload)
         _ = try await Self.exchangeUntilComplete(request)
     }
+
+    public func applyState(_ snapshot: DeviceSnapshot) async throws {
+        let current = try await Self.exchange(WireMessage(operation: .capabilities, requestID: .random(in: 1 ... .max)))
+        let payload = try WireCodec.encodeSnapshot(snapshot)
+        let request = WireMessage(
+            operation: .applyState,
+            requestID: .random(in: 1 ... .max),
+            generation: current.generation,
+            payload: payload
+        )
+        _ = try await Self.exchangeUntilComplete(request)
+    }
 }
 
 private extension USBHostBoardTransport {

@@ -105,4 +105,82 @@ struct WorkbenchModelTests {
         model.addProfile()
         #expect(model.library.profiles.count == 3)
     }
+
+    @Test func applyingToTheBoardAlwaysUnmutesAndCapsAttenuationAtMinus24dB() async throws {
+        let (model, appliedSnapshots) = try await connectedModelWithFakeBoard()
+        var profile = model.profile
+        profile.settings.isMuted = true
+        profile.settings.attenuationDb = -6
+        model.updateProfile(profile)
+
+        await model.applyToBoard()
+
+        #expect(model.errorMessage == nil)
+        let sent = try #require(appliedSnapshots.snapshots.last)
+        #expect(sent.settings.isMuted == false)
+        #expect(sent.settings.attenuationDb == -24)
+    }
+
+    @Test func applyingToTheBoardPassesThroughAQuieterAttenuation() async throws {
+        let (model, appliedSnapshots) = try await connectedModelWithFakeBoard()
+        var profile = model.profile
+        profile.settings.attenuationDb = -40
+        model.updateProfile(profile)
+
+        await model.applyToBoard()
+
+        let sent = try #require(appliedSnapshots.snapshots.last)
+        #expect(sent.settings.attenuationDb == -40)
+    }
+
+    @Test func applyingToTheBoardWithoutAConnectionSurfacesAnError() async {
+        let model = WorkbenchModel()
+        await model.applyToBoard()
+        #expect(model.errorMessage != nil)
+    }
+
+    @Test func aFailedApplySurfacesAnError() async throws {
+        let discovery = FakeBoardDiscovery()
+        let boards = BoardMonitor(discovery: discovery)
+        let model = WorkbenchModel(boards: boards)
+        boards.start()
+        let capabilities = fixtureCapabilities()
+        discovery.simulateConnect(
+            BoardIdentitySnapshot(vendorID: 1, productID: 2, enumeratedSerial: capabilities.serial),
+            transport: FakeBoardTransport(behavior: .success(capabilities), applyError: .invalidReport)
+        )
+        try await waitUntilVerified(boards)
+
+        await model.applyToBoard()
+        #expect(model.errorMessage != nil)
+    }
+}
+
+@MainActor
+private extension WorkbenchModelTests {
+    func connectedModelWithFakeBoard() async throws -> (WorkbenchModel, SnapshotRecorder) {
+        let discovery = FakeBoardDiscovery()
+        let boards = BoardMonitor(discovery: discovery)
+        let model = WorkbenchModel(boards: boards)
+        boards.start()
+        let capabilities = fixtureCapabilities()
+        let appliedSnapshots = SnapshotRecorder()
+        discovery.simulateConnect(
+            BoardIdentitySnapshot(vendorID: 1, productID: 2, enumeratedSerial: capabilities.serial),
+            transport: FakeBoardTransport(behavior: .success(capabilities), appliedSnapshots: appliedSnapshots)
+        )
+        try await waitUntilVerified(boards)
+        return (model, appliedSnapshots)
+    }
+
+    func waitUntilVerified(_ monitor: BoardMonitor, timeout: Duration = .seconds(1)) async throws {
+        let deadline = ContinuousClock.now + timeout
+        while ContinuousClock.now < deadline {
+            if case .verified = monitor.state {
+                return
+            }
+            try await Task.sleep(for: .milliseconds(5))
+        }
+        throw FakeStorageError.simulatedFailure
+    }
 }

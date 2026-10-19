@@ -195,6 +195,42 @@ struct BoardMonitorTests {
         }
         #expect(monitor.state == .verified(capabilities))
     }
+
+    @Test func applyingASnapshotSendsItToTheConnectedBoard() async throws {
+        let discovery = FakeBoardDiscovery()
+        let monitor = BoardMonitor(discovery: discovery)
+        monitor.start()
+        let capabilities = fixtureCapabilities()
+        let applyStateCalls = CallCounter()
+        let appliedSnapshots = SnapshotRecorder()
+        discovery.simulateConnect(
+            BoardIdentitySnapshot(vendorID: 1, productID: 2, enumeratedSerial: capabilities.serial),
+            transport: FakeBoardTransport(
+                behavior: .success(capabilities),
+                applyStateCalls: applyStateCalls,
+                appliedSnapshots: appliedSnapshots
+            )
+        )
+        _ = await waitFor(monitor) {
+            if case .verified = $0 {
+                true
+            } else {
+                false
+            }
+        }
+        let snapshot = DeviceSnapshot(profileID: UUID(), profileRevision: 1, settings: DSPSettings())
+        try await monitor.apply(snapshot)
+        #expect(applyStateCalls.total == 1)
+        #expect(appliedSnapshots.snapshots == [snapshot])
+    }
+
+    @Test func applyingASnapshotFailsWithoutAConnectedBoard() async {
+        let monitor = BoardMonitor(discovery: FakeBoardDiscovery())
+        let snapshot = DeviceSnapshot(profileID: UUID(), profileRevision: 1, settings: DSPSettings())
+        await #expect(throws: BoardTransportError.notConnected) {
+            try await monitor.apply(snapshot)
+        }
+    }
 }
 
 @MainActor

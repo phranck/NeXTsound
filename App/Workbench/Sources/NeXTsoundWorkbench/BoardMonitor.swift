@@ -2,7 +2,8 @@ import Foundation
 import NeXTsoundCore
 import Observation
 
-/// A read-only connection state. No case here ever applies settings or persists to a board.
+/// A read-only connection state. No case here ever applies settings or persists to a board;
+/// `BoardMonitor.apply(_:)` is the one explicit write that does.
 public enum BoardConnectionState: Equatable, Sendable {
     case disconnected
     case detected
@@ -28,6 +29,9 @@ public protocol BoardTransport: Sendable {
     /// Writes a new persisted device name to the board. The new name is visible to macOS
     /// only after the board next resets or is replugged.
     func setDeviceName(_ name: String) async throws
+    /// Applies a DSP snapshot to the audio owner for the next block. Never persists to flash;
+    /// see `WireOperation.persistState` for that, which this transport does not yet implement.
+    func applyState(_ snapshot: DeviceSnapshot) async throws
 }
 
 public protocol BoardDiscovery: Sendable {
@@ -100,6 +104,15 @@ public extension BoardMonitor {
             return
         }
         state = .verified(capabilities)
+    }
+
+    /// Applies a DSP snapshot to the connected board's audio owner for the next block.
+    /// Never persists to flash; a reconnect or power cycle reverts to the last persisted state.
+    func apply(_ snapshot: DeviceSnapshot) async throws {
+        guard let transport else {
+            throw BoardTransportError.notConnected
+        }
+        try await transport.applyState(snapshot)
     }
 }
 
