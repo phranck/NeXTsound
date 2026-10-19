@@ -481,6 +481,9 @@ static void test_name_persistence_updates_product_string(void) {
     const uint16_t *custom_product = tud_descriptor_string_cb(2, 0x0409);
     CHECK(custom_product != NULL && (custom_product[0] & 0xffu) == 2u * strlen("Bedroom SoundBox") + 2u);
     CHECK(custom_product[1] == 'B');
+    /* macOS Sound settings names the device from index 4, not from iProduct (index 2). */
+    const uint16_t *custom_audio_interface = tud_descriptor_string_cb(4, 0x0409);
+    CHECK(custom_audio_interface != NULL && (custom_audio_interface[0] & 0xffu) == 2u * strlen("Bedroom SoundBox") + 2u);
     nxs_storage_record_t record;
     memcpy(record.bytes, mock.storage[0], sizeof(record.bytes));
     nxs_stored_state_t stored;

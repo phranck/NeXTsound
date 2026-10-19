@@ -98,12 +98,21 @@ int main(void) {
 
     const uint16_t *default_product = tud_descriptor_string_cb(2, 0x0409);
     CHECK(default_product != NULL && (default_product[0] & 0xffu) == 2u * strlen("NeXTsound development") + 2u);
+    const uint16_t *default_audio_interface = tud_descriptor_string_cb(4, 0x0409);
+    CHECK(default_audio_interface != NULL && (default_audio_interface[0] & 0xffu) == 2u * strlen("NeXTsound Audio") + 2u);
     nxs_usb_set_product_name("Bedroom SoundBox");
     const uint16_t *custom_product = tud_descriptor_string_cb(2, 0x0409);
     CHECK(custom_product != NULL && (custom_product[0] & 0xffu) == 2u * strlen("Bedroom SoundBox") + 2u);
     CHECK(custom_product[1] == 'B');
+    /* macOS Sound settings names the device from index 4 (the Audio Control interface's own
+     * iInterface string), not from iProduct (index 2); both must carry the custom name. */
+    const uint16_t *custom_audio_interface = tud_descriptor_string_cb(4, 0x0409);
+    CHECK(custom_audio_interface != NULL && (custom_audio_interface[0] & 0xffu) == 2u * strlen("Bedroom SoundBox") + 2u);
+    CHECK(custom_audio_interface[1] == 'B');
     nxs_usb_set_product_name("");
     const uint16_t *cleared_product = tud_descriptor_string_cb(2, 0x0409);
     CHECK(cleared_product != NULL && (cleared_product[0] & 0xffu) == 2u * strlen("NeXTsound development") + 2u);
+    const uint16_t *cleared_audio_interface = tud_descriptor_string_cb(4, 0x0409);
+    CHECK(cleared_audio_interface != NULL && (cleared_audio_interface[0] & 0xffu) == 2u * strlen("NeXTsound Audio") + 2u);
     return nxs_test_finish("USB descriptor");
 }
