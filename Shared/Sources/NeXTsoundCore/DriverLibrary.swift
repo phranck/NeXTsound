@@ -10,12 +10,14 @@ public enum DriverLibraryError: Error, Equatable, LocalizedError, Sendable {
 
     public var errorDescription: String? {
         switch self {
-        case .invalidLibrary: "The driver library is invalid or uses an unsupported format. The stored file is unchanged."
-        case .oversizedFile: "The driver library file exceeds the local storage limit."
-        case .duplicateDriver: "A different version of this driver model already exists."
-        case .driverLimit: "The driver library is full. Remove a driver model before adding another."
-        case .lastDriver: "Keep at least one driver model in the library."
-        case .driverNotFound: "That driver model no longer exists."
+        case .invalidLibrary: String(
+                localized: "The driver library is invalid or uses an unsupported format. The stored file is unchanged."
+            )
+        case .oversizedFile: String(localized: "The driver library file exceeds the local storage limit.")
+        case .duplicateDriver: String(localized: "A different version of this driver model already exists.")
+        case .driverLimit: String(localized: "The driver library is full. Remove a driver model before adding another.")
+        case .lastDriver: String(localized: "Keep at least one driver model in the library.")
+        case .driverNotFound: String(localized: "That driver model no longer exists.")
         }
     }
 }

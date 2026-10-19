@@ -33,10 +33,10 @@ public enum DriverValidationError: Error, Equatable, Sendable {
 extension DriverValidationError: LocalizedError {
     public var errorDescription: String? {
         switch self {
-        case .missingName: "Give the driver model a name."
-        case let .invalidValue(parameter): "Check the \(parameter.rawValue) value."
-        case .invalidSourceURL: "Source URLs must be http or https links."
-        case .missingDatasheetSource: "A datasheet origin needs at least one source URL."
+        case .missingName: String(localized: "Give the driver model a name.")
+        case let .invalidValue(parameter): String(localized: "Check the \(parameter.rawValue) value.")
+        case .invalidSourceURL: String(localized: "Source URLs must be http or https links.")
+        case .missingDatasheetSource: String(localized: "A datasheet origin needs at least one source URL.")
         }
     }
 }

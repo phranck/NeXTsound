@@ -109,8 +109,10 @@ private struct DriverListColumn: View {
             ToolbarItemGroup {
                 ControlGroup {
                     Button("New driver model", systemImage: "plus", action: onAdd)
+                        .help("Add a new driver model")
                     Button("Delete driver model", systemImage: "minus", action: onDelete)
                         .disabled(selection == nil)
+                        .help("Delete the selected driver model")
                 }
                 .controlSize(.regular)
             }

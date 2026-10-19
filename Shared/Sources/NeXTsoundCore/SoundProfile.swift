@@ -12,12 +12,12 @@ public enum ProfileValidationError: Error, Equatable, Sendable {
 extension ProfileValidationError: LocalizedError {
     public var errorDescription: String? {
         switch self {
-        case let .unsupportedFormat(version): "Unsupported profile format \(version)."
-        case .invalidName: "Give the profile a name."
-        case .invalidRevision: "The profile revision is invalid or exhausted."
-        case .invalidSpeaker: "Check the speaker specifications and their sources."
-        case .invalidEnclosure: "Check the enclosure volume and its source."
-        case .invalidModelReference: "Check the model reference and SHA-256 digest."
+        case let .unsupportedFormat(version): String(localized: "Unsupported profile format \(version).")
+        case .invalidName: String(localized: "Give the profile a name.")
+        case .invalidRevision: String(localized: "The profile revision is invalid or exhausted.")
+        case .invalidSpeaker: String(localized: "Check the speaker specifications and their sources.")
+        case .invalidEnclosure: String(localized: "Check the enclosure volume and its source.")
+        case .invalidModelReference: String(localized: "Check the model reference and SHA-256 digest.")
         }
     }
 }

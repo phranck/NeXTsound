@@ -179,9 +179,9 @@ private struct PowerGroup: View {
 private extension SpecificationOrigin {
     var displayName: String {
         switch self {
-        case .unknown: "Unknown"
-        case .userProvided: "User provided"
-        case .datasheet: "Datasheet"
+        case .unknown: String(localized: "Unknown")
+        case .userProvided: String(localized: "User provided")
+        case .datasheet: String(localized: "Datasheet")
         }
     }
 }

@@ -25,6 +25,7 @@ public struct WorkbenchView: View {
             }
             ToolbarItemGroup {
                 Button("Driver models", systemImage: "waveform.circle") { isShowingDriverLibrary = true }
+                    .help("Manage the driver models used to calculate a sound profile")
             }
         }
         .sheet(isPresented: $isShowingDriverLibrary) {
@@ -77,12 +78,16 @@ private struct ProfileActions: View {
     var body: some View {
         ControlGroup {
             Button("New profile", systemImage: "plus") { model.addProfile(undoManager: undoManager) }
+                .help("Add a new sound profile")
             Button("Delete profile", systemImage: "minus") { model.removeProfile(undoManager: undoManager) }
+                .help("Delete the selected sound profile")
         }
         .controlSize(.regular)
         ControlGroup {
             Button("Import profile", systemImage: "square.and.arrow.down") { model.isImporting = true }
+                .help("Import a sound profile from a file")
             Button("Export profile", systemImage: "square.and.arrow.up") { model.isExporting = true }
+                .help("Export the selected sound profile to a file")
         }
         .controlSize(.regular)
     }

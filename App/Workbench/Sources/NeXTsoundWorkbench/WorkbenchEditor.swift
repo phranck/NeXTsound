@@ -114,10 +114,10 @@ private struct ConnectionBadge: View {
 private extension ConnectionBadge {
     var title: String {
         switch state {
-        case .disconnected: "SoundBox not connected"
-        case .detected: "Checking SoundBox…"
-        case .verified: "SoundBox connected"
-        case .mismatched: "SoundBox not verified"
+        case .disconnected: String(localized: "SoundBox not connected")
+        case .detected: String(localized: "Checking SoundBox…")
+        case .verified: String(localized: "SoundBox connected")
+        case .mismatched: String(localized: "SoundBox not verified")
         }
     }
 
@@ -125,8 +125,8 @@ private extension ConnectionBadge {
         guard case let .verified(capabilities) = state else {
             return nil
         }
-        let firmware = "Firmware \(capabilities.firmwareVersion)"
-        return capabilities.deviceName.isEmpty ? firmware : "\(capabilities.deviceName) · \(firmware)"
+        let firmware = String(localized: "Firmware \(capabilities.firmwareVersion)")
+        return capabilities.deviceName.isEmpty ? firmware : String(localized: "\(capabilities.deviceName) · \(firmware)")
     }
 
     var iconColor: Color {

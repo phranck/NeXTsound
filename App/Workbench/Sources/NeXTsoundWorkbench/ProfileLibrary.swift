@@ -170,12 +170,14 @@ public enum ProfileLibraryError: Error, Equatable, LocalizedError, Sendable {
 
     public var errorDescription: String? {
         switch self {
-        case .invalidLibrary: "The profile library is invalid or uses an unsupported format. The stored file is unchanged."
-        case .oversizedFile: "The profile file exceeds the local storage limit."
-        case .duplicateProfile: "A different version of this profile already exists. Import has not replaced it."
-        case .profileLimit: "The profile library is full. Export and remove a profile before adding another."
-        case .lastProfile: "Keep at least one profile in the workbench."
-        case .exhaustedRevision: "The profile library revision is exhausted."
+        case .invalidLibrary: String(
+                localized: "The profile library is invalid or uses an unsupported format. The stored file is unchanged."
+            )
+        case .oversizedFile: String(localized: "The profile file exceeds the local storage limit.")
+        case .duplicateProfile: String(localized: "A different version of this profile already exists. Import has not replaced it.")
+        case .profileLimit: String(localized: "The profile library is full. Export and remove a profile before adding another.")
+        case .lastProfile: String(localized: "Keep at least one profile in the workbench.")
+        case .exhaustedRevision: String(localized: "The profile library revision is exhausted.")
         }
     }
 }
