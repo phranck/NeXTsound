@@ -37,6 +37,8 @@ Both discovery and transport are protocols so tests inject fakes for disconnect/
 
 The header badge's pencil button opens a rename form that writes a new name to the board via the `SET_NAME` wire operation; the firmware stores it in a fixed 32-byte flash field alongside the DSP snapshot (`Firmware/Core/storage.c`) and serves it as the USB product string descriptor (`Firmware/USB/descriptors.c`), falling back to the fixed literal `"NeXTsound development"` when unset. `BoardMonitor.setDeviceName(_:)` re-queries capabilities after a successful write so the badge reflects the new name immediately, but the USB string itself is read by macOS only at enumeration, so the renamed board keeps its old name in Sound settings/`system_profiler SPUSBDataType` until it resets or is replugged.
 
+Unlike the capabilities request, `SET_NAME` replies only after its flash write completes, which outlasts its own USB transaction; a one-shot transfer observed against the bench specimen returned whatever reply the device had buffered from the previous exchange and failed to validate. `USBHostBoardTransport.exchangeUntilComplete` resends the identical request and polls its reply up to an overall ten-second budget instead, which the device accepts as the same request already in flight rather than a new one.
+
 ## Fixed enclosure data
 
 The [scalar enclosure record](Verification/Enclosure-2026-10-18.json) supplies geometric references for the planned driver workflow. It records the mounting interface, source digest, coordinate system, named air region, method, and remaining uncertainties. The source CAD and working geometry stay private outside Git.
