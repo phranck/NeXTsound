@@ -35,6 +35,35 @@ enum FakeStorageError: Error, Equatable {
     case simulatedFailure
 }
 
+final class FakeDriverLibraryStorage: DriverLibraryStorage, @unchecked Sendable {
+    enum LoadResult {
+        case value(DriverLibrary?)
+        case failure(any Error)
+    }
+
+    var loadResult: LoadResult
+    private(set) var savedLibraries: [DriverLibrary] = []
+    var saveError: (any Error)?
+
+    init(loadResult: LoadResult = .value(nil)) {
+        self.loadResult = loadResult
+    }
+
+    func load() async throws -> DriverLibrary? {
+        switch loadResult {
+        case let .value(library): return library
+        case let .failure(error): throw error
+        }
+    }
+
+    func save(_ library: DriverLibrary) async throws {
+        if let saveError {
+            throw saveError
+        }
+        savedLibraries.append(library)
+    }
+}
+
 final class FakeBoardDiscovery: BoardDiscovery, @unchecked Sendable {
     private(set) var startCount = 0
     private(set) var stopCount = 0
@@ -65,6 +94,13 @@ final class FakeBoardDiscovery: BoardDiscovery, @unchecked Sendable {
     }
 }
 
+final class CallCounter: @unchecked Sendable {
+    private(set) var total = 0
+    func increment() {
+        total += 1
+    }
+}
+
 struct FakeBoardTransport: BoardTransport {
     enum Behavior: Sendable {
         case success(DeviceCapabilities)
@@ -75,6 +111,7 @@ struct FakeBoardTransport: BoardTransport {
 
     var behavior: Behavior
     var renameError: BoardTransportError?
+    var setDeviceNameCalls: CallCounter?
 
     func requestCapabilities() async throws -> DeviceCapabilities {
         switch behavior {
@@ -90,6 +127,7 @@ struct FakeBoardTransport: BoardTransport {
     }
 
     func setDeviceName(_: String) async throws {
+        setDeviceNameCalls?.increment()
         if let renameError {
             throw renameError
         }
