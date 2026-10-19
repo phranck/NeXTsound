@@ -5,7 +5,9 @@ import UniformTypeIdentifiers
 
 public struct WorkbenchView: View {
     @Bindable private var model: WorkbenchModel
+    @Bindable private var driverLibrary: DriverLibraryModel
     @Environment(\.undoManager) private var undoManager
+    @State private var isShowingDriverLibrary = false
 
     public var body: some View {
         NavigationSplitView {
@@ -21,7 +23,14 @@ public struct WorkbenchView: View {
             ToolbarItemGroup {
                 ProfileActions(model: model, undoManager: undoManager)
             }
+            ToolbarItemGroup {
+                Button("Driver models", systemImage: "waveform.circle") { isShowingDriverLibrary = true }
+            }
         }
+        .sheet(isPresented: $isShowingDriverLibrary) {
+            DriverLibraryView(model: driverLibrary)
+        }
+        .task { await driverLibrary.start() }
         .fileImporter(isPresented: $model.isImporting, allowedContentTypes: [.neXTsoundProfile, .json]) { result in
             guard case let .success(url) = result else {
                 return
@@ -41,8 +50,9 @@ public struct WorkbenchView: View {
         }
     }
 
-    public init(model: WorkbenchModel) {
+    public init(model: WorkbenchModel, driverLibrary: DriverLibraryModel) {
         self.model = model
+        self.driverLibrary = driverLibrary
     }
 }
 

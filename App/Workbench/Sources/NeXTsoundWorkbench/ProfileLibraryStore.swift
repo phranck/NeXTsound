@@ -60,8 +60,7 @@ public extension ProfileLibraryStore {
                 throw ProfileLibraryError.invalidLibrary
             }
         }
-        try FileManager.default.createDirectory(at: fileURL.deletingLastPathComponent(), withIntermediateDirectories: true)
-        try data.write(to: fileURL, options: .atomic)
+        try AtomicJSONFile.write(data, to: fileURL)
         storedLibrary = library
     }
 
@@ -78,20 +77,10 @@ public extension ProfileLibraryStore {
 
 private extension ProfileLibraryStore {
     static func readLimited(_ url: URL) throws -> Data {
-        let properties = try url.resourceValues(forKeys: [.isRegularFileKey, .fileSizeKey])
-        guard properties.isRegularFile == true else {
-            throw CocoaError(.fileReadCorruptFile)
-        }
-        guard
-            let size = properties.fileSize,
-            size <= ProfileLibrary.maximumFileBytes
-        else {
+        do {
+            return try AtomicJSONFile.read(url, maximumBytes: ProfileLibrary.maximumFileBytes)
+        } catch AtomicJSONFileError.oversizedFile {
             throw ProfileLibraryError.oversizedFile
         }
-        let data = try Data(contentsOf: url)
-        guard data.count <= ProfileLibrary.maximumFileBytes else {
-            throw ProfileLibraryError.oversizedFile
-        }
-        return data
     }
 }
