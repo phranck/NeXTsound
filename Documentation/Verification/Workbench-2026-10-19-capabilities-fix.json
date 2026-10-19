@@ -1,0 +1,43 @@
+{
+  "date": "2026-10-19",
+  "scope": "Fix the live capabilities round trip and make live board detection actually run in the shipped app, issue 22.",
+  "base_revision": "654802f6df0b8116a193fe356c25757e1030f327",
+  "branch": "issue/22-live-capabilities-roundtrip",
+  "platform": {
+    "minimum_macos": "15.0",
+    "xcode": "27.0",
+    "xcodegen": "2.45.4",
+    "libusb": "1.0.30 (Homebrew, arm64, unpinned)"
+  },
+  "gate": {
+    "completed_local": "2026-10-19T19:48:29+02:00",
+    "shared_swift_tests": 29,
+    "app_swift_tests": 59,
+    "ctest_cases": 18,
+    "swiftlint_violations": 0,
+    "format_layout_fixtures": true,
+    "rp2350_targets_and_guards": true,
+    "native_debug_build": true,
+    "native_release_build": true,
+    "release_packages": true,
+    "shellcheck": true,
+    "actionlint": true
+  },
+  "root_cause": "NeXTsoundApp.swift constructed WorkbenchModel without a boards: argument, so it silently used WorkbenchModel's BoardMonitor(isEnabled: false) default meant for the offscreen renderer and tests; IOHIDManager never started in the shipped app. Separately, the capabilities exchange itself (IOHIDDeviceSetReport/GetReport, then Apple's IOUSBHostInterface and IOUSBHostDevice in turn) could not complete: the HID report path truncates the 255-byte reply to 1 byte, and IOUSBHost's exclusive-open model for both a single interface and the whole device collides with CoreAudio and the system HID driver already attached to this composite device's other interfaces.",
+  "fix": "Pass an explicit boards: BoardMonitor() in NeXTsoundApp.swift. Replace the capabilities transport with a raw USB class control transfer through libusb (NXSUSBHostShim), which claims no interface and coexists with the system drivers.",
+  "board_access_performed": true,
+  "board_access_description": "The actual built NeXTsound.app was launched visibly and run against the bench specimen (serial D4CDD489AFE28CC5, VID:PID cafe:4014): physical unplug/replug, then passive IOHIDManager detection followed by one read-only capabilities exchange through libusb. No apply, persist, or reset request was sent.",
+  "board_access_result": "The sidebar and header badge reached the verified state with the firmware's reported serial and firmware version (e59f08cf) matching the known specimen. This is the first time this round trip has succeeded through the shipped app rather than a standalone diagnostic script.",
+  "audio_playback_performed": false,
+  "system_audio_output_changed": false,
+  "system_wide_sleep_performed": false,
+  "input_models_modified_or_published": false,
+  "limits": [
+    "Verified against one bench specimen only; other specimens or firmware revisions are not covered.",
+    "The board's HID interface had to be physically replugged once during this session to recover from a prior destabilized USB state; the underlying reason a destabilized HID interface does not re-enumerate on its own is not established.",
+    "macOS 15 is the deployment minimum, not a separately tested runtime.",
+    "The app now targets arm64 only (App/project.yml ARCHS/VALID_ARCHS), because Homebrew's libusb is arm64-only on Apple Silicon; it is not built or tested for Intel Macs.",
+    "No physical, acoustic, speaker-protection, or enclosure-volume claim follows.",
+    "Speaker/enclosure editor, model-based calculation, volatile A/B, and the DSP-apply/persist workflow remain separate delivery slices (issues 15, 16, 19, 20)."
+  ]
+}
