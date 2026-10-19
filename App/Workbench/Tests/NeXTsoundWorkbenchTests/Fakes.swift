@@ -101,6 +101,13 @@ final class CallCounter: @unchecked Sendable {
     }
 }
 
+final class SnapshotRecorder: @unchecked Sendable {
+    private(set) var snapshots: [DeviceSnapshot] = []
+    func record(_ snapshot: DeviceSnapshot) {
+        snapshots.append(snapshot)
+    }
+}
+
 struct FakeBoardTransport: BoardTransport {
     enum Behavior: Sendable {
         case success(DeviceCapabilities)
@@ -112,6 +119,9 @@ struct FakeBoardTransport: BoardTransport {
     var behavior: Behavior
     var renameError: BoardTransportError?
     var setDeviceNameCalls: CallCounter?
+    var applyError: BoardTransportError?
+    var applyStateCalls: CallCounter?
+    var appliedSnapshots: SnapshotRecorder?
 
     func requestCapabilities() async throws -> DeviceCapabilities {
         switch behavior {
@@ -130,6 +140,14 @@ struct FakeBoardTransport: BoardTransport {
         setDeviceNameCalls?.increment()
         if let renameError {
             throw renameError
+        }
+    }
+
+    func applyState(_ snapshot: DeviceSnapshot) async throws {
+        applyStateCalls?.increment()
+        appliedSnapshots?.record(snapshot)
+        if let applyError {
+            throw applyError
         }
     }
 }
