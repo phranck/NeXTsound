@@ -23,6 +23,11 @@ public final class WorkbenchModel {
         library.selectedProfile
     }
 
+    /// Volatile DSP-only capture slots for A/B comparison. Never serialized, never part of the
+    /// profile library, and capturing one never advances the library revision.
+    public private(set) var slotA: DSPSettings?
+    public private(set) var slotB: DSPSettings?
+
     public var storageStatus: String {
         if !isReady {
             return String(localized: "Loading profiles…")
@@ -138,6 +143,34 @@ public extension WorkbenchModel {
             errorMessage = error.localizedDescription
         }
     }
+
+    /// Captures the current profile's DSP settings into slot A, overwriting whatever was there.
+    func captureSlotA() {
+        slotA = profile.settings
+    }
+
+    /// Captures the current profile's DSP settings into slot B, overwriting whatever was there.
+    func captureSlotB() {
+        slotB = profile.settings
+    }
+
+    /// Recalls slot A's DSP settings into the current profile through the normal edit
+    /// transaction, so it advances the revision and supports undo like any other edit. A no-op
+    /// if nothing was captured yet.
+    func recallSlotA(undoManager: UndoManager? = nil) {
+        guard let slotA else {
+            return
+        }
+        recall(slotA, action: "Recall A", undoManager: undoManager)
+    }
+
+    /// Recalls slot B's DSP settings into the current profile. See `recallSlotA(undoManager:)`.
+    func recallSlotB(undoManager: UndoManager? = nil) {
+        guard let slotB else {
+            return
+        }
+        recall(slotB, action: "Recall B", undoManager: undoManager)
+    }
 }
 
 private extension WorkbenchModel {
@@ -159,6 +192,14 @@ private extension WorkbenchModel {
         } catch {
             errorMessage = error.localizedDescription
         }
+    }
+
+    /// Replaces only the current profile's DSP settings through the normal edit transaction,
+    /// keeping identity, name, speaker, and enclosure exactly as they were.
+    func recall(_ settings: DSPSettings, action: String, undoManager: UndoManager?) {
+        var proposed = profile
+        proposed.settings = settings
+        perform(undoManager: undoManager, action: action) { try $0.updateSelected(proposed) }
     }
 
     func registerUndo(_ previous: ProfileLibrary, manager: UndoManager?, action: String) {

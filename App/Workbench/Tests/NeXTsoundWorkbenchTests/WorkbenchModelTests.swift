@@ -106,6 +106,72 @@ struct WorkbenchModelTests {
         #expect(model.library.profiles.count == 3)
     }
 
+    @Test func capturingASlotStoresTheCurrentDSPSettingsWithoutChangingTheLibrary() {
+        let model = WorkbenchModel()
+        var profile = model.profile
+        profile.settings.attenuationDb = -12
+        model.updateProfile(profile)
+        let beforeCapture = model.library
+
+        model.captureSlotA()
+
+        #expect(model.slotA == model.profile.settings)
+        #expect(model.library == beforeCapture, "Capture must not advance the revision or otherwise touch the library.")
+    }
+
+    @Test func capturingASlotIsIsolatedFromLaterEdits() {
+        let model = WorkbenchModel()
+        model.captureSlotA()
+        let captured = model.slotA
+        var edited = model.profile
+        edited.settings.attenuationDb = -40
+        model.updateProfile(edited)
+
+        #expect(model.slotA == captured, "A later edit must not retroactively change what was captured.")
+        #expect(model.profile.settings != captured)
+    }
+
+    @Test func recallingASlotChangesOnlyTheDSPSettings() throws {
+        let model = WorkbenchModel()
+        model.captureSlotA()
+        let capturedSettings = try #require(model.slotA)
+        var edited = model.profile
+        edited.name = "Renamed"
+        edited.settings.attenuationDb = -40
+        model.updateProfile(edited)
+        let beforeRecall = model.profile
+
+        model.recallSlotA()
+
+        #expect(model.profile.settings == capturedSettings)
+        #expect(model.profile.name == beforeRecall.name, "Recall must not touch anything but DSP settings.")
+        #expect(model.profile.id == beforeRecall.id)
+    }
+
+    @Test func recallingAnEmptySlotIsANoOp() {
+        let model = WorkbenchModel()
+        let before = model.library
+        model.recallSlotA()
+        model.recallSlotB()
+        #expect(model.library == before)
+    }
+
+    @Test func recallingASlotSupportsUndo() {
+        let model = WorkbenchModel()
+        let undoManager = UndoManager()
+        model.captureSlotB()
+        var edited = model.profile
+        edited.settings.attenuationDb = -40
+        model.updateProfile(edited)
+        let beforeRecall = model.profile
+
+        model.recallSlotB(undoManager: undoManager)
+        #expect(model.profile.settings == model.slotB)
+
+        undoManager.undo()
+        #expect(model.profile.settings == beforeRecall.settings)
+    }
+
     @Test func applyingToTheBoardSendsTheEditedMuteStateUnchanged() async throws {
         let (model, appliedSnapshots) = try await connectedModelWithFakeBoard()
         var profile = model.profile

@@ -14,7 +14,17 @@ public struct WorkbenchView: View {
             ProfileSidebar(model: model, undoManager: undoManager)
                 .navigationSplitViewColumnWidth(min: 210, ideal: 230, max: 280)
         } detail: {
-            WorkbenchEditor(profile: profileBinding, connectionState: model.boards.state, onRenameBoard: { await model.renameBoard($0) })
+            WorkbenchEditor(
+                profile: profileBinding,
+                connectionState: model.boards.state,
+                slotA: model.slotA,
+                slotB: model.slotB,
+                onRenameBoard: { await model.renameBoard($0) },
+                onCaptureA: { model.captureSlotA() },
+                onRecallA: { model.recallSlotA(undoManager: undoManager) },
+                onCaptureB: { model.captureSlotB() },
+                onRecallB: { model.recallSlotB(undoManager: undoManager) }
+            )
         }
         .font(.body)
         .tint(WorkbenchTheme.amber)
