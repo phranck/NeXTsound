@@ -121,20 +121,12 @@ public extension WorkbenchModel {
         }
     }
 
-    /// Applies the current profile's DSP settings to the connected SoundBox for live listening.
-    /// Never writes to flash, so a reconnect or power cycle reverts to the last persisted state.
-    ///
-    /// This on-board audio verification is new and the specimen's speaker safety margins are
-    /// not established (see issue 3), so the applied settings always unmute (pressing this
-    /// action means "make it audible") but never go louder than -24 dB attenuation regardless
-    /// of what the profile editor shows. EQ, high-pass, and limiter settings pass through
-    /// exactly as edited.
+    /// Applies the current profile's DSP settings to the connected SoundBox for live listening,
+    /// exactly as edited. Never writes to flash, so a reconnect or power cycle reverts to the
+    /// last persisted state.
     func applyToBoard() async {
         do {
-            var settings = profile.settings
-            settings.isMuted = false
-            settings.attenuationDb = min(settings.attenuationDb, -24)
-            let snapshot = DeviceSnapshot(profileID: profile.id, profileRevision: profile.revision, settings: settings)
+            let snapshot = DeviceSnapshot(profileID: profile.id, profileRevision: profile.revision, settings: profile.settings)
             try await boards.apply(snapshot)
         } catch {
             errorMessage = error.localizedDescription
