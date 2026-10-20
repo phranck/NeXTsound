@@ -44,10 +44,26 @@ fi
 git -C "$sdk" submodule update --init --depth 1 lib/tinyusb
 tinyusb=$(jq -r '.firmware.pico_sdk.tinyusb_commit' "$manifest")
 if [ "$(git -C "$sdk/lib/tinyusb" rev-parse HEAD)" != "$tinyusb" ]; then
+    # Pico SDK's own lib/tinyusb pin has not moved across any of its releases through 2.3.1
+    # (still 86ad6e56, Dec 2024), so a newer TinyUSB is checked out directly from its own
+    # upstream remote (which the submodule already points at) instead of waiting on a Pico SDK
+    # release to carry it.
+    if [ -n "$(git -C "$sdk/lib/tinyusb" status --porcelain)" ]; then
+        printf 'Refusing to replace a modified TinyUSB checkout.\n' >&2
+        exit 1
+    fi
+    git -C "$sdk/lib/tinyusb" fetch --depth 1 origin "$tinyusb"
+    git -C "$sdk/lib/tinyusb" checkout --detach FETCH_HEAD
+fi
+if [ "$(git -C "$sdk/lib/tinyusb" rev-parse HEAD)" != "$tinyusb" ]; then
     printf 'TinyUSB does not match toolchain.json.\n' >&2
     exit 1
 fi
-if [ -n "$(git -C "$sdk" status --porcelain --untracked-files=no)" ] || \
+# lib/tinyusb deliberately shows as a modified submodule reference in the Pico SDK
+# superproject's own status whenever its pinned commit here differs from Pico SDK's own
+# (expected above); only other modifications are refused.
+sdk_dirty=$(git -C "$sdk" status --porcelain --untracked-files=no | grep -v ' lib/tinyusb$' || true)
+if [ -n "$sdk_dirty" ] || \
     [ -n "$(git -C "$sdk/lib/tinyusb" status --porcelain --untracked-files=no)" ]; then
     printf 'Pico SDK or TinyUSB contains modified tracked files.\n' >&2
     exit 1

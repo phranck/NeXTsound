@@ -264,16 +264,16 @@ static tusb_control_request_t entity_request(uint8_t entity, uint8_t selector, u
 
 static void test_clock_and_host_controls(void) {
     initialize();
-    tusb_control_request_t request = entity_request(NXS_USB_CLOCK_ENTITY, AUDIO_CS_CTRL_SAM_FREQ, AUDIO_CS_REQ_CUR, 4);
+    tusb_control_request_t request = entity_request(NXS_USB_CLOCK_ENTITY, AUDIO20_CS_CTRL_SAM_FREQ, AUDIO20_CS_REQ_CUR, 4);
     CHECK(tud_audio_get_req_entity_cb(0, &request));
     CHECK(mock.reply_length == 4 && mock.reply[0] == 0x80 && mock.reply[1] == 0xbb && mock.reply[2] == 0 && mock.reply[3] == 0);
-    request.bRequest = AUDIO_CS_REQ_RANGE;
+    request.bRequest = AUDIO20_CS_REQ_RANGE;
     request.wLength = 14;
     CHECK(tud_audio_get_req_entity_cb(0, &request));
     CHECK(mock.reply_length == 14 && mock.reply[0] == 1 && mock.reply[2] == 0x80 && mock.reply[6] == 0x80);
-    request = entity_request(NXS_USB_CLOCK_ENTITY, AUDIO_CS_CTRL_CLK_VALID, AUDIO_CS_REQ_CUR, 1);
+    request = entity_request(NXS_USB_CLOCK_ENTITY, AUDIO20_CS_CTRL_CLK_VALID, AUDIO20_CS_REQ_CUR, 1);
     CHECK(tud_audio_get_req_entity_cb(0, &request) && mock.reply[0] == 1);
-    request = entity_request(NXS_USB_FEATURE_ENTITY, AUDIO_FU_CTRL_VOLUME, AUDIO_CS_REQ_CUR, 2);
+    request = entity_request(NXS_USB_FEATURE_ENTITY, AUDIO20_FU_CTRL_VOLUME, AUDIO20_CS_REQ_CUR, 2);
     request.bmRequestType = 0x21;
     uint8_t volume[] = {0, 0xf4};
     CHECK(tud_audio_set_req_entity_cb(0, &request, volume));
@@ -285,13 +285,13 @@ static void test_clock_and_host_controls(void) {
     volume[1] = 0xfa;
     CHECK(!tud_audio_set_req_entity_cb(0, &request, volume));
     mock.allow_host = true;
-    request = entity_request(NXS_USB_FEATURE_ENTITY, AUDIO_FU_CTRL_VOLUME, AUDIO_CS_REQ_CUR, 2);
+    request = entity_request(NXS_USB_FEATURE_ENTITY, AUDIO20_FU_CTRL_VOLUME, AUDIO20_CS_REQ_CUR, 2);
     CHECK(tud_audio_get_req_entity_cb(0, &request) && mock.reply[0] == 0 && mock.reply[1] == 0xf4);
-    request = entity_request(NXS_USB_FEATURE_ENTITY, AUDIO_FU_CTRL_VOLUME, AUDIO_CS_REQ_RANGE, 8);
+    request = entity_request(NXS_USB_FEATURE_ENTITY, AUDIO20_FU_CTRL_VOLUME, AUDIO20_CS_REQ_RANGE, 8);
     CHECK(tud_audio_get_req_entity_cb(0, &request));
     CHECK(mock.reply_length == 8 && mock.reply[0] == 1 && mock.reply[2] == 0 && mock.reply[3] == 0xb0 && mock.reply[4] == 0 &&
           mock.reply[5] == 0 && mock.reply[6] == 0 && mock.reply[7] == 1);
-    request = entity_request(NXS_USB_FEATURE_ENTITY, AUDIO_FU_CTRL_MUTE, AUDIO_CS_REQ_CUR, 1);
+    request = entity_request(NXS_USB_FEATURE_ENTITY, AUDIO20_FU_CTRL_MUTE, AUDIO20_CS_REQ_CUR, 1);
     request.bmRequestType = 0x21;
     uint8_t mute = 1;
     CHECK(tud_audio_set_req_entity_cb(0, &request, &mute) && mock.host_muted);
@@ -306,11 +306,11 @@ static void test_packets_and_lifecycle(void) {
     initialize();
     set_alternate(1);
     mock.available = NXS_DSP_BLOCK_FRAMES * 4;
-    CHECK(tud_audio_rx_done_post_read_cb(0, mock.available, 0, NXS_USB_AUDIO_OUT_ENDPOINT, 1));
+    CHECK(tud_audio_rx_done_isr(0, mock.available, 0, NXS_USB_AUDIO_OUT_ENDPOINT, 1));
     CHECK(mock.received_frames == NXS_DSP_BLOCK_FRAMES && mock.available == 0);
     set_alternate(2);
     mock.available = NXS_AUDIO_USB_MAX_FRAMES * 6;
-    CHECK(tud_audio_rx_done_post_read_cb(0, mock.available, 0, NXS_USB_AUDIO_OUT_ENDPOINT, 2));
+    CHECK(tud_audio_rx_done_isr(0, mock.available, 0, NXS_USB_AUDIO_OUT_ENDPOINT, 2));
     CHECK(mock.received_frames == NXS_DSP_BLOCK_FRAMES + NXS_AUDIO_USB_MAX_FRAMES);
     nxs_usb_task();
     CHECK(mock.feedback == 48u << 16 && mock.streaming);
@@ -340,7 +340,7 @@ static void test_oversized_packet_uses_active_format_limit(void) {
     initialize();
     set_alternate(1);
     mock.available = (NXS_AUDIO_USB_MAX_FRAMES + 1u) * 4;
-    CHECK(tud_audio_rx_done_post_read_cb(0, mock.available, 0, NXS_USB_AUDIO_OUT_ENDPOINT, 1));
+    CHECK(tud_audio_rx_done_isr(0, mock.available, 0, NXS_USB_AUDIO_OUT_ENDPOINT, 1));
     CHECK(mock.rejected == 1 && mock.received_frames == 0 && mock.available == 0);
 }
 
@@ -349,7 +349,7 @@ static void test_short_fifo_read_discards_partial_frame(void) {
     set_alternate(1);
     mock.available = NXS_DSP_BLOCK_FRAMES * 4;
     mock.short_read = true;
-    CHECK(tud_audio_rx_done_post_read_cb(0, mock.available, 0, NXS_USB_AUDIO_OUT_ENDPOINT, 1));
+    CHECK(tud_audio_rx_done_isr(0, mock.available, 0, NXS_USB_AUDIO_OUT_ENDPOINT, 1));
     CHECK(mock.rejected == 1 && mock.received_frames == 0 && mock.available == 0);
 }
 
@@ -395,7 +395,7 @@ static void test_persistence_waits_for_audio_and_drains_usb(void) {
     CHECK(mock.maintenance_requested && !mock.maintenance_ready && mock.storage_erases == 0);
     response(1, NXS_RESULT_OK);
     mock.available = NXS_DSP_BLOCK_FRAMES * 4;
-    CHECK(tud_audio_rx_done_post_read_cb(0, mock.available, 0, NXS_USB_AUDIO_OUT_ENDPOINT, 1));
+    CHECK(tud_audio_rx_done_isr(0, mock.available, 0, NXS_USB_AUDIO_OUT_ENDPOINT, 1));
     CHECK(mock.received_frames == 0 && mock.available == 0 && mock.rejected == 1);
     mock.maintenance_ready = true;
     uint32_t previous_epoch = mock.epoch;
@@ -404,7 +404,7 @@ static void test_persistence_waits_for_audio_and_drains_usb(void) {
     CHECK(reply.generation == 1 && mock.storage_erases == 1 && mock.storage_programs == 2);
     CHECK(mock.maintenance_requested);
     mock.available = NXS_DSP_BLOCK_FRAMES * 4;
-    CHECK(tud_audio_rx_done_post_read_cb(0, mock.available, 0, NXS_USB_AUDIO_OUT_ENDPOINT, 1));
+    CHECK(tud_audio_rx_done_isr(0, mock.available, 0, NXS_USB_AUDIO_OUT_ENDPOINT, 1));
     CHECK(mock.received_frames == 0 && mock.available == 0 && mock.rejected == 2);
     nxs_usb_task();
     CHECK(!mock.maintenance_requested && mock.epoch != previous_epoch && mock.streaming);
