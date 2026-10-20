@@ -81,36 +81,53 @@ private extension IOHIDBoardDiscovery {
     }
 }
 
-/// Exchanges exactly one Feature report per call: a capabilities `SET_REPORT` followed by its `GET_REPORT` reply.
+/// Exchanges Feature reports (a `SET_REPORT` followed by its `GET_REPORT` reply) through a raw
+/// USB class control transfer via libusb, rather than `IOHIDDeviceSetReport`/`GetReport` or
+/// Apple's IOUSBHost framework. On this composite descriptor (Audio + HID + vendor reset),
+/// `IOHIDDeviceGetReport`'s synchronous Feature-report path truncates the 255-byte reply to 1
+/// byte and destabilizes the live USB connection; `IOUSBHostInterface`/`IOUSBHostDevice` both
+/// require exclusive access to the interface or the whole device, which collides with CoreAudio
+/// and the system HID driver already holding the other interfaces of this same device (issue
+/// #22). libusb's control-transfer path does not require claiming anything, so it coexists with
+/// both.
 ///
-/// Uses a raw USB class control transfer through libusb rather than `IOHIDDeviceSetReport`/`GetReport`
-/// or Apple's IOUSBHost framework. On this composite descriptor (Audio + HID + vendor reset),
-/// `IOHIDDeviceGetReport`'s synchronous Feature-report path truncates the 255-byte reply to 1 byte and
-/// destabilizes the live USB connection; `IOUSBHostInterface`/`IOUSBHostDevice` both require exclusive
-/// access to the interface or the whole device, which collides with CoreAudio and the system HID driver
-/// already holding the other interfaces of this same device (issue #22). libusb's control-transfer path
-/// does not require claiming anything, so it coexists with both.
-public struct USBHostBoardTransport: BoardTransport, @unchecked Sendable {
+/// Keeps one libusb context and device handle open for the whole connection, opened lazily on
+/// first use and closed on `deinit` (board disconnect), rather than reopened on every exchange.
+/// Repeating libusb_init/open and libusb_close/exit around every single control transfer is both
+/// the pattern libusb's own documentation discourages and, on this composite Audio + HID device,
+/// a known source of fragile control-transfer behavior against Apple's own USB Audio kernel
+/// extension, which can hold exclusive access to the device; a new connection's first exchange
+/// opens a fresh context and handle again if an earlier open ever failed.
+public final class USBHostBoardTransport: BoardTransport, @unchecked Sendable {
     private static let queue = DispatchQueue(label: "work.layered.NeXTsound.board-report")
     private static let timeout = Duration.seconds(2)
 
+    private var context: UnsafeMutableRawPointer?
+    private var handle: UnsafeMutableRawPointer?
+
     public init() {}
+
+    deinit {
+        if let context, let handle {
+            nxs_libusb_close(context, handle)
+        }
+    }
 
     public func requestCapabilities() async throws -> DeviceCapabilities {
         let request = WireMessage(operation: .capabilities, requestID: .random(in: 1 ... .max))
-        let message = try await Self.exchange(request)
+        let message = try await exchange(request)
         return try WireCodec.decodeCapabilities(message.payload)
     }
 
     public func setDeviceName(_ name: String) async throws {
-        let current = try await Self.exchange(WireMessage(operation: .capabilities, requestID: .random(in: 1 ... .max)))
+        let current = try await exchange(WireMessage(operation: .capabilities, requestID: .random(in: 1 ... .max)))
         let payload = try WireCodec.encodeDeviceName(name)
         let request = WireMessage(operation: .setName, requestID: .random(in: 1 ... .max), generation: current.generation, payload: payload)
-        _ = try await Self.exchangeUntilComplete(request)
+        _ = try await exchangeUntilComplete(request)
     }
 
     public func applyState(_ snapshot: DeviceSnapshot) async throws {
-        let current = try await Self.exchange(WireMessage(operation: .capabilities, requestID: .random(in: 1 ... .max)))
+        let current = try await exchange(WireMessage(operation: .capabilities, requestID: .random(in: 1 ... .max)))
         let payload = try WireCodec.encodeSnapshot(snapshot)
         let request = WireMessage(
             operation: .applyState,
@@ -118,12 +135,12 @@ public struct USBHostBoardTransport: BoardTransport, @unchecked Sendable {
             generation: current.generation,
             payload: payload
         )
-        _ = try await Self.exchangeUntilComplete(request)
+        _ = try await exchangeUntilComplete(request)
     }
 }
 
 private extension USBHostBoardTransport {
-    static func exchange(_ request: WireMessage) async throws -> WireMessage {
+    func exchange(_ request: WireMessage) async throws -> WireMessage {
         let response = try await transfer(request)
         try response.validateResponse(to: request)
         return response
@@ -134,7 +151,7 @@ private extension USBHostBoardTransport {
     /// outlasts the request's own USB transaction, so the first few polls observe an unrelated
     /// reply still sitting in the device's response buffer. Resending the identical bytes is
     /// safe, because the device recognizes it as the same request already in flight.
-    static func exchangeUntilComplete(_ request: WireMessage, overallTimeout: Duration = .seconds(10)) async throws -> WireMessage {
+    func exchangeUntilComplete(_ request: WireMessage, overallTimeout: Duration = .seconds(10)) async throws -> WireMessage {
         let deadline = ContinuousClock.now + overallTimeout
         while true {
             let response = try await transfer(request)
@@ -149,9 +166,9 @@ private extension USBHostBoardTransport {
         }
     }
 
-    static func transfer(_ request: WireMessage) async throws -> WireMessage {
+    func transfer(_ request: WireMessage) async throws -> WireMessage {
         try await withThrowingTaskGroup(of: WireMessage.self) { group in
-            group.addTask { try await Self.transferOffQueue(request) }
+            group.addTask { try await self.transferOffQueue(request) }
             group.addTask {
                 try await Task.sleep(for: Self.timeout)
                 throw BoardTransportError.timeout
@@ -164,11 +181,11 @@ private extension USBHostBoardTransport {
         }
     }
 
-    static func transferOffQueue(_ request: WireMessage) async throws -> WireMessage {
+    func transferOffQueue(_ request: WireMessage) async throws -> WireMessage {
         try await withCheckedThrowingContinuation { continuation in
-            queue.async {
+            Self.queue.async {
                 do {
-                    try continuation.resume(returning: transferOnQueue(request))
+                    try continuation.resume(returning: self.transferOnQueue(request))
                 } catch {
                     continuation.resume(throwing: error)
                 }
@@ -176,7 +193,24 @@ private extension USBHostBoardTransport {
         }
     }
 
-    static func transferOnQueue(_ request: WireMessage) throws -> WireMessage {
+    /// Only ever called from `Self.queue`, so touching `context`/`handle` here without
+    /// additional locking is safe: every exchange for this connection runs on that one queue.
+    func transferOnQueue(_ request: WireMessage) throws -> WireMessage {
+        if context == nil || handle == nil {
+            var newContext: UnsafeMutableRawPointer?
+            var newHandle: UnsafeMutableRawPointer?
+            let openResult = nxs_libusb_open(UInt16(BoardIdentity.vendorID), UInt16(BoardIdentity.productID), &newContext, &newHandle)
+            guard
+                openResult == 0,
+                let newContext,
+                let newHandle
+            else {
+                throw BoardTransportError.transportFailed(Int32(openResult))
+            }
+            context = newContext
+            handle = newHandle
+        }
+
         let encoded = try WireCodec.encode(request)
         guard encoded.count == WireCodec.reportSize else {
             throw BoardTransportError.invalidReport
@@ -187,14 +221,14 @@ private extension USBHostBoardTransport {
         let bytesRead = encoded.withUnsafeBytes { setBuffer -> Int32 in
             getBuffer.withUnsafeMutableBufferPointer { getBuffer -> Int32 in
                 nxs_libusb_exchange_feature_report(
-                    UInt16(BoardIdentity.vendorID),
-                    UInt16(BoardIdentity.productID),
+                    context,
+                    handle,
                     UInt16(BoardIdentity.hidInterfaceNumber),
                     reportValue,
                     setBuffer.bindMemory(to: UInt8.self).baseAddress,
                     getBuffer.baseAddress,
                     getBuffer.count,
-                    UInt32(timeout.components.seconds * 1000)
+                    UInt32(Self.timeout.components.seconds * 1000)
                 )
             }
         }
