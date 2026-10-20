@@ -243,6 +243,29 @@ struct WorkbenchModelTests {
         #expect(model.errorMessage == nil, "A superseded apply is expected, not a failure.")
     }
 
+    @Test func rapidEditsWhileAnApplyIsInFlightCollapseIntoOneFollowUpCall() async throws {
+        let discovery = FakeBoardDiscovery()
+        let boards = BoardMonitor(discovery: discovery)
+        let model = WorkbenchModel(boards: boards)
+        boards.start()
+        let capabilities = fixtureCapabilities()
+        let calls = CallCounter()
+        discovery.simulateConnect(
+            BoardIdentitySnapshot(vendorID: 1, productID: 2, enumeratedSerial: capabilities.serial),
+            transport: FakeBoardTransport(behavior: .success(capabilities), applyStateCalls: calls, applyDelay: .milliseconds(200))
+        )
+        try await waitUntilVerified(boards)
+
+        async let first: Void = model.applyToBoard()
+        try await Task.sleep(for: .milliseconds(10))
+        async let second: Void = model.applyToBoard()
+        try await Task.sleep(for: .milliseconds(10))
+        async let third: Void = model.applyToBoard()
+        _ = await (first, second, third)
+
+        #expect(calls.total == 2, "Three overlapping edits must collapse into the in-flight call plus one coalesced follow-up.")
+    }
+
     @Test func aFailedApplySurfacesAnError() async throws {
         let discovery = FakeBoardDiscovery()
         let boards = BoardMonitor(discovery: discovery)

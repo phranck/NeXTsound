@@ -16,6 +16,8 @@ public final class WorkbenchModel {
     @ObservationIgnored private let storage: (any ProfileLibraryStorage)?
     @ObservationIgnored private var saveTask: Task<Void, Never>?
     @ObservationIgnored private var boardApplyTask: Task<Void, Never>?
+    @ObservationIgnored private var isApplyingToBoard = false
+    @ObservationIgnored private var boardApplyIsPending = false
     @ObservationIgnored private var hasStarted = false
     private var savedRevision: UInt64 = 0
 
@@ -130,18 +132,33 @@ public extension WorkbenchModel {
     /// Applies the current profile's DSP settings to the connected SoundBox for live listening,
     /// exactly as edited. Never writes to flash, so a reconnect or power cycle reverts to the
     /// last persisted state.
+    ///
+    /// At most one call is ever in flight against the transport. An edit that arrives while a
+    /// call is already running only marks a follow-up as pending instead of starting a second,
+    /// independent call: the transport serializes every board exchange on one queue, so a second
+    /// call would queue up behind the first and its own timeout clock would already be ticking
+    /// before it ever reaches the wire.
     func applyToBoard() async {
         guard case .verified = boards.state else {
             return
         }
-        do {
-            let snapshot = DeviceSnapshot(profileID: profile.id, profileRevision: profile.revision, settings: profile.settings)
-            try await boards.apply(snapshot)
-        } catch is CancellationError {
-            // Superseded by a newer edit; scheduleBoardApply() already queued the latest state.
-        } catch {
-            errorMessage = error.localizedDescription
+        guard !isApplyingToBoard else {
+            boardApplyIsPending = true
+            return
         }
+        isApplyingToBoard = true
+        defer { isApplyingToBoard = false }
+        repeat {
+            boardApplyIsPending = false
+            do {
+                let snapshot = DeviceSnapshot(profileID: profile.id, profileRevision: profile.revision, settings: profile.settings)
+                try await boards.apply(snapshot)
+            } catch is CancellationError {
+                // Superseded by a newer edit; scheduleBoardApply() already queued the latest state.
+            } catch {
+                errorMessage = error.localizedDescription
+            }
+        } while boardApplyIsPending
     }
 
     /// Captures the current profile's DSP settings into slot A, overwriting whatever was there.
