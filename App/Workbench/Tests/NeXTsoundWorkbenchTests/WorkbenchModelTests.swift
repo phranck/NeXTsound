@@ -157,6 +157,26 @@ struct WorkbenchModelTests {
         #expect(model.errorMessage == nil)
     }
 
+    @Test func cancellingAnInFlightApplyNeverSurfacesAnError() async throws {
+        let discovery = FakeBoardDiscovery()
+        let boards = BoardMonitor(discovery: discovery)
+        let model = WorkbenchModel(boards: boards)
+        boards.start()
+        let capabilities = fixtureCapabilities()
+        discovery.simulateConnect(
+            BoardIdentitySnapshot(vendorID: 1, productID: 2, enumeratedSerial: capabilities.serial),
+            transport: FakeBoardTransport(behavior: .success(capabilities), applyDelay: .seconds(5))
+        )
+        try await waitUntilVerified(boards)
+
+        let inFlight = Task { await model.applyToBoard() }
+        try await Task.sleep(for: .milliseconds(20))
+        inFlight.cancel()
+        _ = await inFlight.value
+
+        #expect(model.errorMessage == nil, "A superseded apply is expected, not a failure.")
+    }
+
     @Test func aFailedApplySurfacesAnError() async throws {
         let discovery = FakeBoardDiscovery()
         let boards = BoardMonitor(discovery: discovery)

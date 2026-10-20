@@ -122,6 +122,7 @@ struct FakeBoardTransport: BoardTransport {
     var applyError: BoardTransportError?
     var applyStateCalls: CallCounter?
     var appliedSnapshots: SnapshotRecorder?
+    var applyDelay: Duration?
 
     func requestCapabilities() async throws -> DeviceCapabilities {
         switch behavior {
@@ -146,6 +147,9 @@ struct FakeBoardTransport: BoardTransport {
     func applyState(_ snapshot: DeviceSnapshot) async throws {
         applyStateCalls?.increment()
         appliedSnapshots?.record(snapshot)
+        if let applyDelay {
+            try await Task.sleep(for: applyDelay)
+        }
         if let applyError {
             throw applyError
         }

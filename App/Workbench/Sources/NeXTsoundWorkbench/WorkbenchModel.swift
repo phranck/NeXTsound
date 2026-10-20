@@ -132,6 +132,8 @@ public extension WorkbenchModel {
         do {
             let snapshot = DeviceSnapshot(profileID: profile.id, profileRevision: profile.revision, settings: profile.settings)
             try await boards.apply(snapshot)
+        } catch is CancellationError {
+            // Superseded by a newer edit; scheduleBoardApply() already queued the latest state.
         } catch {
             errorMessage = error.localizedDescription
         }
