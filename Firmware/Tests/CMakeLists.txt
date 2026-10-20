@@ -19,6 +19,19 @@ function(nxs_add_usb_test name source)
 endfunction()
 
 nxs_add_usb_test(descriptor descriptor_tests.c)
+
+# TinyUSB's own audio class driver, compiled for the host so the feedback packet format is read at
+# the usbd boundary. The pinned checkout carries Firmware/ThirdParty's feedback patch, and this build
+# is what catches a TinyUSB bump dropping it. TinyUSB is not held to the firmware's pedantic flags.
+add_library(nxs_tinyusb_audio_host STATIC
+    "${NXS_TINYUSB_SOURCE}/class/audio/audio_device.c"
+    "${NXS_TINYUSB_SOURCE}/common/tusb_fifo.c")
+target_include_directories(nxs_tinyusb_audio_host PRIVATE ../USB $<TARGET_PROPERTY:nxs_device,INTERFACE_INCLUDE_DIRECTORIES>)
+target_include_directories(nxs_tinyusb_audio_host SYSTEM PUBLIC "${NXS_TINYUSB_SOURCE}")
+target_compile_definitions(nxs_tinyusb_audio_host PUBLIC CFG_TUSB_MCU=OPT_MCU_NONE CFG_TUSB_OS=OPT_OS_NONE TUP_DCD_ENDPOINT_MAX=16)
+nxs_add_usb_test(feedback feedback_tests.c)
+target_link_libraries(nxs_feedback_tests PRIVATE nxs_tinyusb_audio_host)
+
 nxs_add_usb_test(reset reset_tests.c)
 target_sources(nxs_reset_tests PRIVATE ../USB/reset.c)
 nxs_add_usb_test(control control_tests.c basic)

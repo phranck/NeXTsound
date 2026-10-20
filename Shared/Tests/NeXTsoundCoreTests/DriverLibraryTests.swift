@@ -3,10 +3,10 @@ import Testing
 @testable import NeXTsoundCore
 
 struct DriverLibraryTests {
-    @Test func aFreshLibraryIsSeededWithTheOwnersOnlyDriver() {
+    @Test func aFreshLibraryIsSeededWithTheKnownCandidates() {
         let library = DriverLibrary()
-        #expect(library.drivers.count == 1)
-        #expect(library.drivers[0].model == "TEBM28C10-4")
+        #expect(library.drivers.count == DriverLibrary.knownCandidates.count)
+        #expect(library.drivers.contains { $0.model == "TEBM28C10-4" })
     }
 
     @Test func aLibraryWithNoDriversIsRejected() {
@@ -20,9 +20,10 @@ struct DriverLibraryTests {
 
     @Test func insertingAddsANewDriver() throws {
         var library = DriverLibrary()
+        let before = library.drivers.count
         let driver = DriverRecord(name: "Second driver")
         try library.insert(driver)
-        #expect(library.drivers.count == 2)
+        #expect(library.drivers.count == before + 1)
     }
 
     @Test func insertingADuplicateIdentifierIsRejected() {
@@ -44,8 +45,8 @@ struct DriverLibraryTests {
         #expect(throws: DriverLibraryError.driverNotFound) { try library.update(DriverRecord(name: "Unknown")) }
     }
 
-    @Test func removingTheLastDriverIsRejected() {
-        var library = DriverLibrary()
+    @Test func removingTheLastDriverIsRejected() throws {
+        var library = try DriverLibrary(drivers: [DriverRecord()])
         #expect(throws: DriverLibraryError.lastDriver) { try library.remove(library.drivers[0].id) }
     }
 
@@ -56,11 +57,14 @@ struct DriverLibraryTests {
 
     @Test func removingLeavesTheRemainingDrivers() throws {
         var library = DriverLibrary()
+        let before = library.drivers.count
+        let first = library.drivers[0]
         let second = DriverRecord(name: "Second driver")
         try library.insert(second)
-        try library.remove(library.drivers[0].id)
-        #expect(library.drivers.count == 1)
-        #expect(library.drivers[0].id == second.id)
+        try library.remove(first.id)
+        #expect(library.drivers.count == before)
+        #expect(!library.drivers.contains { $0.id == first.id })
+        #expect(library.drivers.contains { $0.id == second.id })
     }
 
     @Test func aLibraryRoundTripsThroughJSON() throws {

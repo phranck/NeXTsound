@@ -16,7 +16,8 @@
       "version": "2.2.0",
       "url": "https://github.com/raspberrypi/pico-sdk.git",
       "commit": "a1438dff1d38bd9c65dbd693f0e5db4b9ae91779",
-      "tinyusb_commit": "86ad6e56c1700e85f1c5678607a762cfe3aa2f47"
+      "tinyusb_version": "0.21.0",
+      "tinyusb_commit": "dae3f9a366bfcddbf9dcf1b48d7500286a849539"
     },
     "picotool": {
       "version": "2.3.1",

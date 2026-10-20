@@ -130,40 +130,42 @@ void tud_hid_set_report_cb(uint8_t instance, uint8_t report_id, hid_report_type_
 }
 
 bool tud_audio_get_req_entity_cb(uint8_t rhport, const tusb_control_request_t *request) {
-    const audio_control_request_t *audio = (const void *)request;
-    if (audio->bChannelNumber != 0) {
+    uint8_t entity_id = TU_U16_HIGH(request->wIndex);
+    uint8_t control_selector = TU_U16_HIGH(request->wValue);
+    uint8_t channel_number = TU_U16_LOW(request->wValue);
+    if (channel_number != 0) {
         return false;
     }
-    if (audio->bEntityID == NXS_USB_CLOCK_ENTITY) {
-        if (audio->bControlSelector == AUDIO_CS_CTRL_CLK_VALID && audio->bRequest == AUDIO_CS_REQ_CUR) {
-            audio_control_cur_1_t valid = {.bCur = 1};
+    if (entity_id == NXS_USB_CLOCK_ENTITY) {
+        if (control_selector == AUDIO20_CS_CTRL_CLK_VALID && request->bRequest == AUDIO20_CS_REQ_CUR) {
+            audio20_control_cur_1_t valid = {.bCur = 1};
             return tud_audio_buffer_and_schedule_control_xfer(rhport, request, &valid, sizeof(valid));
         }
-        if (audio->bControlSelector == AUDIO_CS_CTRL_SAM_FREQ && audio->bRequest == AUDIO_CS_REQ_CUR) {
-            audio_control_cur_4_t frequency = {.bCur = tu_htole32(NXS_SAMPLE_RATE_HZ)};
+        if (control_selector == AUDIO20_CS_CTRL_SAM_FREQ && request->bRequest == AUDIO20_CS_REQ_CUR) {
+            audio20_control_cur_4_t frequency = {.bCur = tu_htole32(NXS_SAMPLE_RATE_HZ)};
             return tud_audio_buffer_and_schedule_control_xfer(rhport, request, &frequency, sizeof(frequency));
         }
-        if (audio->bControlSelector == AUDIO_CS_CTRL_SAM_FREQ && audio->bRequest == AUDIO_CS_REQ_RANGE) {
-            audio_control_range_4_n_t(1)
+        if (control_selector == AUDIO20_CS_CTRL_SAM_FREQ && request->bRequest == AUDIO20_CS_REQ_RANGE) {
+            audio20_control_range_4_n_t(1)
                 range = {.wNumSubRanges = tu_htole16(1),
                          .subrange[0] = {.bMin = tu_htole32(NXS_SAMPLE_RATE_HZ), .bMax = tu_htole32(NXS_SAMPLE_RATE_HZ), .bRes = 0}};
             return tud_audio_buffer_and_schedule_control_xfer(rhport, request, &range, sizeof(range));
         }
     }
-    if (audio->bEntityID == NXS_USB_FEATURE_ENTITY) {
-        if (audio->bControlSelector == AUDIO_FU_CTRL_MUTE && audio->bRequest == AUDIO_CS_REQ_CUR) {
-            audio_control_cur_1_t mute = {.bCur = host_muted ? 1u : 0u};
+    if (entity_id == NXS_USB_FEATURE_ENTITY) {
+        if (control_selector == AUDIO20_FU_CTRL_MUTE && request->bRequest == AUDIO20_CS_REQ_CUR) {
+            audio20_control_cur_1_t mute = {.bCur = host_muted ? 1u : 0u};
             return tud_audio_buffer_and_schedule_control_xfer(rhport, request, &mute, sizeof(mute));
         }
-        if (audio->bControlSelector == AUDIO_FU_CTRL_VOLUME && audio->bRequest == AUDIO_CS_REQ_CUR) {
-            audio_control_cur_2_t volume = {.bCur = (int16_t)tu_htole16((uint16_t)host_volume)};
+        if (control_selector == AUDIO20_FU_CTRL_VOLUME && request->bRequest == AUDIO20_CS_REQ_CUR) {
+            audio20_control_cur_2_t volume = {.bCur = (int16_t)tu_htole16((uint16_t)host_volume)};
             return tud_audio_buffer_and_schedule_control_xfer(rhport, request, &volume, sizeof(volume));
         }
-        if (audio->bControlSelector == AUDIO_FU_CTRL_VOLUME && audio->bRequest == AUDIO_CS_REQ_RANGE) {
-            audio_control_range_2_n_t(1) range = {.wNumSubRanges = tu_htole16(1),
-                                                  .subrange[0] = {.bMin = (int16_t)tu_htole16((uint16_t)NXS_HOST_VOLUME_MIN_Q8_DB),
-                                                                  .bMax = (int16_t)tu_htole16((uint16_t)NXS_HOST_VOLUME_MAX_Q8_DB),
-                                                                  .bRes = tu_htole16(NXS_HOST_VOLUME_Q8_SCALE)}};
+        if (control_selector == AUDIO20_FU_CTRL_VOLUME && request->bRequest == AUDIO20_CS_REQ_RANGE) {
+            audio20_control_range_2_n_t(1) range = {.wNumSubRanges = tu_htole16(1),
+                                                    .subrange[0] = {.bMin = (int16_t)tu_htole16((uint16_t)NXS_HOST_VOLUME_MIN_Q8_DB),
+                                                                    .bMax = (int16_t)tu_htole16((uint16_t)NXS_HOST_VOLUME_MAX_Q8_DB),
+                                                                    .bRes = tu_htole16(NXS_HOST_VOLUME_Q8_SCALE)}};
             return tud_audio_buffer_and_schedule_control_xfer(rhport, request, &range, sizeof(range));
         }
     }
@@ -172,18 +174,20 @@ bool tud_audio_get_req_entity_cb(uint8_t rhport, const tusb_control_request_t *r
 
 bool tud_audio_set_req_entity_cb(uint8_t rhport, const tusb_control_request_t *request, uint8_t *buffer) {
     (void)rhport;
-    const audio_control_request_t *audio = (const void *)request;
-    if (audio->bEntityID != NXS_USB_FEATURE_ENTITY || audio->bChannelNumber != 0 || audio->bRequest != AUDIO_CS_REQ_CUR) {
+    uint8_t entity_id = TU_U16_HIGH(request->wIndex);
+    uint8_t control_selector = TU_U16_HIGH(request->wValue);
+    uint8_t channel_number = TU_U16_LOW(request->wValue);
+    if (entity_id != NXS_USB_FEATURE_ENTITY || channel_number != 0 || request->bRequest != AUDIO20_CS_REQ_CUR) {
         return false;
     }
-    if (audio->bControlSelector == AUDIO_FU_CTRL_MUTE && request->wLength == 1 && buffer[0] <= 1) {
+    if (control_selector == AUDIO20_FU_CTRL_MUTE && request->wLength == 1 && buffer[0] <= 1) {
         bool mute = buffer[0] != 0;
         if (nxs_audio_engine_host_controls(host_volume, mute)) {
             host_muted = mute;
             return true;
         }
     }
-    if (audio->bControlSelector == AUDIO_FU_CTRL_VOLUME && request->wLength == 2) {
+    if (control_selector == AUDIO20_FU_CTRL_VOLUME && request->wLength == 2) {
         uint16_t raw = (uint16_t)(buffer[0] | ((uint16_t)buffer[1] << 8));
         int16_t volume = (int16_t)(raw < 0x8000u ? (int32_t)raw : (int32_t)raw - 65536);
         if (nxs_audio_engine_host_controls(volume, host_muted)) {
@@ -225,7 +229,7 @@ static void reject_audio_packet(void) {
     update_transport();
 }
 
-bool tud_audio_rx_done_post_read_cb(uint8_t rhport, uint16_t received, uint8_t function, uint8_t endpoint, uint8_t current_alternate) {
+bool tud_audio_rx_done_isr(uint8_t rhport, uint16_t received, uint8_t function, uint8_t endpoint, uint8_t current_alternate) {
     (void)rhport;
     if (function != 0 || endpoint != NXS_USB_AUDIO_OUT_ENDPOINT || current_alternate == 0 || current_alternate > 2) {
         return false;

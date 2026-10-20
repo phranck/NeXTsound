@@ -15,12 +15,20 @@ public final class WorkbenchModel {
 
     @ObservationIgnored private let storage: (any ProfileLibraryStorage)?
     @ObservationIgnored private var saveTask: Task<Void, Never>?
+    @ObservationIgnored private var boardApplyTask: Task<Void, Never>?
+    @ObservationIgnored private var isApplyingToBoard = false
+    @ObservationIgnored private var boardApplyIsPending = false
     @ObservationIgnored private var hasStarted = false
     private var savedRevision: UInt64 = 0
 
     public var profile: SoundProfile {
         library.selectedProfile
     }
+
+    /// Volatile DSP-only capture slots for A/B comparison. Never serialized, never part of the
+    /// profile library, and capturing one never advances the library revision.
+    public private(set) var slotA: DSPSettings?
+    public private(set) var slotB: DSPSettings?
 
     public var storageStatus: String {
         if !isReady {
@@ -124,13 +132,61 @@ public extension WorkbenchModel {
     /// Applies the current profile's DSP settings to the connected SoundBox for live listening,
     /// exactly as edited. Never writes to flash, so a reconnect or power cycle reverts to the
     /// last persisted state.
+    ///
+    /// At most one call is ever in flight against the transport. An edit that arrives while a
+    /// call is already running only marks a follow-up as pending instead of starting a second,
+    /// independent call: the transport serializes every board exchange on one queue, so a second
+    /// call would queue up behind the first and its own timeout clock would already be ticking
+    /// before it ever reaches the wire.
     func applyToBoard() async {
-        do {
-            let snapshot = DeviceSnapshot(profileID: profile.id, profileRevision: profile.revision, settings: profile.settings)
-            try await boards.apply(snapshot)
-        } catch {
-            errorMessage = error.localizedDescription
+        guard case .verified = boards.state else {
+            return
         }
+        guard !isApplyingToBoard else {
+            boardApplyIsPending = true
+            return
+        }
+        isApplyingToBoard = true
+        defer { isApplyingToBoard = false }
+        repeat {
+            boardApplyIsPending = false
+            do {
+                let snapshot = DeviceSnapshot(profileID: profile.id, profileRevision: profile.revision, settings: profile.settings)
+                try await boards.apply(snapshot)
+            } catch is CancellationError {
+                // Superseded by a newer edit; scheduleBoardApply() already queued the latest state.
+            } catch {
+                errorMessage = error.localizedDescription
+            }
+        } while boardApplyIsPending
+    }
+
+    /// Captures the current profile's DSP settings into slot A, overwriting whatever was there.
+    func captureSlotA() {
+        slotA = profile.settings
+    }
+
+    /// Captures the current profile's DSP settings into slot B, overwriting whatever was there.
+    func captureSlotB() {
+        slotB = profile.settings
+    }
+
+    /// Recalls slot A's DSP settings into the current profile through the normal edit
+    /// transaction, so it advances the revision and supports undo like any other edit. A no-op
+    /// if nothing was captured yet.
+    func recallSlotA(undoManager: UndoManager? = nil) {
+        guard let slotA else {
+            return
+        }
+        recall(slotA, action: "Recall A", undoManager: undoManager)
+    }
+
+    /// Recalls slot B's DSP settings into the current profile. See `recallSlotA(undoManager:)`.
+    func recallSlotB(undoManager: UndoManager? = nil) {
+        guard let slotB else {
+            return
+        }
+        recall(slotB, action: "Recall B", undoManager: undoManager)
     }
 }
 
@@ -149,9 +205,18 @@ private extension WorkbenchModel {
             library = candidate
             registerUndo(previous, manager: undoManager, action: action)
             scheduleSave()
+            scheduleBoardApply()
         } catch {
             errorMessage = error.localizedDescription
         }
+    }
+
+    /// Replaces only the current profile's DSP settings through the normal edit transaction,
+    /// keeping identity, name, speaker, and enclosure exactly as they were.
+    func recall(_ settings: DSPSettings, action: String, undoManager: UndoManager?) {
+        var proposed = profile
+        proposed.settings = settings
+        perform(undoManager: undoManager, action: action) { try $0.updateSelected(proposed) }
     }
 
     func registerUndo(_ previous: ProfileLibrary, manager: UndoManager?, action: String) {
@@ -196,6 +261,20 @@ private extension WorkbenchModel {
                 }
                 storageError = error.localizedDescription
             }
+        }
+    }
+
+    /// Mirrors the current profile to the connected board after edits settle, so the signal
+    /// chain editor behaves like a live monitor rather than requiring a manual push. Debounced
+    /// the same way as `scheduleSave()`, and a no-op whenever no board is verified.
+    func scheduleBoardApply() {
+        boardApplyTask?.cancel()
+        boardApplyTask = Task { [weak self] in
+            try? await Task.sleep(for: .milliseconds(250))
+            guard !Task.isCancelled else {
+                return
+            }
+            await self?.applyToBoard()
         }
     }
 }

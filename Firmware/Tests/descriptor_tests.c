@@ -35,7 +35,7 @@ int main(void) {
                 CHECK(descriptor[6] == RESET_INTERFACE_SUBCLASS && descriptor[7] == RESET_INTERFACE_PROTOCOL);
             }
         } else if (descriptor[1] == TUSB_DESC_CS_INTERFACE && interface == NXS_USB_AUDIO_STREAM_INTERFACE &&
-                   descriptor[2] == AUDIO_CS_AS_INTERFACE_FORMAT_TYPE) {
+                   descriptor[2] == AUDIO20_CS_AS_INTERFACE_FORMAT_TYPE) {
             CHECK(alternate == 1 || alternate == 2);
             CHECK(descriptor[4] == alternate + 1 && descriptor[5] == (alternate == 1 ? 16 : 24));
             ++formats;

@@ -29,6 +29,10 @@ public final class DriverLibraryModel {
 public extension DriverLibraryModel {
     /// Loads the local library once. A failed load never blocks editing; it is surfaced
     /// through `errorMessage` while edits stay in memory until storage recovers.
+    ///
+    /// Merges in any known candidate driver (`DriverLibrary.knownCandidates`) not already
+    /// present by id, so a library persisted before a new candidate was researched picks it up
+    /// on the next launch rather than staying frozen at whatever it was first seeded with.
     func start() async {
         guard !hasStarted else {
             return
@@ -40,6 +44,7 @@ public extension DriverLibraryModel {
         }
         do {
             library = try await storage.load() ?? library
+            mergeKnownCandidates()
             try await storage.save(library)
         } catch {
             errorMessage = error.localizedDescription
@@ -60,6 +65,13 @@ public extension DriverLibraryModel {
 }
 
 private extension DriverLibraryModel {
+    func mergeKnownCandidates() {
+        let presentIDs = Set(library.drivers.map(\.id))
+        for candidate in DriverLibrary.knownCandidates where !presentIDs.contains(candidate.id) {
+            try? library.insert(candidate)
+        }
+    }
+
     func perform(mutation: (inout DriverLibrary) throws -> Void) {
         guard isReady else {
             return

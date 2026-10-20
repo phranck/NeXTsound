@@ -1,0 +1,70 @@
+Full-speed feedback format for UAC2 devices in TinyUSB 0.21.0 (dae3f9a366bfcddbf9dcf1b48d7500286a849539)
+
+TinyUSB 0.21.0 formats the feedback endpoint value by UAC version alone: UAC1 gets 10.14 in three
+bytes, UAC2 gets 16.16 in four bytes regardless of bus speed. USB 2.0 section 5.12.4.2 assigns
+10.14 in three bytes to every full-speed device, and macOS rejects any other packet size on a
+full-speed feedback endpoint. TinyUSB 0.18 offered CFG_TUD_AUDIO_ENABLE_FEEDBACK_FORMAT_CORRECTION
+for exactly this; the option disappeared with the UAC1 rework. This patch restores it: a full-speed
+UAC2 device sends 10.14 in three bytes when the option is set, and the default stays 16.16.
+Scripts/bootstrap-firmware.sh applies the patch after the pinned checkout. See issue 43.
+
+diff --git a/src/class/audio/audio_device.c b/src/class/audio/audio_device.c
+index 995bf8a3e..2f371f81d 100644
+--- a/src/class/audio/audio_device.c
++++ b/src/class/audio/audio_device.c
+@@ -594,8 +594,13 @@ bool tud_audio_int_n_write(uint8_t func_id, const audio_interrupt_data_t *data)
+ static inline bool audiod_fb_send(uint8_t func_id, bool is_isr) {
+   audiod_function_t *audio = &_audiod_fct[func_id];
+   uint8_t uac_version = tud_audio_n_version(func_id);
++  // Full speed carries feedback as 10.14 in three bytes (USB 2.0 5.12.4.2). UAC1 is full speed only;
++  // a full-speed UAC2 device gets the same format when CFG_TUD_AUDIO_ENABLE_FEEDBACK_FORMAT_CORRECTION
++  // is set, otherwise the 16.16 value goes out as-is in four bytes.
++  bool const format_10_14 = (uac_version == 1) ||
++                            (CFG_TUD_AUDIO_ENABLE_FEEDBACK_FORMAT_CORRECTION && TUSB_SPEED_FULL == tud_speed_get());
+   // Format the feedback value
+-  if (uac_version == 1) {
++  if (format_10_14) {
+     uint8_t *fb = (uint8_t *) audio->fb_buf;
+ 
+     // For FS format is 10.14
+@@ -607,7 +612,7 @@ static inline bool audiod_fb_send(uint8_t func_id, bool is_isr) {
+     *audio->fb_buf = audio->feedback.value;
+   }
+ 
+-  return usbd_edpt_xfer(audio->rhport, audio->ep_fb, (uint8_t *) audio->fb_buf, uac_version == 1 ? 3 : 4, is_isr);
++  return usbd_edpt_xfer(audio->rhport, audio->ep_fb, (uint8_t *) audio->fb_buf, format_10_14 ? 3 : 4, is_isr);
+ }
+ 
+ uint32_t tud_audio_feedback_update(uint8_t func_id, uint32_t cycles) {
+diff --git a/src/class/audio/audio_device.h b/src/class/audio/audio_device.h
+index 1e0c46915..b61182534 100644
+--- a/src/class/audio/audio_device.h
++++ b/src/class/audio/audio_device.h
+@@ -153,6 +153,11 @@
+ #define CFG_TUD_AUDIO_ENABLE_FEEDBACK_EP                    0                             // Feedback - 0 or 1
+ #endif
+ 
++// Enable/disable conversion from 16.16 to 10.14 format on full-speed UAC2 devices. See tud_audio_n_fb_set().
++#ifndef CFG_TUD_AUDIO_ENABLE_FEEDBACK_FORMAT_CORRECTION
++#define CFG_TUD_AUDIO_ENABLE_FEEDBACK_FORMAT_CORRECTION     0                             // 0 or 1
++#endif
++
+ // Enable/disable interrupt EP (required for notifying host of control changes)
+ #ifndef CFG_TUD_AUDIO_ENABLE_INTERRUPT_EP
+ #define CFG_TUD_AUDIO_ENABLE_INTERRUPT_EP                   0                             // Feedback - 0 or 1
+@@ -288,11 +293,12 @@ bool tud_audio_rx_done_isr(uint8_t rhport, uint16_t n_bytes_received, uint8_t fu
+ // FB endpoint interval till it's changed.
+ //
+ // The feedback format is specified to be 16.16 for HS and 10.14 for FS devices (see Universal Serial Bus
+-// Specification Revision 2.0 5.12.4.2). For simplicity, this function always uses 16.16 format. For FS devices,
+-// the driver will automatically convert the value to 10.14 format.
++// Specification Revision 2.0 5.12.4.2). For simplicity, this function always takes 16.16 format. The driver
++// converts the value to 10.14 for UAC1 devices, and for full-speed UAC2 devices when
++// CFG_TUD_AUDIO_ENABLE_FEEDBACK_FORMAT_CORRECTION is set.
+ //
+ // Note that due to a bug in its USB Audio 2.0 driver, Windows currently requires 16.16 format for _all_ USB 2.0
+-// devices. On Linux and it seems the driver can work with either format.
++// devices, which is the default. macOS requires 10.14 in three bytes on full speed. Linux works with either format.
+ //
+ // Feedback value can be determined from within the SOF ISR of the audio driver. This should reduce jitter. If the
+ // feature is used, the user can not set the feedback value.

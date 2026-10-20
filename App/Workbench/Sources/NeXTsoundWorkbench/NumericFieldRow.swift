@@ -4,7 +4,7 @@ import SwiftUI
 /// non-slider optional value (nil meaning "unknown") can share the same visual shape as the DSP
 /// sliders.
 struct NumericFieldRow: View {
-    let title: String
+    let title: LocalizedStringKey
     let unit: String
     @Binding var value: Double?
     var fractionDigits: ClosedRange<Int> = 0 ... 2
