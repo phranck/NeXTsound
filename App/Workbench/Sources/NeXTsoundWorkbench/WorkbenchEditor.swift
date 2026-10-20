@@ -1,6 +1,5 @@
 import NeXTsoundCore
 import SwiftUI
-import UniformTypeIdentifiers
 
 struct WorkbenchEditor: View {
     @Binding var profile: SoundProfile
@@ -71,7 +70,6 @@ private extension WorkbenchHeading {
 
 private struct FlashFirmwareSheet: View {
     @State private var model: FlashFirmwareSheetModel
-    @State private var isChoosingFirmware = false
     @Environment(\.dismiss) private var dismiss
 
     init(applicationSerial: String?) {
@@ -86,38 +84,17 @@ private struct FlashFirmwareSheet: View {
                 Text("Put the SoundBox into BOOTSEL mode before continuing: hold its BOOTSEL button while connecting the USB cable.")
                     .foregroundStyle(.secondary)
             }
-            FirmwareFileRow(url: model.selectedFirmwareURL) { isChoosingFirmware = true }
             FlashOutcomeView(outcome: model.outcome)
             HStack {
                 Spacer()
                 Button("Done") { dismiss() }
                 Button("Flash") { model.flash() }
                     .keyboardShortcut(.defaultAction)
-                    .disabled(model.selectedFirmwareURL == nil || model.isRunning || model.outcome == .succeeded)
+                    .disabled(model.isRunning || model.outcome == .succeeded)
             }
         }
         .padding(16)
         .frame(width: 420)
-        .fileImporter(isPresented: $isChoosingFirmware, allowedContentTypes: [UTType(filenameExtension: "uf2") ?? .data]) { result in
-            guard case let .success(url) = result else {
-                return
-            }
-            model.selectedFirmwareURL = url
-        }
-    }
-}
-
-private struct FirmwareFileRow: View {
-    let url: URL?
-    let onChoose: () -> Void
-
-    var body: some View {
-        HStack {
-            Text(url?.lastPathComponent ?? String(localized: "No firmware image selected"))
-                .foregroundStyle(url == nil ? .secondary : .primary)
-            Spacer()
-            Button("Choose…") { onChoose() }
-        }
     }
 }
 
