@@ -4,7 +4,13 @@ import SwiftUI
 struct WorkbenchEditor: View {
     @Binding var profile: SoundProfile
     let connectionState: BoardConnectionState
+    let slotA: DSPSettings?
+    let slotB: DSPSettings?
     let onRenameBoard: (String) async -> Void
+    let onCaptureA: () -> Void
+    let onRecallA: () -> Void
+    let onCaptureB: () -> Void
+    let onRecallB: () -> Void
     @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
@@ -20,8 +26,16 @@ struct WorkbenchEditor: View {
                         BandEditor(bands: $profile.settings.bands)
                     }
                     .frame(maxWidth: .infinity)
-                    SignalChainInspector(settings: $profile.settings)
-                        .frame(width: 230)
+                    SignalChainInspector(
+                        settings: $profile.settings,
+                        slotA: slotA,
+                        slotB: slotB,
+                        onCaptureA: onCaptureA,
+                        onRecallA: onRecallA,
+                        onCaptureB: onCaptureB,
+                        onRecallB: onRecallB
+                    )
+                    .frame(width: 230)
                 }
                 ProfileValidationNotice(profile: profile)
             }
