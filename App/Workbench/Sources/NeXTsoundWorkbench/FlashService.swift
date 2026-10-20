@@ -15,6 +15,17 @@ extension FlashPhase {
         case .restartingApplication: String(localized: "restarting the application firmware")
         }
     }
+
+    /// A fixed position along the flow, not a measured completion fraction: picotool reports no
+    /// byte-level progress for `load -v`, so this only cues which of the (at most three) phases
+    /// is active.
+    var progress: Double {
+        switch self {
+        case .waitingForBootloader: 0.2
+        case .writingAndVerifying: 0.6
+        case .restartingApplication: 0.9
+        }
+    }
 }
 
 enum FlashError: Error, LocalizedError, Equatable {
