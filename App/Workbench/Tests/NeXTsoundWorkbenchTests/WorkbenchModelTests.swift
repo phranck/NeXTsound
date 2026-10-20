@@ -106,31 +106,30 @@ struct WorkbenchModelTests {
         #expect(model.library.profiles.count == 3)
     }
 
-    @Test func applyingToTheBoardAlwaysUnmutesAndCapsAttenuationAtMinus24dB() async throws {
+    @Test func applyingToTheBoardSendsTheEditedMuteStateUnchanged() async throws {
         let (model, appliedSnapshots) = try await connectedModelWithFakeBoard()
         var profile = model.profile
         profile.settings.isMuted = true
-        profile.settings.attenuationDb = -6
         model.updateProfile(profile)
 
         await model.applyToBoard()
 
         #expect(model.errorMessage == nil)
         let sent = try #require(appliedSnapshots.snapshots.last)
-        #expect(sent.settings.isMuted == false)
-        #expect(sent.settings.attenuationDb == -24)
+        #expect(sent.settings.isMuted == true)
     }
 
-    @Test func applyingToTheBoardPassesThroughAQuieterAttenuation() async throws {
+    @Test func applyingToTheBoardSendsTheEditedAttenuationUnchanged() async throws {
         let (model, appliedSnapshots) = try await connectedModelWithFakeBoard()
         var profile = model.profile
-        profile.settings.attenuationDb = -40
+        profile.settings.isMuted = false
+        profile.settings.attenuationDb = -6
         model.updateProfile(profile)
 
         await model.applyToBoard()
 
         let sent = try #require(appliedSnapshots.snapshots.last)
-        #expect(sent.settings.attenuationDb == -40)
+        #expect(sent.settings.attenuationDb == -6)
     }
 
     @Test func applyingToTheBoardWithoutAConnectionSurfacesAnError() async {
