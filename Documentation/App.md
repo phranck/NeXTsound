@@ -71,9 +71,9 @@ This has not been exercised against real hardware; see [issue 41](https://github
 
 ## Fixed enclosure data
 
-The [scalar enclosure record](Verification/Enclosure-2026-10-18.json) supplies geometric references for the planned driver workflow. It records the mounting interface, source digest, coordinate system, named air region, method, and remaining uncertainties. The source CAD and working geometry stay private outside Git.
+[`Enclosure-2026-10-21.json`](Verification/Enclosure-2026-10-21.json) is the current net internal air volume (Vb) record; it supersedes and replaces `Enclosure-2026-10-18.json` in full, which described an earlier, not yet acoustically sealed design. The owner modeled the interior air cavity as its own solid in Shapr3D (the current, final enclosure design), exported it, the driver, and the RP2350 board separately, and each part's volume was computed via the divergence theorem over its mesh's connected components. The source STL files stay private outside Git.
 
-Its air region uses an explicit virtual front closure. It is not a qualified sealed acoustic volume. The remaining component displacement and leakage are unknown. Catalog eligibility must check the entire mounting/clearance envelope, and the calculation must retain these model conditions. The current offline editor does not yet consume this record, and the sidebar no longer carries a placeholder "Enclosure" section for it: the product has exactly one fixed enclosure, not a choice to present.
+`NeXTsoundCore.EnclosureRecord.nextSoundBoxMini()` carries the resulting figures (internal cavity, driver and board displacement, net Vb) for code to consume, with `modelReference` pointing at the verification file above. `NeXTsoundCore.ClosedBoxAlignment` uses this Vb together with a driver's Fs/Qts/Vas to compute the sealed box's own Fc/Qtc acoustic response; see [DSP.md](DSP.md#closed-box-alignment). The sidebar still carries no placeholder "Enclosure" section: the product has exactly one fixed enclosure, not a choice to present.
 
 ## Reproducible configuration
 
