@@ -1,3 +1,4 @@
+import Foundation
 import NeXTsoundCore
 import SwiftUI
 
@@ -35,10 +36,21 @@ private struct OutputControls: View {
         GroupBox("Output") {
             VStack(alignment: .leading, spacing: 12) {
                 Toggle("Muted", isOn: $settings.isMuted)
-                ParameterControl(title: "Attenuation", parameter: .attenuation, unit: "dB", value: $settings.attenuationDb)
+                ParameterControl(title: "Master Volume", parameter: .attenuation, unit: "dB", value: $settings.attenuationDb)
+                Text(attenuationPercentText)
+                    .foregroundStyle(.secondary)
             }
             .padding(10)
         }
+    }
+}
+
+private extension OutputControls {
+    /// A perceptual anchor alongside the dB value: how loud the signal is relative to full
+    /// scale, since -24 dB on its own does not say much before you have learned the scale.
+    var attenuationPercentText: String {
+        let amplitudePercent = pow(10, settings.attenuationDb / 20) * 100
+        return String(localized: "\(amplitudePercent.formatted(.number.precision(.fractionLength(0 ... 1)))) % of full volume")
     }
 }
 

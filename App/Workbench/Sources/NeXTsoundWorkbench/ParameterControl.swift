@@ -3,7 +3,7 @@ import NeXTsoundCore
 import SwiftUI
 
 struct ParameterControl: View {
-    let title: String
+    let title: LocalizedStringKey
     let parameter: DSPParameter
     let unit: String
     @Binding var value: Float
