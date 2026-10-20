@@ -9,9 +9,7 @@ struct ProfileSidebar: View {
     var body: some View {
         List(selection: selection) {
             ProfileListSection(profiles: model.library.profiles)
-            PresetsSection { model.applyPreset($0, undoManager: undoManager) }
             SpeakerSection(speaker: model.profile.speaker)
-            EnclosureSection(enclosure: model.profile.enclosure)
             StorageStatusSection(status: model.storageStatus)
         }
         .listStyle(.sidebar)
@@ -41,24 +39,6 @@ private struct ProfileListSection: View {
     }
 }
 
-private struct PresetsSection: View {
-    let applyPreset: (FactoryPreset) -> Void
-
-    var body: some View {
-        Section("Starting presets") {
-            ForEach(FactoryPreset.allCases) { preset in
-                Button { applyPreset(preset) } label: {
-                    Text(preset.name)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                }
-                .buttonStyle(.plain)
-                .padding(.vertical, 4)
-                .help("Apply the muted \(preset.name) settings without replacing this profile's speaker or enclosure.")
-            }
-        }
-    }
-}
-
 private struct SpeakerSection: View {
     let speaker: SpeakerRecord?
 
@@ -66,31 +46,6 @@ private struct SpeakerSection: View {
         Section("Speaker") {
             Text(speaker?.name ?? "Not selected")
             Text("Speaker safety is unverified.")
-                .foregroundStyle(.secondary)
-        }
-    }
-}
-
-private struct EnclosureSection: View {
-    let enclosure: EnclosureRecord?
-
-    var body: some View {
-        Section("Enclosure") {
-            Text(enclosure?.name ?? "Not selected")
-            EnclosureVolumeLabel(volume: enclosure?.volume)
-        }
-    }
-}
-
-private struct EnclosureVolumeLabel: View {
-    let volume: EnclosureVolume?
-
-    var body: some View {
-        if let volume {
-            Text("\(volume.netLiters.formatted(.number.precision(.fractionLength(0 ... 3)))) L net")
-                .foregroundStyle(.secondary)
-        } else {
-            Text("Volume not set")
                 .foregroundStyle(.secondary)
         }
     }
