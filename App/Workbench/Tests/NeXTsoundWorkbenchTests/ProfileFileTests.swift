@@ -107,20 +107,6 @@ struct ProfileFileTests {
             try document.encodedFile()
         }
     }
-
-    @Test func presetsPreserveTheDocumentAndItsContext() throws {
-        var document = ProfileFile(profile: fixture())
-        let previous = document.profile
-        try document.apply(.warm)
-        #expect(document.profile.id == previous.id)
-        #expect(document.profile.name == previous.name)
-        #expect(document.profile.speaker == previous.speaker)
-        #expect(document.profile.enclosure == previous.enclosure)
-        #expect(document.profile.settings == FactoryPreset.warm.makeProfile().settings)
-        #expect(document.profile.settings.isMuted)
-        #expect(document.profile.presetOrigin == FactoryPreset.warm.rawValue)
-        #expect(document.profile.revision == previous.revision + 1)
-    }
 }
 
 private extension ProfileFileTests {

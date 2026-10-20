@@ -57,13 +57,6 @@ public extension ProfileFile {
         try candidate.advanceRevision()
         profile = candidate
     }
-
-    mutating func apply(_ preset: FactoryPreset) throws {
-        try edit { candidate in
-            candidate.settings = preset.makeProfile().settings
-            candidate.presetOrigin = preset.rawValue
-        }
-    }
 }
 
 public extension UTType {

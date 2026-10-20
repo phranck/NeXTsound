@@ -8,10 +8,16 @@ struct NeXTsoundApp: App {
 
     var body: some Scene {
         WindowGroup {
-            WorkbenchView(model: model, driverLibrary: driverLibrary)
+            WorkbenchView(model: model)
                 .task { await model.start() }
+                .task { await driverLibrary.start() }
         }
         .defaultSize(width: WorkbenchLayout.defaultSize.width, height: WorkbenchLayout.defaultSize.height)
         .windowResizability(.contentMinSize)
+
+        Window(WorkbenchLayout.driverLibraryWindowTitle, id: WorkbenchLayout.driverLibraryWindowID) {
+            DriverLibraryView(model: driverLibrary)
+        }
+        .defaultSize(width: 640, height: 480)
     }
 }
