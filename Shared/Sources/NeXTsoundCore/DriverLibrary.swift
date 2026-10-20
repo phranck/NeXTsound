@@ -33,9 +33,20 @@ public struct DriverLibrary: Codable, Equatable, Sendable {
     public let formatVersion: Int
     public private(set) var drivers: [DriverRecord]
 
+    /// Candidate full-range drivers the owner has researched and may want pre-populated;
+    /// `DriverLibraryModel` merges any of these not already present (by id) into an existing
+    /// persisted library on load, so the catalog grows as new candidates are added here.
+    public static let knownCandidates: [DriverRecord] = [
+        .tectonicTEBM28C10_4(),
+        .tectonicTEBM28C10_4B(),
+        .tectonicTEBM28C10_4BE(),
+        .daytonAudioCE41N4(),
+        .visatonFR58_4(),
+    ]
+
     public init() {
         formatVersion = Self.currentFormatVersion
-        drivers = [.tectonicTEBM28C10_4()]
+        drivers = Self.knownCandidates
     }
 
     public init(drivers: [DriverRecord]) throws {

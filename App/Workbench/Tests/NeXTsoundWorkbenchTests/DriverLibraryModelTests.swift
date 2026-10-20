@@ -11,7 +11,7 @@ struct DriverLibraryModelTests {
         let storage = FakeDriverLibraryStorage(loadResult: .value(stored))
         let model = DriverLibraryModel(storage: storage)
         await model.start()
-        #expect(model.drivers.count == 2)
+        #expect(model.drivers.count == DriverLibrary.knownCandidates.count + 1)
     }
 
     @Test func aFailedLoadSurfacesAnErrorButStaysEditable() async {
@@ -21,7 +21,7 @@ struct DriverLibraryModelTests {
         #expect(model.errorMessage != nil)
         #expect(model.isReady)
         model.addDriver()
-        #expect(model.drivers.count == 2)
+        #expect(model.drivers.count == DriverLibrary.knownCandidates.count + 1)
     }
 
     @Test func addingADriverPersistsIt() async throws {
@@ -29,9 +29,9 @@ struct DriverLibraryModelTests {
         let model = DriverLibraryModel(storage: storage)
         await model.start()
         model.addDriver()
-        #expect(model.drivers.count == 2)
+        #expect(model.drivers.count == DriverLibrary.knownCandidates.count + 1)
         try await Task.sleep(for: .milliseconds(20))
-        #expect(storage.savedLibraries.last?.drivers.count == 2)
+        #expect(storage.savedLibraries.last?.drivers.count == DriverLibrary.knownCandidates.count + 1)
     }
 
     @Test func updatingAnUnknownDriverSurfacesAnError() {
@@ -40,16 +40,18 @@ struct DriverLibraryModelTests {
         #expect(model.errorMessage != nil)
     }
 
-    @Test func removingTheLastDriverSurfacesAnErrorAndKeepsIt() {
-        let model = DriverLibraryModel()
+    @Test func removingTheLastDriverSurfacesAnErrorAndKeepsIt() throws {
+        let library = try DriverLibrary(drivers: [DriverRecord()])
+        let model = DriverLibraryModel(library: library)
         let onlyID = model.drivers[0].id
         model.removeDriver(onlyID)
         #expect(model.errorMessage != nil)
         #expect(model.drivers.count == 1)
     }
 
-    @Test func removingADriverLeavesTheRest() {
-        let model = DriverLibraryModel()
+    @Test func removingADriverLeavesTheRest() throws {
+        let library = try DriverLibrary(drivers: [DriverRecord()])
+        let model = DriverLibraryModel(library: library)
         model.addDriver()
         let firstID = model.drivers[0].id
         model.removeDriver(firstID)
