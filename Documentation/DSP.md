@@ -10,6 +10,20 @@ The limiter has instantaneous attack and a configurable exponential gain release
 
 Mute suppresses output while the filters continue processing. Initialization uses the canonical muted default settings.
 
+## Closed-box alignment
+
+The engine's high-pass is a fixed-Q (1/√2, Butterworth) electronic filter: only its corner frequency (`highPassHz`) is ever configurable, never its Q. That electronic filter is separate from the driver-in-box acoustic response the sealed enclosure itself produces, which has its own second-order corner frequency (Fc) and total Q (Qtc), set entirely by the driver's free-air parameters (Fs, Qts, Vas) and the enclosure's net internal air volume (Vb):
+
+```
+alpha = Vas / Vb
+Fc = Fs * sqrt(1 + alpha)
+Qtc = Qts * sqrt(1 + alpha)
+```
+
+`NeXTsoundCore.ClosedBoxAlignment` computes this deterministically from a `DriverRecord` and a Vb in liters, and classifies the result against the commonly published alignment chart (Bessel, Butterworth, Chebyshev, and over-/underdamped). A missing Fs, Qts, or Vas throws a specific, named error rather than silently falling back to a default; it is a predicted acoustic response, not a measurement, and is kept distinct from the electronic high-pass and EQ preview below.
+
+Vb for the one fixed enclosure comes from [`Documentation/Verification/Enclosure-2026-10-21.json`](Verification/Enclosure-2026-10-21.json): the owner's own CAD modeled the interior air cavity as its own solid, exported separately from the driver and the RP2350 board, with each part's volume computed via the divergence theorem over its mesh.
+
 ## Audio ownership
 
 Call `nxs_dsp_prepare` outside the audio thread to compute a complete configuration. Invalid snapshots leave the destination unchanged. The audio thread owns its `nxs_dsp_t` and calls `nxs_dsp_apply` at a block boundary. A second apply is refused while a transition is active.
