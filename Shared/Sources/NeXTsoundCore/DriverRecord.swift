@@ -152,11 +152,12 @@ public extension DriverRecord {
 }
 
 public extension DriverRecord {
-    /// The only driver currently in use. Only values this repository's own evidence record
-    /// documents (Table 10, the owner's living paper) are filled in; everything else stays nil
-    /// rather than assumed. Mounting/fit fields stay nil too, since the enclosure JSON's depth
-    /// and clearance numbers describe a reference chassis from CAD analysis, not this driver's
-    /// own datasheet, and a record has one origin.
+    /// The only driver currently in use. Values come from the full parameter table in
+    /// `DS-TEBM28C10-4/A revision 1.7` (the already-linked datasheet; an earlier reading of it
+    /// missed this table and left most fields nil). Mounting/fit fields stay nil where the
+    /// datasheet's own outline drawing does not give them cleanly: the drawing splits overall
+    /// depth into front/rear segments without itemizing which is which, and does not label a
+    /// mounting hole diameter, so neither is guessed.
     static func tectonicTEBM28C10_4() -> DriverRecord {
         let id = UUID(uuid: (0xD4, 0x71, 0x0E, 0x1C, 0x7E, 0x58, 0x4A, 0x8A, 0x9B, 0x6E, 0x0C, 0x28, 0xC1, 0x04, 0x7A, 0x2D))
         var driver = DriverRecord(id: id, name: "Tectonic Elements TEBM28C10-4")
@@ -167,15 +168,31 @@ public extension DriverRecord {
             URL(string: "https://doc.soundimports.nl/pdf/brands/Tectonic%20Elements/TEBM28C10-4.A%20BMR/tebm28c10-4a-spec-sheet.pdf")!,
         ]
         driver.nominalImpedanceOhms = 4
+        driver.reOhms = 4.40
+        driver.leMillihenries = 0.09
+        driver.blTeslaMeters = 2.87
         driver.fsHz = 130
+        driver.qts = 0.39
+        driver.qes = 0.45
+        driver.qms = 2.74
         driver.vasLiters = 0.15
+        driver.sdSquareCentimeters = 8.55
+        driver.mmsGrams = 1.0
+        driver.xmaxMillimeters = 4.0
+        driver.frameDiameterMillimeters = 46
+        driver.mountingPitchCircleDiameterMillimeters = 48.0
+        driver.mountingHoleCount = 4
         driver.ratedPowerWatts = 10
         driver.notes = """
         Datasheet identifies the model as TEBM28C10-4/A; the CAD reference labels it \
         TEBM28C10-4B. The correspondence between this physical unit and either identity is \
         not verified. Fs is typical with plus-or-minus 20% tolerance, not a measured value. \
         The 10 W rating is continuous weighted pink noise per IEC268-5 with a second-order \
-        high-pass; no cutoff frequency is specified.
+        high-pass; no cutoff frequency is specified. The datasheet states maximum coil \
+        excursion as 8.0 mm peak-to-peak; xmaxMillimeters holds half of that (4.0 mm one-way) \
+        to match this field's one-way convention. Mounting pitch circle diameter (48.0 mm) and \
+        hole count (4, read directly from the outline drawing) agree with the independently \
+        measured enclosure CAD record's pilot pattern.
         """
         return driver
     }

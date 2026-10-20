@@ -7,15 +7,27 @@ struct DriverRecordTests {
         try DriverRecord.tectonicTEBM28C10_4().validate()
     }
 
-    @Test func theSeedDriverUsesOnlyDocumentedValues() {
+    @Test func theSeedDriverUsesTheFullDatasheetParameterSet() {
         let driver = DriverRecord.tectonicTEBM28C10_4()
         #expect(driver.nominalImpedanceOhms == 4)
+        #expect(driver.reOhms == 4.40)
+        #expect(driver.leMillihenries == 0.09)
+        #expect(driver.blTeslaMeters == 2.87)
         #expect(driver.fsHz == 130)
+        #expect(driver.qts == 0.39)
+        #expect(driver.qes == 0.45)
+        #expect(driver.qms == 2.74)
         #expect(driver.vasLiters == 0.15)
+        #expect(driver.sdSquareCentimeters == 8.55)
+        #expect(driver.mmsGrams == 1.0)
+        #expect(driver.xmaxMillimeters == 4.0)
+        #expect(driver.frameDiameterMillimeters == 46)
+        #expect(driver.mountingPitchCircleDiameterMillimeters == 48.0)
+        #expect(driver.mountingHoleCount == 4)
         #expect(driver.ratedPowerWatts == 10)
-        #expect(driver.qts == nil)
-        #expect(driver.reOhms == nil)
-        #expect(driver.frameDiameterMillimeters == nil)
+        #expect(driver.mountingHoleDiameterMillimeters == nil)
+        #expect(driver.rearDepthMillimeters == nil)
+        #expect(driver.frontProtrusionMillimeters == nil)
     }
 
     @Test func anEmptyNameIsRejected() {
