@@ -8,6 +8,7 @@ let package = Package(
     products: [
         .library(name: "NeXTsoundWorkbench", targets: ["NeXTsoundWorkbench"]),
         .executable(name: "NeXTsoundWorkbenchRender", targets: ["NeXTsoundWorkbenchRender"]),
+        .executable(name: "NeXTsoundDiagnostics", targets: ["NeXTsoundDiagnostics"]),
     ],
     dependencies: [.package(path: "../../Shared")],
     targets: [
@@ -31,6 +32,11 @@ let package = Package(
             name: "NeXTsoundWorkbenchRender",
             dependencies: ["NeXTsoundWorkbench", .product(name: "NeXTsoundCore", package: "Shared")],
             path: "Tools/NeXTsoundWorkbenchRender"
+        ),
+        .executableTarget(
+            name: "NeXTsoundDiagnostics",
+            dependencies: ["NeXTsoundWorkbench", .product(name: "NeXTsoundCore", package: "Shared")],
+            path: "Tools/NeXTsoundDiagnostics"
         ),
         .testTarget(
             name: "NeXTsoundWorkbenchTests",
