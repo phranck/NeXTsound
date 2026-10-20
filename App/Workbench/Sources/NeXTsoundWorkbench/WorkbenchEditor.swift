@@ -35,16 +35,10 @@ private struct WorkbenchHeading: View {
     let connectionState: BoardConnectionState
     let onRenameBoard: (String) async -> Void
     @State private var isRenaming = false
+    @State private var isShowingFlashSheet = false
 
     var body: some View {
         HStack(alignment: .firstTextBaseline) {
-            VStack(alignment: .leading, spacing: 4) {
-                Text("NeXTsound")
-                    .font(.title.bold())
-                Text("Mono sound workbench")
-                    .foregroundStyle(.secondary)
-            }
-            Spacer()
             ConnectionBadge(state: connectionState)
             if case let .verified(capabilities) = connectionState {
                 Button("Rename SoundBox", systemImage: "pencil") { isRenaming = true }
@@ -56,7 +50,33 @@ private struct WorkbenchHeading: View {
                         }
                     }
             }
+            Spacer()
+            Button("Flash Firmware", systemImage: "bolt") { isShowingFlashSheet = true }
+                .sheet(isPresented: $isShowingFlashSheet) {
+                    FlashFirmwareSheet()
+                }
         }
+    }
+}
+
+private struct FlashFirmwareSheet: View {
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Flash firmware")
+                .font(.headline)
+            Text("Put the SoundBox into BOOTSEL mode before continuing.")
+            Text("Hold its BOOTSEL button while connecting the USB cable, or, if NeXTsound firmware is already installed, reboot it into BOOTSEL from the command line. Once the board enumerates in BOOTSEL mode, load the new firmware image onto it.")
+                .foregroundStyle(.secondary)
+            HStack {
+                Spacer()
+                Button("Done") { dismiss() }
+                    .keyboardShortcut(.defaultAction)
+            }
+        }
+        .padding(16)
+        .frame(width: 360)
     }
 }
 
