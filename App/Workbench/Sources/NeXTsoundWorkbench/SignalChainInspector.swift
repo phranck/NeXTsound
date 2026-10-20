@@ -4,26 +4,12 @@ import SwiftUI
 
 struct SignalChainInspector: View {
     @Binding var settings: DSPSettings
-    let slotA: DSPSettings?
-    let slotB: DSPSettings?
-    let onCaptureA: () -> Void
-    let onRecallA: () -> Void
-    let onCaptureB: () -> Void
-    let onRecallB: () -> Void
 
     var body: some View {
         VStack(spacing: 18) {
             HighPassControls(settings: $settings)
             OutputControls(settings: $settings)
             LimiterControls(settings: $settings)
-            ABControls(
-                slotA: slotA,
-                slotB: slotB,
-                onCaptureA: onCaptureA,
-                onRecallA: onRecallA,
-                onCaptureB: onCaptureB,
-                onRecallB: onRecallB
-            )
         }
     }
 }
@@ -82,39 +68,6 @@ private struct LimiterControls: View {
                     value: $settings.limiterReleaseMs,
                     logarithmic: true
                 )
-            }
-            .padding(10)
-        }
-    }
-}
-
-/// Volatile capture/recall of the current DSP settings into two comparison slots, for A/B
-/// listening without replacing the profile's identity or leaving the editing session.
-private struct ABControls: View {
-    let slotA: DSPSettings?
-    let slotB: DSPSettings?
-    let onCaptureA: () -> Void
-    let onRecallA: () -> Void
-    let onCaptureB: () -> Void
-    let onRecallB: () -> Void
-
-    var body: some View {
-        GroupBox("A/B compare") {
-            VStack(alignment: .leading, spacing: 12) {
-                HStack {
-                    Button("Capture A", systemImage: "a.circle", action: onCaptureA)
-                        .help("Capture the current DSP settings into slot A")
-                    Button("Recall A", systemImage: "arrow.uturn.backward", action: onRecallA)
-                        .disabled(slotA == nil)
-                        .help("Replace the current DSP settings with slot A's capture")
-                }
-                HStack {
-                    Button("Capture B", systemImage: "b.circle", action: onCaptureB)
-                        .help("Capture the current DSP settings into slot B")
-                    Button("Recall B", systemImage: "arrow.uturn.backward", action: onRecallB)
-                        .disabled(slotB == nil)
-                        .help("Replace the current DSP settings with slot B's capture")
-                }
             }
             .padding(10)
         }

@@ -25,7 +25,7 @@ The complete repository gate is `bash Scripts/check.sh`. It includes shared and 
 
 `WorkbenchModel` is the single `@Observable` source of truth: it owns the library, mediates every mutation through validation, registers native undo via the window's `UndoManager`, and debounces persistence. A failed load never blocks editing or quitting; it surfaces through the storage status line while edits continue in memory until storage recovers.
 
-Two volatile A/B slots hold a captured `DSPSettings` snapshot each, for comparing variations during a single editing session. Capture copies the current profile's DSP settings into a slot; recall replaces only the current profile's DSP settings with a slot's capture, through the same validated edit transaction as any other change, so it advances the revision and supports undo. Neither slot is serialized, included in the saved library, or sent to a connected SoundBox on its own; they exist only in memory and are lost when the app quits. The inspector's "A/B compare" group exposes capture and recall for both slots, with recall disabled until its slot has been captured.
+Two volatile A/B slots hold a captured `DSPSettings` snapshot each, for comparing variations during a single editing session. Capture copies the current profile's DSP settings into a slot; recall replaces only the current profile's DSP settings with a slot's capture, through the same validated edit transaction as any other change, so it advances the revision and supports undo. Neither slot is serialized, included in the saved library, or sent to a connected SoundBox on its own; they exist only in memory and are lost when the app quits. This is model-layer only for now; the inspector has no A/B controls.
 
 ## Driver library
 
