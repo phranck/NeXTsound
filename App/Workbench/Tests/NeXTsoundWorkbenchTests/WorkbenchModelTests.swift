@@ -132,10 +132,29 @@ struct WorkbenchModelTests {
         #expect(sent.settings.attenuationDb == -6)
     }
 
-    @Test func applyingToTheBoardWithoutAConnectionSurfacesAnError() async {
+    @Test func applyingToTheBoardWithoutAConnectionIsASilentNoOp() async {
         let model = WorkbenchModel()
         await model.applyToBoard()
-        #expect(model.errorMessage != nil)
+        #expect(model.errorMessage == nil)
+    }
+
+    @Test func editingTheProfileAutomaticallyAppliesToAConnectedBoardAfterTheDebounce() async throws {
+        let (model, appliedSnapshots) = try await connectedModelWithFakeBoard()
+        var profile = model.profile
+        profile.settings.attenuationDb = -6
+        model.updateProfile(profile)
+
+        #expect(appliedSnapshots.snapshots.isEmpty, "The push is debounced, not immediate.")
+        try await Task.sleep(for: .milliseconds(400))
+        let sent = try #require(appliedSnapshots.snapshots.last)
+        #expect(sent.settings.attenuationDb == -6)
+    }
+
+    @Test func editingTheProfileWithoutAConnectionNeverCallsTheTransport() async throws {
+        let model = WorkbenchModel()
+        model.addProfile()
+        try await Task.sleep(for: .milliseconds(400))
+        #expect(model.errorMessage == nil)
     }
 
     @Test func aFailedApplySurfacesAnError() async throws {

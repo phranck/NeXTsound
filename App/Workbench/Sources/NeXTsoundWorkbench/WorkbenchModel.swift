@@ -15,6 +15,7 @@ public final class WorkbenchModel {
 
     @ObservationIgnored private let storage: (any ProfileLibraryStorage)?
     @ObservationIgnored private var saveTask: Task<Void, Never>?
+    @ObservationIgnored private var boardApplyTask: Task<Void, Never>?
     @ObservationIgnored private var hasStarted = false
     private var savedRevision: UInt64 = 0
 
@@ -125,6 +126,9 @@ public extension WorkbenchModel {
     /// exactly as edited. Never writes to flash, so a reconnect or power cycle reverts to the
     /// last persisted state.
     func applyToBoard() async {
+        guard case .verified = boards.state else {
+            return
+        }
         do {
             let snapshot = DeviceSnapshot(profileID: profile.id, profileRevision: profile.revision, settings: profile.settings)
             try await boards.apply(snapshot)
@@ -149,6 +153,7 @@ private extension WorkbenchModel {
             library = candidate
             registerUndo(previous, manager: undoManager, action: action)
             scheduleSave()
+            scheduleBoardApply()
         } catch {
             errorMessage = error.localizedDescription
         }
@@ -196,6 +201,20 @@ private extension WorkbenchModel {
                 }
                 storageError = error.localizedDescription
             }
+        }
+    }
+
+    /// Mirrors the current profile to the connected board after edits settle, so the signal
+    /// chain editor behaves like a live monitor rather than requiring a manual push. Debounced
+    /// the same way as `scheduleSave()`, and a no-op whenever no board is verified.
+    func scheduleBoardApply() {
+        boardApplyTask?.cancel()
+        boardApplyTask = Task { [weak self] in
+            try? await Task.sleep(for: .milliseconds(250))
+            guard !Task.isCancelled else {
+                return
+            }
+            await self?.applyToBoard()
         }
     }
 }
