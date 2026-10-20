@@ -1,14 +1,18 @@
 import NeXTsoundCore
 import SwiftUI
 
-struct DriverLibraryView: View {
+public struct DriverLibraryView: View {
     @Bindable var model: DriverLibraryModel
     @State private var selectedDriverID: UUID?
     @State private var draft: DriverRecord?
     @State private var validationError: String?
     @State private var isConfirmingDelete = false
 
-    var body: some View {
+    public init(model: DriverLibraryModel) {
+        self.model = model
+    }
+
+    public var body: some View {
         NavigationSplitView {
             DriverListColumn(
                 drivers: model.drivers,

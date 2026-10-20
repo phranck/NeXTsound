@@ -98,10 +98,6 @@ public extension WorkbenchModel {
         perform(undoManager: undoManager, action: "Edit profile") { try $0.updateSelected(proposed) }
     }
 
-    func applyPreset(_ preset: FactoryPreset, undoManager: UndoManager? = nil) {
-        perform(undoManager: undoManager, action: "Apply preset") { try $0.apply(preset) }
-    }
-
     func addProfile(undoManager: UndoManager? = nil) {
         perform(undoManager: undoManager, action: "New profile") { try $0.insert(SoundProfile(name: "New profile")) }
     }

@@ -96,16 +96,6 @@ public extension ProfileLibrary {
         profiles = profiles.map { $0.id == selectedID ? file.profile : $0 }
     }
 
-    mutating func apply(_ preset: FactoryPreset) throws {
-        var file = ProfileFile(profile: selectedProfile)
-        try file.apply(preset)
-        guard file.profile != selectedProfile else {
-            return
-        }
-        try advanceRevision()
-        profiles = profiles.map { $0.id == selectedID ? file.profile : $0 }
-    }
-
     mutating func insert(_ profile: SoundProfile) throws {
         try profile.validate()
         if let existing = profiles.first(where: { $0.id == profile.id }) {
