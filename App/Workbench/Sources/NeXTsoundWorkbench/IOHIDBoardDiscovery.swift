@@ -137,6 +137,12 @@ public final class USBHostBoardTransport: BoardTransport, @unchecked Sendable {
         )
         _ = try await exchangeUntilComplete(request)
     }
+
+    public func requestRuntimeStatus() async throws -> DeviceRuntimeStatus {
+        let request = WireMessage(operation: .status, requestID: .random(in: 1 ... .max))
+        let message = try await exchange(request)
+        return try WireCodec.decodeRuntimeStatus(message.payload)
+    }
 }
 
 private extension USBHostBoardTransport {

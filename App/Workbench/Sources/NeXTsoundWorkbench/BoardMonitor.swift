@@ -32,6 +32,8 @@ public protocol BoardTransport: Sendable {
     /// Applies a DSP snapshot to the audio owner for the next block. Never persists to flash;
     /// see `WireOperation.persistState` for that, which this transport does not yet implement.
     func applyState(_ snapshot: DeviceSnapshot) async throws
+    /// Sends the non-mutating runtime-status request and returns its validated reply. Never applies, persists, or resets.
+    func requestRuntimeStatus() async throws -> DeviceRuntimeStatus
 }
 
 public protocol BoardDiscovery: Sendable {

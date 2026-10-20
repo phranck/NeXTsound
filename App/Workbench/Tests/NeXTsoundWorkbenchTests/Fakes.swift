@@ -151,6 +151,10 @@ struct FakeBoardTransport: BoardTransport {
         }
     }
 
+    func requestRuntimeStatus() async throws -> DeviceRuntimeStatus {
+        DeviceRuntimeStatus()
+    }
+
     func applyState(_ snapshot: DeviceSnapshot) async throws {
         applyStateCalls?.increment()
         appliedSnapshots?.record(snapshot)

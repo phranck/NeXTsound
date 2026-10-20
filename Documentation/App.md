@@ -87,6 +87,12 @@ Its air region uses an explicit virtual front closure. It is not a qualified sea
 
 The `NXSUSBHostShim` target links Homebrew's `libusb` (`brew install libusb`) from `/opt/homebrew`, unlike the checksum-pinned tools above; it is not version-pinned. Homebrew on Apple Silicon only ships an arm64 build, so the app targets `ARCHS: arm64` in `App/project.yml` rather than the default universal set.
 
+```bash
+xcrun swift run --package-path App/Workbench NeXTsoundDiagnostics
+```
+
+Polls `NXS_OPERATION_STATUS` every 200 ms through the same `USBHostBoardTransport` the app uses, printing `isStreaming`/`inputPeak`/`outputPeak`/underrun and overrun counts/`maxProcessingUs`/mute state. Lets the owner watch the firmware's own view of the USB audio stream live, independent of CoreAudio and of this app's UI, for diagnosing whether audio data is reaching the board at all.
+
 ## Tests and rendering
 
 ```bash
