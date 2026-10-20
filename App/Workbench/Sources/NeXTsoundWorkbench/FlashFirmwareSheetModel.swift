@@ -12,18 +12,19 @@ final class FlashFirmwareSheetModel {
     }
 
     private(set) var outcome: Outcome = .idle
-    var selectedFirmwareURL: URL?
     let target: FlashTarget
 
     @ObservationIgnored private let service: FlashService?
+    @ObservationIgnored private let firmwareURL: URL?
 
-    init(target: FlashTarget, runner: (any PicotoolRunning)? = ProcessPicotoolRunner()) {
+    init(target: FlashTarget, runner: (any PicotoolRunning)? = ProcessPicotoolRunner(), firmwareBundle: Bundle = .module) {
         self.target = target
-        if let runner {
-            service = FlashService(runner: runner)
-        } else {
-            service = nil
+        service = runner.map { FlashService(runner: $0) }
+        firmwareURL = firmwareBundle.url(forResource: "nxs_firmware", withExtension: "uf2")
+        if service == nil {
             outcome = .failed(FlashError.picotoolUnavailable.errorDescription ?? "")
+        } else if firmwareURL == nil {
+            outcome = .failed(FlashError.firmwareUnavailable.errorDescription ?? "")
         }
     }
 }
@@ -39,7 +40,7 @@ extension FlashFirmwareSheetModel {
     func flash() {
         guard
             let service,
-            let selectedFirmwareURL,
+            let firmwareURL,
             !isRunning
         else {
             return
@@ -47,7 +48,7 @@ extension FlashFirmwareSheetModel {
         outcome = .running(.writingAndVerifying)
         Task {
             do {
-                try await service.flash(selectedFirmwareURL, target: target) { [weak self] phase in
+                try await service.flash(firmwareURL, target: target) { [weak self] phase in
                     Task { @MainActor in self?.outcome = .running(phase) }
                 }
                 outcome = .succeeded

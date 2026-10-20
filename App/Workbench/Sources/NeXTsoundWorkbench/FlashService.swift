@@ -19,6 +19,7 @@ extension FlashPhase {
 
 enum FlashError: Error, LocalizedError, Equatable {
     case picotoolUnavailable
+    case firmwareUnavailable
     case timedOut(FlashPhase)
     case commandFailed(FlashPhase, String)
 
@@ -26,6 +27,8 @@ enum FlashError: Error, LocalizedError, Equatable {
         switch self {
         case .picotoolUnavailable:
             String(localized: "The embedded picotool tool is missing from the app bundle.")
+        case .firmwareUnavailable:
+            String(localized: "The embedded firmware image is missing from the app bundle.")
         case let .timedOut(phase):
             String(localized: "Timed out \(phase.statusText).")
         case let .commandFailed(phase, output):
