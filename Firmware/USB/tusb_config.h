@@ -32,7 +32,9 @@
 #define CFG_TUD_AUDIO_FUNC_1_EP_OUT_SZ_MAX NXS_USB_MAX_AUDIO_PACKET
 #define CFG_TUD_AUDIO_FUNC_1_EP_OUT_SW_BUF_SZ (6u * NXS_USB_MAX_AUDIO_PACKET)
 #define CFG_TUD_AUDIO_ENABLE_FEEDBACK_EP 1
-/* The native Mac host uses full-speed 10.14 feedback in a three-byte endpoint. */
+/* macOS reads full-speed feedback as 10.14 in three bytes. TinyUSB 0.21.0 dropped this option and
+ * formats by UAC version alone; Firmware/ThirdParty/TinyUSB-0.21.0-full-speed-feedback-format.patch,
+ * applied by Scripts/bootstrap-firmware.sh, is what makes it effective again. */
 #define CFG_TUD_AUDIO_ENABLE_FEEDBACK_FORMAT_CORRECTION 1
 
 #endif
