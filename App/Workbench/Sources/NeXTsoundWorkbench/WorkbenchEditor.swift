@@ -53,27 +53,25 @@ private struct WorkbenchHeading: View {
             Spacer()
             Button("Flash Firmware", systemImage: "bolt") { isShowingFlashSheet = true }
                 .sheet(isPresented: $isShowingFlashSheet) {
-                    FlashFirmwareSheet(applicationSerial: applicationSerial)
+                    FlashFirmwareSheet(connectionState: connectionState)
                 }
         }
     }
 }
 
-private extension WorkbenchHeading {
-    var applicationSerial: String? {
-        guard case let .verified(capabilities) = connectionState else {
-            return nil
-        }
-        return capabilities.serial
-    }
-}
-
 private struct FlashFirmwareSheet: View {
+    let connectionState: BoardConnectionState
     @State private var model: FlashFirmwareSheetModel
     @Environment(\.dismiss) private var dismiss
 
-    init(applicationSerial: String?) {
-        _model = State(initialValue: FlashFirmwareSheetModel(target: FlashTarget(applicationSerial: applicationSerial)))
+    init(connectionState: BoardConnectionState) {
+        self.connectionState = connectionState
+        let serial: String? = if case let .verified(capabilities) = connectionState {
+            capabilities.serial
+        } else {
+            nil
+        }
+        _model = State(initialValue: FlashFirmwareSheetModel(target: FlashTarget(applicationSerial: serial)))
     }
 
     var body: some View {
@@ -85,6 +83,9 @@ private struct FlashFirmwareSheet: View {
                     .foregroundStyle(.secondary)
             }
             FlashOutcomeView(outcome: model.outcome)
+            if model.outcome == .succeeded {
+                RestartStatusView(connectionState: connectionState)
+            }
             HStack {
                 Spacer()
                 Button("Done") { dismiss() }
@@ -106,18 +107,45 @@ private struct FlashOutcomeView: View {
         case .idle:
             EmptyView()
         case let .running(phase):
-            Label {
+            VStack(alignment: .leading, spacing: 6) {
                 Text(phase.statusText.prefix(1).capitalized + phase.statusText.dropFirst() + "…")
-            } icon: {
-                ProgressView()
-                    .controlSize(.small)
+                ProgressView(value: phase.progress, total: 1)
+                    .progressViewStyle(.linear)
             }
         case .succeeded:
-            Label("Firmware flashed and verified.", systemImage: "checkmark.circle")
+            Label("Firmware written and verified.", systemImage: "checkmark.circle")
                 .foregroundStyle(.green)
         case let .failed(message):
             Label(message, systemImage: "exclamationmark.triangle")
                 .foregroundStyle(.red)
+        }
+    }
+}
+
+/// Picotool only ever talks to a device in BOOTSEL mode, so it cannot confirm the board came back
+/// up running the newly flashed firmware; `BoardMonitor`'s own HID discovery, already watching for
+/// exactly that reconnect, is the actual source for this.
+private struct RestartStatusView: View {
+    let connectionState: BoardConnectionState
+
+    var body: some View {
+        switch connectionState {
+        case let .verified(capabilities):
+            Label(
+                String(localized: "Board reconnected, running firmware \(capabilities.firmwareVersion)."),
+                systemImage: "checkmark.circle"
+            )
+            .foregroundStyle(.green)
+        case .mismatched:
+            Label("The board reconnected but did not verify; check it manually.", systemImage: "exclamationmark.triangle")
+                .foregroundStyle(.red)
+        case .disconnected, .detected:
+            Label {
+                Text("Waiting for the board to reconnect…")
+            } icon: {
+                ProgressView()
+                    .controlSize(.small)
+            }
         }
     }
 }
