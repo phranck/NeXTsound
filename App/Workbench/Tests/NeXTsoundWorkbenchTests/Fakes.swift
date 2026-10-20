@@ -108,6 +108,13 @@ final class SnapshotRecorder: @unchecked Sendable {
     }
 }
 
+final class FlashPhaseRecorder: @unchecked Sendable {
+    private(set) var phases: [FlashPhase] = []
+    func record(_ phase: FlashPhase) {
+        phases.append(phase)
+    }
+}
+
 struct FakeBoardTransport: BoardTransport {
     enum Behavior: Sendable {
         case success(DeviceCapabilities)
@@ -158,4 +165,26 @@ struct FakeBoardTransport: BoardTransport {
 
 func fixtureCapabilities(serial: String = "D4CDD489AFE28CC5") -> DeviceCapabilities {
     DeviceCapabilities(serial: serial, firmwareVersion: "1.0.0")
+}
+
+final class FakePicotoolRunner: PicotoolRunning, @unchecked Sendable {
+    private(set) var invocations: [[String]] = []
+    var exitCodeByCommand: [String: Int32] = [:]
+    var outputByCommand: [String: String] = [:]
+    /// How many "info" calls return "not found" before one succeeds; 0 means the first call succeeds.
+    var infoAttemptsBeforeSuccess = 0
+    private var infoAttempts = 0
+
+    func run(arguments: [String]) async throws -> (exitCode: Int32, output: String) {
+        invocations.append(arguments)
+        let command = arguments.first ?? ""
+        if command == "info" {
+            infoAttempts += 1
+            if infoAttempts <= infoAttemptsBeforeSuccess {
+                return (249, "No accessible RP-series devices in BOOTSEL mode were found.")
+            }
+            return (0, "")
+        }
+        return (exitCodeByCommand[command] ?? 0, outputByCommand[command] ?? "")
+    }
 }

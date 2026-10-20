@@ -3,6 +3,7 @@ set -euo pipefail
 source "$(dirname "${BASH_SOURCE[0]}")/common.sh"
 select_xcode
 bash "$root/Scripts/bootstrap-tools.sh"
+bash "$root/Scripts/bootstrap-picotool-usb.sh"
 
 NXS_XCODEGEN_VERSION=$(jq -r '.tools.xcodegen.version' "$manifest")
 NXS_MACOS_MINIMUM=$(xcrun swift package --package-path "$root/App/Workbench" dump-package | \

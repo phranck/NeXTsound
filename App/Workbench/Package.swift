@@ -19,7 +19,11 @@ let package = Package(
         .target(
             name: "NeXTsoundWorkbench",
             dependencies: ["NXSUSBHostShim", .product(name: "NeXTsoundCore", package: "Shared")],
-            resources: [.process("Resources")]
+            resources: [
+                .process("Resources/Localizable.xcstrings"),
+                // Built by Scripts/bootstrap-picotool-usb.sh; not committed, see .gitignore.
+                .copy("Resources/picotool"),
+            ]
         ),
         .executableTarget(
             name: "NeXTsoundWorkbenchRender",
