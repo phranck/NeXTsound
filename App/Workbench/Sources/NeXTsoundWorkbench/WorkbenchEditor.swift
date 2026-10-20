@@ -1,5 +1,6 @@
 import NeXTsoundCore
 import SwiftUI
+import UniformTypeIdentifiers
 
 struct WorkbenchEditor: View {
     @Binding var profile: SoundProfile
@@ -53,30 +54,94 @@ private struct WorkbenchHeading: View {
             Spacer()
             Button("Flash Firmware", systemImage: "bolt") { isShowingFlashSheet = true }
                 .sheet(isPresented: $isShowingFlashSheet) {
-                    FlashFirmwareSheet()
+                    FlashFirmwareSheet(applicationSerial: applicationSerial)
                 }
         }
     }
 }
 
+private extension WorkbenchHeading {
+    var applicationSerial: String? {
+        guard case let .verified(capabilities) = connectionState else {
+            return nil
+        }
+        return capabilities.serial
+    }
+}
+
 private struct FlashFirmwareSheet: View {
+    @State private var model: FlashFirmwareSheetModel
+    @State private var isChoosingFirmware = false
     @Environment(\.dismiss) private var dismiss
+
+    init(applicationSerial: String?) {
+        _model = State(initialValue: FlashFirmwareSheetModel(target: FlashTarget(applicationSerial: applicationSerial)))
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text("Flash firmware")
                 .font(.headline)
-            Text("Put the SoundBox into BOOTSEL mode before continuing.")
-            Text("Hold its BOOTSEL button while connecting the USB cable, or, if NeXTsound firmware is already installed, reboot it into BOOTSEL from the command line. Once the board enumerates in BOOTSEL mode, load the new firmware image onto it.")
-                .foregroundStyle(.secondary)
+            if model.target.applicationSerial == nil {
+                Text("Put the SoundBox into BOOTSEL mode before continuing: hold its BOOTSEL button while connecting the USB cable.")
+                    .foregroundStyle(.secondary)
+            }
+            FirmwareFileRow(url: model.selectedFirmwareURL) { isChoosingFirmware = true }
+            FlashOutcomeView(outcome: model.outcome)
             HStack {
                 Spacer()
                 Button("Done") { dismiss() }
+                Button("Flash") { model.flash() }
                     .keyboardShortcut(.defaultAction)
+                    .disabled(model.selectedFirmwareURL == nil || model.isRunning || model.outcome == .succeeded)
             }
         }
         .padding(16)
-        .frame(width: 360)
+        .frame(width: 420)
+        .fileImporter(isPresented: $isChoosingFirmware, allowedContentTypes: [UTType(filenameExtension: "uf2") ?? .data]) { result in
+            guard case let .success(url) = result else {
+                return
+            }
+            model.selectedFirmwareURL = url
+        }
+    }
+}
+
+private struct FirmwareFileRow: View {
+    let url: URL?
+    let onChoose: () -> Void
+
+    var body: some View {
+        HStack {
+            Text(url?.lastPathComponent ?? String(localized: "No firmware image selected"))
+                .foregroundStyle(url == nil ? .secondary : .primary)
+            Spacer()
+            Button("Choose…") { onChoose() }
+        }
+    }
+}
+
+private struct FlashOutcomeView: View {
+    let outcome: FlashFirmwareSheetModel.Outcome
+
+    var body: some View {
+        switch outcome {
+        case .idle:
+            EmptyView()
+        case let .running(phase):
+            Label {
+                Text(phase.statusText.prefix(1).capitalized + phase.statusText.dropFirst() + "…")
+            } icon: {
+                ProgressView()
+                    .controlSize(.small)
+            }
+        case .succeeded:
+            Label("Firmware flashed and verified.", systemImage: "checkmark.circle")
+                .foregroundStyle(.green)
+        case let .failed(message):
+            Label(message, systemImage: "exclamationmark.triangle")
+                .foregroundStyle(.red)
+        }
     }
 }
 
