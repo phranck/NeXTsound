@@ -1,0 +1,62 @@
+{
+  "schema_version": 1,
+  "date": "2026-10-21",
+  "scope": "Net internal air volume (Vb) for the one fixed NeXT Sound Box mini enclosure, for use in closed-box Thiele/Small alignment calculations (issue #19). Supersedes and replaces Enclosure-2026-10-18.json in full: that record described an earlier, not-yet-sealed design state and is no longer the current enclosure.",
+  "owner_statement": "The owner confirmed on 2026-10-21 that the current enclosure design (the STEP/STL export this record is based on) is the final, acoustically sealed state, replacing the prior design captured in Enclosure-2026-10-18.json.",
+  "method": {
+    "description": "Each part was exported separately from Shapr3D as a binary STL. Each STL's triangle mesh was decomposed into connected components (shared welded vertices, rounded to 1e-4 mm, graph connected-components via scipy.sparse.csgraph). Each component's enclosed volume was computed independently via the divergence theorem (signed sum of v0 . (v1 x v2) / 6 over all triangles, oriented outward). No CAD kernel (FreeCAD/OpenCascade) was used or installed for this record.",
+    "tooling": "python3 with numpy 2.5.3 and scipy 1.18.1, both already present on the development machine; no new software was installed.",
+    "scripts": "ad hoc, not committed to the repository (/tmp/stl_components.py, /tmp/stl_volume.py during the session that produced this record)"
+  },
+  "sources": [
+    {
+      "role": "interior_cavity",
+      "file_name": "Inneraum.stl",
+      "description": "Owner-modeled interior air cavity, exported as its own solid (Shapr3D boolean: exterior envelope minus both case shells).",
+      "bytes": 4253384,
+      "triangle_count": 85066,
+      "connected_components": 1,
+      "volume_liters": 0.196018,
+      "extent_mm": [80.50, 68.23, 65.21],
+      "sha256": null
+    },
+    {
+      "role": "driver_displacement",
+      "file_name": "Driver.stl",
+      "description": "Tectonic TEBM28C10-4/A chassis/driver body, exported alone.",
+      "bytes": 67265684,
+      "triangle_count": 1345312,
+      "connected_components": 5,
+      "volume_liters": 0.017153,
+      "extent_mm": [46.02, 41.65, 41.65],
+      "note": "Main body is one component (1,345,296 triangles, 17.153 cm^3); four degenerate zero-volume components (4 triangles each) are mesh noise and contribute ~0.",
+      "sha256": null
+    },
+    {
+      "role": "board_displacement",
+      "file_name": "RP2350.stl",
+      "description": "RP2350 PCB assembly (board plus all mounted connectors/components), exported alone.",
+      "bytes": 52560784,
+      "triangle_count": 1051214,
+      "connected_components": 84,
+      "volume_liters": 0.000533,
+      "extent_mm": [18.02, 23.52, 0.80],
+      "note": "Sum across all 84 components (main PCB body plus connectors, headers, and other mounted parts).",
+      "sha256": null
+    }
+  ],
+  "checksum_note": "The source STL files were temporary chat attachments on the owner's Desktop during this session and were removed before this record was written. No sha256 could be computed after the fact; this record relies on the triangle counts, volumes, and bounding boxes captured live during the session instead.",
+  "result": {
+    "interior_cavity_liters": 0.196018,
+    "driver_displacement_liters": 0.017153,
+    "board_displacement_liters": 0.000533,
+    "net_volume_liters": 0.178332,
+    "formula": "net_volume_liters = interior_cavity_liters - driver_displacement_liters - board_displacement_liters"
+  },
+  "limits": [
+    "Volumes are each file's mesh volume via the divergence theorem; this is exact for a watertight, consistently-oriented mesh and was not independently cross-checked against a second geometry kernel (e.g. FreeCAD/OpenCascade).",
+    "The interior cavity solid was modeled by the owner as a boolean result in Shapr3D; its correctness depends on that boolean operation, not re-derived here from the raw case/driver/board geometry.",
+    "Does not account for bracing, adhesive, foam/damping material, wiring, or any other non-modeled volume inside the cavity.",
+    "Coordinate origins differ between the four source files (each was exported as its own selection); only scalar volumes were used, not a spatial boolean across files."
+  ]
+}
