@@ -132,10 +132,49 @@ struct WorkbenchModelTests {
         #expect(sent.settings.attenuationDb == -6)
     }
 
-    @Test func applyingToTheBoardWithoutAConnectionSurfacesAnError() async {
+    @Test func applyingToTheBoardWithoutAConnectionIsASilentNoOp() async {
         let model = WorkbenchModel()
         await model.applyToBoard()
-        #expect(model.errorMessage != nil)
+        #expect(model.errorMessage == nil)
+    }
+
+    @Test func editingTheProfileAutomaticallyAppliesToAConnectedBoardAfterTheDebounce() async throws {
+        let (model, appliedSnapshots) = try await connectedModelWithFakeBoard()
+        var profile = model.profile
+        profile.settings.attenuationDb = -6
+        model.updateProfile(profile)
+
+        #expect(appliedSnapshots.snapshots.isEmpty, "The push is debounced, not immediate.")
+        try await Task.sleep(for: .milliseconds(400))
+        let sent = try #require(appliedSnapshots.snapshots.last)
+        #expect(sent.settings.attenuationDb == -6)
+    }
+
+    @Test func editingTheProfileWithoutAConnectionNeverCallsTheTransport() async throws {
+        let model = WorkbenchModel()
+        model.addProfile()
+        try await Task.sleep(for: .milliseconds(400))
+        #expect(model.errorMessage == nil)
+    }
+
+    @Test func cancellingAnInFlightApplyNeverSurfacesAnError() async throws {
+        let discovery = FakeBoardDiscovery()
+        let boards = BoardMonitor(discovery: discovery)
+        let model = WorkbenchModel(boards: boards)
+        boards.start()
+        let capabilities = fixtureCapabilities()
+        discovery.simulateConnect(
+            BoardIdentitySnapshot(vendorID: 1, productID: 2, enumeratedSerial: capabilities.serial),
+            transport: FakeBoardTransport(behavior: .success(capabilities), applyDelay: .seconds(5))
+        )
+        try await waitUntilVerified(boards)
+
+        let inFlight = Task { await model.applyToBoard() }
+        try await Task.sleep(for: .milliseconds(20))
+        inFlight.cancel()
+        _ = await inFlight.value
+
+        #expect(model.errorMessage == nil, "A superseded apply is expected, not a failure.")
     }
 
     @Test func aFailedApplySurfacesAnError() async throws {

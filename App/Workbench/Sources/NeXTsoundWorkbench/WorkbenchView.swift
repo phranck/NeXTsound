@@ -27,11 +27,6 @@ public struct WorkbenchView: View {
                 Button("Driver models", systemImage: "waveform.circle") { isShowingDriverLibrary = true }
                     .help("Manage the driver models used to calculate a sound profile")
             }
-            ToolbarItemGroup {
-                Button("Send to SoundBox", systemImage: "hifispeaker.fill") { Task { await model.applyToBoard() } }
-                    .disabled(!isBoardVerified)
-                    .help("Apply the current profile to the connected SoundBox for live listening, without persisting it")
-            }
         }
         .sheet(isPresented: $isShowingDriverLibrary) {
             DriverLibraryView(model: driverLibrary)
@@ -73,13 +68,6 @@ private extension WorkbenchView {
                 model.errorMessage = nil
             }
         })
-    }
-
-    var isBoardVerified: Bool {
-        if case .verified = model.boards.state {
-            return true
-        }
-        return false
     }
 }
 
