@@ -101,7 +101,7 @@ void nxs_usb_task(void) {
     advance_maintenance();
     update_transport();
     if (alternate != 0 && !suspended && tud_mounted()) {
-        uint32_t feedback = maintenance_active ? (NXS_SAMPLE_RATE_HZ / 1000u) << 16 : nxs_audio_engine_feedback();
+        uint32_t feedback = maintenance_active ? nxs_audio_nominal_feedback() : nxs_audio_engine_feedback();
         (void)tud_audio_n_fb_set(0, feedback);
     }
 }
@@ -219,6 +219,12 @@ bool tud_audio_set_itf_cb(uint8_t rhport, const tusb_control_request_t *request)
     alternate = (uint8_t)request->wValue;
     ++stream_epoch;
     update_transport();
+    /* TinyUSB sends a stream's first feedback packet right after this callback, with its feedback state
+     * cleared to 0. A host that sizes packets from that value, such as Circle on the Raspberry Pi, then
+     * builds empty ones, so the nominal rate stands in until nxs_usb_task reports the ring level. */
+    if (alternate != 0) {
+        (void)tud_audio_n_fb_set(0, nxs_audio_nominal_feedback());
+    }
     return true;
 }
 
