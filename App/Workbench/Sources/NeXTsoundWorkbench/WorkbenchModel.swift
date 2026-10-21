@@ -134,6 +134,15 @@ public extension WorkbenchModel {
         perform(undoManager: undoManager, action: "Delete profile") { try $0.removeSelected() }
     }
 
+    /// Sets the current profile's speaker to a snapshot of the given driver, or clears it, through
+    /// the normal edit transaction, so it advances the revision and supports undo like any other
+    /// edit. The driver library itself is never referenced live; see `SpeakerRecord.init(driver:)`.
+    func selectSpeaker(_ driver: DriverRecord?, undoManager: UndoManager? = nil) {
+        var proposed = profile
+        proposed.speaker = driver.map(SpeakerRecord.init(driver:))
+        perform(undoManager: undoManager, action: "Select speaker") { try $0.updateSelected(proposed) }
+    }
+
     func importProfile(at url: URL, undoManager: UndoManager? = nil) async {
         do {
             let imported = try await Task.detached { try ProfileLibraryStore.importedProfile(at: url) }.value

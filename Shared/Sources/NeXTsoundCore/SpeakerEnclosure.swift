@@ -33,6 +33,22 @@ public struct SpeakerRecord: Codable, Equatable, Identifiable, Sendable {
 }
 
 public extension SpeakerRecord {
+    /// Snapshots a driver library entry's identity, electrical/power specs, and provenance into
+    /// a profile's speaker record, matching the catalog/snapshot separation: a later edit to the
+    /// library entry never changes an already-saved profile.
+    init(driver: DriverRecord) {
+        id = driver.id
+        name = driver.name
+        manufacturer = driver.manufacturer
+        model = driver.model
+        nominalImpedanceOhms = driver.nominalImpedanceOhms
+        ratedPowerWatts = driver.ratedPowerWatts
+        recommendedHighPassHz = driver.recommendedHighPassHz
+        origin = driver.origin
+        sourceURLs = driver.sourceURLs
+        notes = driver.notes
+    }
+
     func validate() throws {
         let specifications = [nominalImpedanceOhms, ratedPowerWatts, recommendedHighPassHz].compactMap(\.self)
         guard

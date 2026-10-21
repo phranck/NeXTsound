@@ -5,12 +5,13 @@ import UniformTypeIdentifiers
 
 public struct WorkbenchView: View {
     @Bindable private var model: WorkbenchModel
+    private var driverLibrary: DriverLibraryModel
     @Environment(\.undoManager) private var undoManager
     @Environment(\.openWindow) private var openWindow
 
     public var body: some View {
         NavigationSplitView {
-            ProfileSidebar(model: model, undoManager: undoManager)
+            ProfileSidebar(model: model, driverLibrary: driverLibrary, undoManager: undoManager)
                 .navigationSplitViewColumnWidth(min: 210, ideal: 230, max: 280)
         } detail: {
             WorkbenchEditor(profile: profileBinding, board: boardHeading)
@@ -48,8 +49,9 @@ public struct WorkbenchView: View {
         }
     }
 
-    public init(model: WorkbenchModel) {
+    public init(model: WorkbenchModel, driverLibrary: DriverLibraryModel) {
         self.model = model
+        self.driverLibrary = driverLibrary
     }
 }
 

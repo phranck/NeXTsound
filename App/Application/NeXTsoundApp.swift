@@ -8,7 +8,7 @@ struct NeXTsoundApp: App {
 
     var body: some Scene {
         WindowGroup {
-            WorkbenchView(model: model)
+            WorkbenchView(model: model, driverLibrary: driverLibrary)
                 .task { await model.start() }
                 .task { await driverLibrary.start() }
         }
