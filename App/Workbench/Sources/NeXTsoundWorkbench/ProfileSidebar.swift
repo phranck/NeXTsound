@@ -10,7 +10,9 @@ struct ProfileSidebar: View {
         List(selection: selection) {
             ProfileListSection(profiles: model.library.profiles)
             SpeakerSection(speaker: model.profile.speaker)
-            StorageStatusSection(status: model.storageStatus)
+            if let status = model.storageStatus {
+                StorageStatusSection(status: status)
+            }
         }
         .listStyle(.sidebar)
     }

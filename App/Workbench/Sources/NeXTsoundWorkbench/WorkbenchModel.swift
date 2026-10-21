@@ -33,7 +33,9 @@ public final class WorkbenchModel {
     public private(set) var slotA: DSPSettings?
     public private(set) var slotB: DSPSettings?
 
-    public var storageStatus: String {
+    /// Nil once the library is loaded, unchanged, and persisted: nothing to report. Surfaces
+    /// loading, a save in progress, a storage error, or a non-persistent session otherwise.
+    public var storageStatus: String? {
         if !isReady {
             return String(localized: "Loading profiles…")
         }
@@ -43,9 +45,7 @@ public final class WorkbenchModel {
         if storage == nil {
             return String(localized: "Temporary profile session")
         }
-        return savedRevision == library.revision
-            ? String(localized: "Profiles saved on this Mac")
-            : String(localized: "Saving profiles…")
+        return savedRevision == library.revision ? nil : String(localized: "Saving profiles…")
     }
 
     /// Says whether the connected SoundBox starts with the settings it plays. Nil while no board is
