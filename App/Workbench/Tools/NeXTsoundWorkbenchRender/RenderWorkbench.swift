@@ -41,7 +41,8 @@ private extension RenderWorkbench {
         let boards = connected ? BoardMonitor(discovery: PreviewBoardDiscovery()) : nil
         let model = try WorkbenchModel(library: ProfileLibrary(profiles: [profile], selectedID: profile.id), boards: boards)
         model.boards.start()
-        let content = WorkbenchView(model: model)
+        let driverLibrary = DriverLibraryModel()
+        let content = WorkbenchView(model: model, driverLibrary: driverLibrary)
             .environment(\.colorScheme, scheme)
         let host = NSHostingView(rootView: content)
         host.appearance = nativeAppearance
