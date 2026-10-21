@@ -10,6 +10,9 @@ public struct Driver3DModelWindow: View {
     @Bindable var model: DriverLibraryModel
     let driverID: UUID
     @State private var isImporting = false
+    @State private var isPromptingURL = false
+    @State private var urlText = ""
+    @State private var isDownloading = false
     @State private var importError: String?
 
     public init(model: DriverLibraryModel, driverID: UUID) {
@@ -32,11 +35,22 @@ public struct Driver3DModelWindow: View {
         .frame(minWidth: 400, minHeight: 400)
         .toolbar {
             ToolbarItem {
-                Button("Add 3D Model", systemImage: "square.and.arrow.down", action: { isImporting = true })
-                    .help(driver?.model3DAssetName == nil ? "Add a 3D model" : "Replace the 3D model")
+                Menu {
+                    Button("Choose File…") { isImporting = true }
+                    Button("From URL…") { isPromptingURL = true }
+                } label: {
+                    Label("Add 3D Model", systemImage: isDownloading ? "arrow.down.circle" : "square.and.arrow.down")
+                }
+                .disabled(isDownloading)
+                .help(driver?.model3DAssetName == nil ? "Add a 3D model" : "Replace the 3D model")
             }
         }
         .fileImporter(isPresented: $isImporting, allowedContentTypes: Self.allowedContentTypes, onCompletion: handleImport)
+        .alert("3D Model URL", isPresented: $isPromptingURL) {
+            TextField("https://…", text: $urlText)
+            Button("Download") { startDownload() }
+            Button("Cancel", role: .cancel) { urlText = "" }
+        }
         .alert("The 3D model could not be imported", isPresented: errorIsPresented) {
             Button("OK", role: .cancel) { importError = nil }
         } message: {
@@ -90,6 +104,29 @@ private extension Driver3DModelWindow {
             }
         case let .failure(error):
             importError = error.localizedDescription
+        }
+    }
+
+    func startDownload() {
+        let remoteURL = URL(string: urlText)
+        urlText = ""
+        guard
+            let remoteURL,
+            var driver
+        else {
+            importError = DriverAssetStoreError.invalidURL.localizedDescription
+            return
+        }
+        isDownloading = true
+        Task {
+            defer { isDownloading = false }
+            do {
+                let name = try await DriverAssetStore.standard().importRemoteFile(from: remoteURL, forDriver: driver.id, role: "model")
+                driver.model3DAssetName = name
+                model.updateDriver(driver)
+            } catch {
+                importError = error.localizedDescription
+            }
         }
     }
 }

@@ -18,8 +18,11 @@ struct DriverForm: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 18) {
-                DriverPreviewHeader(draft: $draft)
-                ExpandAllToggle(sections: sections)
+                DriverPreviewHeader(draft: draft)
+                HStack {
+                    AddImageButton(draft: $draft)
+                    ExpandAllToggle(sections: sections)
+                }
                 CollapsibleSection(title: "Identity", systemImage: "tag", isExpanded: sections.identityBinding) {
                     IdentityGroup(draft: $draft, sourceURLText: $sourceURLText)
                 }

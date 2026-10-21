@@ -4,6 +4,8 @@ import NeXTsoundCore
 public enum DriverAssetStoreError: Error, Equatable, Sendable {
     case missingFileExtension
     case copyFailed
+    case invalidURL
+    case downloadFailed
 }
 
 extension DriverAssetStoreError: LocalizedError {
@@ -11,6 +13,8 @@ extension DriverAssetStoreError: LocalizedError {
         switch self {
         case .missingFileExtension: String(localized: "The chosen file has no file extension.")
         case .copyFailed: String(localized: "The file could not be imported.")
+        case .invalidURL: String(localized: "That's not a valid URL.")
+        case .downloadFailed: String(localized: "The file could not be downloaded.")
         }
     }
 }
@@ -64,5 +68,48 @@ public extension DriverAssetStore {
     func removeAsset(named name: String) {
         let url = directory.appendingPathComponent(name)
         try? FileManager.default.removeItem(at: url)
+    }
+
+    /// Downloads the file at `remoteURL` and imports it exactly like a locally picked file.
+    func importRemoteFile(from remoteURL: URL, forDriver driverID: UUID, role: String) async throws -> String {
+        guard remoteURL.scheme == "https" || remoteURL.scheme == "http" else {
+            throw DriverAssetStoreError.invalidURL
+        }
+        let downloadedURL: URL
+        let response: URLResponse
+        do {
+            (downloadedURL, response) = try await URLSession.shared.download(from: remoteURL)
+        } catch {
+            throw DriverAssetStoreError.downloadFailed
+        }
+        defer { try? FileManager.default.removeItem(at: downloadedURL) }
+        let extensionName = resolvedFileExtension(for: remoteURL, response: response)
+        guard !extensionName.isEmpty else {
+            throw DriverAssetStoreError.missingFileExtension
+        }
+        let renamed = downloadedURL.deletingLastPathComponent().appendingPathComponent(UUID().uuidString)
+            .appendingPathExtension(extensionName)
+        do {
+            try FileManager.default.moveItem(at: downloadedURL, to: renamed)
+        } catch {
+            throw DriverAssetStoreError.downloadFailed
+        }
+        defer { try? FileManager.default.removeItem(at: renamed) }
+        return try importFile(at: renamed, forDriver: driverID, role: role)
+    }
+}
+
+private extension DriverAssetStore {
+    func resolvedFileExtension(for remoteURL: URL, response: URLResponse) -> String {
+        if !remoteURL.pathExtension.isEmpty {
+            return remoteURL.pathExtension
+        }
+        if let suggested = response.suggestedFilename {
+            let suggestedExtension = (suggested as NSString).pathExtension
+            if !suggestedExtension.isEmpty {
+                return suggestedExtension
+            }
+        }
+        return ""
     }
 }

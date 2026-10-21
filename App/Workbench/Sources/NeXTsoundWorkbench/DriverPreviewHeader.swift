@@ -3,38 +3,56 @@ import NeXTsoundCore
 import SwiftUI
 import UniformTypeIdentifiers
 
-/// Shows the driver's image, with an affordance to add or replace it. The 3D model (if any)
-/// lives in its own window, opened from the form's toolbar; this header never shows it inline.
-/// Resizable in height via a drag handle, persisted.
+/// Shows the driver's image. The 3D model (if any) lives in its own window, opened from the
+/// form's toolbar; this header never shows it inline. Resizable in height via a drag handle,
+/// persisted. The "add/replace image" action sits outside this view, alongside the
+/// expand-all toggle (`AddImageButton`), not overlaid on the image itself.
 struct DriverPreviewHeader: View {
     static let minimumHeight: CGFloat = 120
     static let maximumHeight: CGFloat = 600
 
-    @Binding var draft: DriverRecord
+    let draft: DriverRecord
     @AppStorage("driverForm.previewHeight") private var height = 200.0
     @State private var dragStartHeight: CGFloat?
-    @State private var isImporting = false
-    @State private var importError: String?
 
     var body: some View {
         VStack(spacing: 0) {
-            ZStack(alignment: .topTrailing) {
-                imageOrPlaceholder
-                Button("Add Image", systemImage: "photo.badge.plus") {
-                    isImporting = true
-                }
-                .labelStyle(.iconOnly)
-                .buttonStyle(.plain)
-                .padding(8)
-                .help(draft.imageAssetName == nil ? "Add an image" : "Replace the image")
-            }
-            .frame(maxWidth: .infinity)
-            .frame(height: height)
-            .clipped()
+            imageOrPlaceholder
+                .frame(maxWidth: .infinity)
+                .frame(height: height)
+                .clipped()
             ResizeHandle(height: $height, dragStartHeight: $dragStartHeight)
         }
         .background(.quaternary.opacity(0.2), in: RoundedRectangle(cornerRadius: 10))
+    }
+}
+
+/// Adds or replaces the driver's image, from a local file or a URL the app downloads itself;
+/// placed next to `ExpandAllToggle` rather than overlaid on `DriverPreviewHeader`, so it reads
+/// as a form-level action.
+struct AddImageButton: View {
+    @Binding var draft: DriverRecord
+    @State private var isImporting = false
+    @State private var isPromptingURL = false
+    @State private var urlText = ""
+    @State private var isDownloading = false
+    @State private var importError: String?
+
+    var body: some View {
+        Menu {
+            Button("Choose File…") { isImporting = true }
+            Button("From URL…") { isPromptingURL = true }
+        } label: {
+            Label("Add Image", systemImage: isDownloading ? "arrow.down.circle" : "photo.badge.plus")
+        }
+        .disabled(isDownloading)
+        .help(draft.imageAssetName == nil ? "Add an image" : "Replace the image")
         .fileImporter(isPresented: $isImporting, allowedContentTypes: [.image], onCompletion: handleImport)
+        .alert("Image URL", isPresented: $isPromptingURL) {
+            TextField("https://…", text: $urlText)
+            Button("Download") { startDownload() }
+            Button("Cancel", role: .cancel) { urlText = "" }
+        }
         .alert("The image could not be imported", isPresented: errorIsPresented) {
             Button("OK", role: .cancel) { importError = nil }
         } message: {
@@ -85,7 +103,9 @@ private extension DriverPreviewHeader {
             ContentUnavailableView("No image yet", systemImage: "photo", description: Text("Add an image to show it here."))
         }
     }
+}
 
+private extension AddImageButton {
     var errorIsPresented: Binding<Bool> {
         Binding(get: { importError != nil }, set: {
             if !$0 {
@@ -105,6 +125,26 @@ private extension DriverPreviewHeader {
             }
         case let .failure(error):
             importError = error.localizedDescription
+        }
+    }
+
+    func startDownload() {
+        let remoteURL = URL(string: urlText)
+        urlText = ""
+        guard let remoteURL else {
+            importError = DriverAssetStoreError.invalidURL.localizedDescription
+            return
+        }
+        let driverID = draft.id
+        isDownloading = true
+        Task {
+            defer { isDownloading = false }
+            do {
+                let name = try await DriverAssetStore.standard().importRemoteFile(from: remoteURL, forDriver: driverID, role: "image")
+                draft.imageAssetName = name
+            } catch {
+                importError = error.localizedDescription
+            }
         }
     }
 }
