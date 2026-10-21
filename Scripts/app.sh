@@ -19,6 +19,6 @@ generator=$(tool_executable xcodegen)
 for configuration in Debug Release; do
     xcodebuild -quiet -project "$root/App/NeXTsound.xcodeproj" -scheme NeXTsound \
         -configuration "$configuration" -destination 'generic/platform=macOS' \
-        -derivedDataPath "$root/.build/macOS" CODE_SIGNING_ALLOWED=NO build
+        -derivedDataPath "$root/.build/macOS" build
     printf '%s app: %s\n' "$configuration" "$root/.build/macOS/Build/Products/$configuration/NeXTsound.app"
 done
