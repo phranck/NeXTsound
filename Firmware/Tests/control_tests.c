@@ -305,6 +305,8 @@ static void test_clock_and_host_controls(void) {
 static void test_packets_and_lifecycle(void) {
     initialize();
     set_alternate(1);
+    /* Opening a stream primes the nominal rate before the first feedback packet leaves (issue 61). */
+    CHECK(mock.feedback == 48u << 16);
     mock.available = NXS_DSP_BLOCK_FRAMES * 4;
     CHECK(tud_audio_rx_done_isr(0, mock.available, 0, NXS_USB_AUDIO_OUT_ENDPOINT, 1));
     CHECK(mock.received_frames == NXS_DSP_BLOCK_FRAMES && mock.available == 0);

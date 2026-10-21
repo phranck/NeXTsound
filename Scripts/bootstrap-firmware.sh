@@ -48,18 +48,22 @@ if [ ! -e "$sdk/lib/tinyusb/.git" ]; then
 fi
 tinyusb=$(jq -r '.firmware.pico_sdk.tinyusb_commit' "$manifest")
 # TinyUSB 0.21.0 formats the feedback endpoint by UAC version alone and sends a full-speed UAC2
-# device's value as 16.16 in four bytes, which macOS rejects on this three-byte endpoint. The patch
-# restores the 10.14 conversion behind CFG_TUD_AUDIO_ENABLE_FEEDBACK_FORMAT_CORRECTION (see
-# Firmware/USB/tusb_config.h) until upstream carries it again.
-feedback_patch="$root/Firmware/ThirdParty/TinyUSB-0.21.0-full-speed-feedback-format.patch"
+# device's value as 16.16 in four bytes, which macOS rejects on this three-byte endpoint, and it
+# sends a stream's first feedback packet before the set-interface callback can give it a value.
+# The patch restores the 10.14 conversion behind CFG_TUD_AUDIO_ENABLE_FEEDBACK_FORMAT_CORRECTION
+# (see Firmware/USB/tusb_config.h) and moves that first packet after the callback.
+feedback_patch="$root/Firmware/ThirdParty/TinyUSB-0.21.0-feedback.patch"
+# The check at the end allows no change in these files beyond the patch, so restoring them removes
+# the applied patch whichever version of it the checkout holds.
+restore_patched_files() {
+    git -C "$sdk/lib/tinyusb" apply --numstat "$feedback_patch" | cut -f3 | xargs git -C "$sdk/lib/tinyusb" checkout --
+}
 if [ "$(git -C "$sdk/lib/tinyusb" rev-parse HEAD)" != "$tinyusb" ]; then
     # Pico SDK's own lib/tinyusb pin has not moved across any of its releases through 2.3.1
     # (still 86ad6e56, Dec 2024), so a newer TinyUSB is checked out directly from its own
     # upstream remote (which the submodule already points at) instead of waiting on a Pico SDK
     # release to carry it. The feedback patch comes off first, so moving the pin starts clean.
-    if git -C "$sdk/lib/tinyusb" apply --reverse --check "$feedback_patch" 2>/dev/null; then
-        git -C "$sdk/lib/tinyusb" apply --reverse "$feedback_patch"
-    fi
+    restore_patched_files
     if [ -n "$(git -C "$sdk/lib/tinyusb" status --porcelain)" ]; then
         printf 'Refusing to replace a modified TinyUSB checkout.\n' >&2
         exit 1
@@ -72,6 +76,7 @@ if [ "$(git -C "$sdk/lib/tinyusb" rev-parse HEAD)" != "$tinyusb" ]; then
     exit 1
 fi
 if ! git -C "$sdk/lib/tinyusb" apply --reverse --check "$feedback_patch" 2>/dev/null; then
+    restore_patched_files
     git -C "$sdk/lib/tinyusb" apply "$feedback_patch"
 fi
 # lib/tinyusb deliberately shows as a modified submodule reference in the Pico SDK

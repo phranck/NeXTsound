@@ -54,6 +54,8 @@ void nxs_audio_ring_discard(nxs_audio_ring_t *ring);
 /** USB PCM16 and packed PCM24. Invalid packets leave output and frame count unchanged. */
 bool nxs_audio_decode(const uint8_t *packet, size_t length, uint8_t sample_bytes, float *stereo, size_t capacity, size_t *frames);
 uint32_t nxs_audio_i2s_sample(float mono);
+/** The nominal rate in 16.16 samples per USB frame, which the host keeps while the ring sits at its target. */
+uint32_t nxs_audio_nominal_feedback(void);
 /** Manual feedback in 16.16 samples per USB frame. */
 uint32_t nxs_audio_feedback(size_t queued_frames);
 

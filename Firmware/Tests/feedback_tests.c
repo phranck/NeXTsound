@@ -7,8 +7,9 @@
 
 /* TinyUSB's own audio class driver runs here against stubs of the usbd core, so the bytes it hands
  * to the feedback endpoint are read where the RP2350 driver would take them. macOS reads full-speed
- * feedback as 10.14 in exactly three bytes and rejects every other size (issue 43); the pinned
- * TinyUSB only does that with the feedback patch from Firmware/ThirdParty applied. */
+ * feedback as 10.14 in exactly three bytes and rejects every other size (issue 43), and a stream's
+ * first packet has to carry the value the firmware sets when the stream opens (issue 61). The pinned
+ * TinyUSB does both only with the feedback patch from Firmware/ThirdParty applied. */
 
 static struct {
     tusb_speed_t speed;
@@ -89,6 +90,16 @@ bool usbd_edpt_xfer(uint8_t rhport, uint8_t endpoint, uint8_t *buffer, uint16_t 
     return true;
 }
 
+/* Stands in for the firmware's own callback, which sets the nominal rate for a streaming alternate
+ * setting (issue 61). TinyUSB sends the first feedback packet of a stream only after this returns. */
+bool tud_audio_set_itf_cb(uint8_t rhport, const tusb_control_request_t *request) {
+    CHECK(rhport == 0 && request != NULL);
+    if (tu_u16_low(request->wValue) != 0) {
+        CHECK(tud_audio_n_fb_set(0, 48u << 16));
+    }
+    return true;
+}
+
 static void set_alternate(uint8_t alternate) {
     tusb_control_request_t request = {
         .bmRequestType = 0x01, .bRequest = TUSB_REQ_SET_INTERFACE, .wIndex = NXS_USB_AUDIO_STREAM_INTERFACE, .wValue = alternate};
@@ -117,9 +128,10 @@ int main(void) {
     CHECK(audiod_open(0, control, (uint16_t)(total_length - control_offset)) == NXS_USB_AUDIO_DESCRIPTOR_LENGTH - TUD_AUDIO20_DESC_IAD_LEN);
 
     set_alternate(1);
-    /* The driver arms the OUT endpoint and sends a first feedback packet before the firmware sets a value. */
+    /* The driver arms the OUT endpoint, and its first feedback packet already carries the nominal
+     * 48.0 frames the set-interface callback set, never the 0 a host would turn into an empty packet. */
     CHECK(host.out_transfers == 1 && host.feedback_transfers == 1);
-    check_feedback_bytes(3, 0x00, 0x00, 0x00);
+    check_feedback_bytes(3, 0x00, 0x00, 0x0c);
 
     /* 48.0 frames per millisecond in 16.16 is 0x00300000; in 10.14 it is 0x0c0000. */
     complete_feedback(48u << 16);
@@ -135,6 +147,15 @@ int main(void) {
     complete_feedback(48u << 16);
     check_feedback_bytes(4, 0x00, 0x00, 0x30);
     CHECK(host.feedback_bytes[3] == 0x00);
+
+    /* Closing the stream clears TinyUSB's feedback state, so a stream that opens again after a pause
+     * must still start from the callback's value. */
+    host.speed = TUSB_SPEED_FULL;
+    set_alternate(0);
+    unsigned int transfers = host.feedback_transfers;
+    set_alternate(1);
+    CHECK(host.feedback_transfers == transfers + 1);
+    check_feedback_bytes(3, 0x00, 0x00, 0x0c);
 
     set_alternate(0);
     return nxs_test_finish("USB feedback packet format");

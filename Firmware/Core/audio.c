@@ -170,6 +170,9 @@ uint32_t nxs_audio_feedback(size_t queued_frames) {
     } else if (correction < -maximum_correction) {
         correction = -maximum_correction;
     }
-    uint32_t nominal = (uint32_t)(((uint64_t)NXS_SAMPLE_RATE_HZ << 16) / 1000u);
-    return (uint32_t)((int32_t)nominal + correction);
+    return (uint32_t)((int32_t)nxs_audio_nominal_feedback() + correction);
+}
+
+uint32_t nxs_audio_nominal_feedback(void) {
+    return (uint32_t)(((uint64_t)NXS_SAMPLE_RATE_HZ << 16) / 1000u);
 }
