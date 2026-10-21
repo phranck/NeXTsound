@@ -137,9 +137,23 @@ public extension WorkbenchModel {
     /// Sets the current profile's speaker to a snapshot of the given driver, or clears it, through
     /// the normal edit transaction, so it advances the revision and supports undo like any other
     /// edit. The driver library itself is never referenced live; see `SpeakerRecord.init(driver:)`.
+    ///
+    /// When the driver's Fs, Qts, and Vas are all known, this also sets the electronic high-pass
+    /// to the resulting closed-box corner frequency against the one fixed enclosure
+    /// (`EnclosureRecord.nextSoundBoxMini()`) and enables it: a physically grounded starting point
+    /// for the box this product actually ships, not a measurement. A driver missing any of those
+    /// three values leaves the high-pass exactly as it was; no missing input is guessed. This is
+    /// the one part of #19's planned calculation that needs no data beyond what the driver library
+    /// and the fixed enclosure already carry. Attenuation, the EQ bands, and the limiter stay
+    /// untouched: setting any of them to a specific physical limit needs the amplifier/supply
+    /// voltage transfer this project does not have yet.
     func selectSpeaker(_ driver: DriverRecord?, undoManager: UndoManager? = nil) {
         var proposed = profile
         proposed.speaker = driver.map(SpeakerRecord.init(driver:))
+        if let driver, let alignment = try? ClosedBoxAlignment(driver: driver, enclosure: .nextSoundBoxMini()) {
+            proposed.settings.highPassEnabled = true
+            proposed.settings.highPassHz = Float(alignment.cornerFrequencyHz)
+        }
         perform(undoManager: undoManager, action: "Select speaker") { try $0.updateSelected(proposed) }
     }
 

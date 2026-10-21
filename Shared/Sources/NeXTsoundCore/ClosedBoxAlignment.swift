@@ -107,4 +107,13 @@ public extension ClosedBoxAlignment {
             netVolumeLiters: vbLiters
         )
     }
+
+    /// Convenience initializer reading Vb from an enclosure record's own net volume, so the one
+    /// fixed enclosure's figure (`EnclosureRecord.nextSoundBoxMini()`) is never copied by hand.
+    init(driver: DriverRecord, enclosure: EnclosureRecord) throws {
+        guard let netLiters = enclosure.volume?.netLiters else {
+            throw ClosedBoxAlignmentError.invalidNetVolume
+        }
+        try self.init(driver: driver, netVolumeLiters: netLiters)
+    }
 }
