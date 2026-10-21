@@ -77,13 +77,6 @@ public struct DriverRecord: Codable, Equatable, Identifiable, Sendable {
     public var ratedPowerWatts: Double?
     public var recommendedHighPassHz: Double?
 
-    /// Name of a bundled USDZ/Reality asset (`Bundle.module` resource) shown in the driver
-    /// preview header, if one has been added for this driver.
-    public var model3DAssetName: String?
-    /// Name of a bundled fallback image (`Bundle.module` resource), used when no 3D asset is
-    /// available or it fails to load.
-    public var imageAssetName: String?
-
     public init(id: UUID = UUID(), name: String = "Custom driver") {
         self.id = id
         self.name = name
@@ -112,8 +105,6 @@ public struct DriverRecord: Codable, Equatable, Identifiable, Sendable {
         frontProtrusionMillimeters = nil
         ratedPowerWatts = nil
         recommendedHighPassHz = nil
-        model3DAssetName = nil
-        imageAssetName = nil
     }
 }
 

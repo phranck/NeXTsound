@@ -10,10 +10,7 @@ let package = Package(
         .executable(name: "NeXTsoundWorkbenchRender", targets: ["NeXTsoundWorkbenchRender"]),
         .executable(name: "NeXTsoundDiagnostics", targets: ["NeXTsoundDiagnostics"]),
     ],
-    dependencies: [
-        .package(path: "../../Shared"),
-        .package(url: "https://github.com/SecondMouseAU/OCCTSwift.git", from: "3.0.0"),
-    ],
+    dependencies: [.package(path: "../../Shared")],
     targets: [
         .target(
             name: "NXSUSBHostShim",
@@ -22,20 +19,13 @@ let package = Package(
         ),
         .target(
             name: "NeXTsoundWorkbench",
-            dependencies: [
-                "NXSUSBHostShim",
-                .product(name: "NeXTsoundCore", package: "Shared"),
-                .product(name: "OCCTSwift", package: "OCCTSwift"),
-            ],
+            dependencies: ["NXSUSBHostShim", .product(name: "NeXTsoundCore", package: "Shared")],
             resources: [
                 .process("Resources/Localizable.xcstrings"),
                 // Built by Scripts/bootstrap-picotool-usb.sh and Scripts/firmware.sh; neither is
                 // committed, see .gitignore.
                 .copy("Resources/picotool"),
                 .copy("Resources/nxs_firmware.uf2"),
-                // The reference driver's chassis, decimated to a 0.5 mm vertex grid from the
-                // owner's STL export; shown in the driver library's 3D preview.
-                .copy("Resources/TEBM28C10-4-Driver.stl"),
             ]
         ),
         .executableTarget(
@@ -50,11 +40,7 @@ let package = Package(
         ),
         .testTarget(
             name: "NeXTsoundWorkbenchTests",
-            dependencies: [
-                "NeXTsoundWorkbench",
-                .product(name: "NeXTsoundCore", package: "Shared"),
-                .product(name: "OCCTSwift", package: "OCCTSwift"),
-            ]
+            dependencies: ["NeXTsoundWorkbench", .product(name: "NeXTsoundCore", package: "Shared")]
         ),
     ]
 )
