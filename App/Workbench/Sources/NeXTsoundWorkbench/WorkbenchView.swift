@@ -13,7 +13,7 @@ public struct WorkbenchView: View {
             ProfileSidebar(model: model, undoManager: undoManager)
                 .navigationSplitViewColumnWidth(min: 210, ideal: 230, max: 280)
         } detail: {
-            WorkbenchEditor(profile: profileBinding, connectionState: model.boards.state, onRenameBoard: { await model.renameBoard($0) })
+            WorkbenchEditor(profile: profileBinding, board: boardHeading)
         }
         .font(.body)
         .tint(WorkbenchTheme.amber)
@@ -56,6 +56,16 @@ public struct WorkbenchView: View {
 private extension WorkbenchView {
     var profileBinding: Binding<SoundProfile> {
         Binding(get: { model.profile }, set: { model.updateProfile($0, undoManager: undoManager) })
+    }
+
+    var boardHeading: BoardHeading {
+        BoardHeading(
+            connectionState: model.boards.state,
+            storageStatus: model.boardStorageStatus,
+            canSave: model.canSaveToBoard,
+            onRename: { await model.renameBoard($0) },
+            onSave: { await model.saveToBoard() }
+        )
     }
 
     var errorIsPresented: Binding<Bool> {

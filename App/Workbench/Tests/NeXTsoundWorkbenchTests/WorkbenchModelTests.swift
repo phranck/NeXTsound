@@ -224,16 +224,10 @@ struct WorkbenchModelTests {
     }
 
     @Test func cancellingAnInFlightApplyNeverSurfacesAnError() async throws {
-        let discovery = FakeBoardDiscovery()
-        let boards = BoardMonitor(discovery: discovery)
-        let model = WorkbenchModel(boards: boards)
-        boards.start()
-        let capabilities = fixtureCapabilities()
-        discovery.simulateConnect(
-            BoardIdentitySnapshot(vendorID: 1, productID: 2, enumeratedSerial: capabilities.serial),
-            transport: FakeBoardTransport(behavior: .success(capabilities), applyDelay: .seconds(5))
-        )
-        try await waitUntilVerified(boards)
+        let model = try await WorkbenchModel(boards: verifiedMonitor(FakeBoardTransport(
+            behavior: .success(fixtureCapabilities()),
+            applyDelay: .seconds(5)
+        )))
 
         let inFlight = Task { await model.applyToBoard() }
         try await Task.sleep(for: .milliseconds(20))
@@ -244,17 +238,12 @@ struct WorkbenchModelTests {
     }
 
     @Test func rapidEditsWhileAnApplyIsInFlightCollapseIntoOneFollowUpCall() async throws {
-        let discovery = FakeBoardDiscovery()
-        let boards = BoardMonitor(discovery: discovery)
-        let model = WorkbenchModel(boards: boards)
-        boards.start()
-        let capabilities = fixtureCapabilities()
         let calls = CallCounter()
-        discovery.simulateConnect(
-            BoardIdentitySnapshot(vendorID: 1, productID: 2, enumeratedSerial: capabilities.serial),
-            transport: FakeBoardTransport(behavior: .success(capabilities), applyStateCalls: calls, applyDelay: .milliseconds(200))
-        )
-        try await waitUntilVerified(boards)
+        let model = try await WorkbenchModel(boards: verifiedMonitor(FakeBoardTransport(
+            behavior: .success(fixtureCapabilities()),
+            applyStateCalls: calls,
+            applyDelay: .milliseconds(200)
+        )))
 
         async let first: Void = model.applyToBoard()
         try await Task.sleep(for: .milliseconds(10))
@@ -267,16 +256,10 @@ struct WorkbenchModelTests {
     }
 
     @Test func aFailedApplySurfacesAnError() async throws {
-        let discovery = FakeBoardDiscovery()
-        let boards = BoardMonitor(discovery: discovery)
-        let model = WorkbenchModel(boards: boards)
-        boards.start()
-        let capabilities = fixtureCapabilities()
-        discovery.simulateConnect(
-            BoardIdentitySnapshot(vendorID: 1, productID: 2, enumeratedSerial: capabilities.serial),
-            transport: FakeBoardTransport(behavior: .success(capabilities), applyError: .invalidReport)
-        )
-        try await waitUntilVerified(boards)
+        let model = try await WorkbenchModel(boards: verifiedMonitor(FakeBoardTransport(
+            behavior: .success(fixtureCapabilities()),
+            applyError: .invalidReport
+        )))
 
         await model.applyToBoard()
         #expect(model.errorMessage != nil)
@@ -286,28 +269,11 @@ struct WorkbenchModelTests {
 @MainActor
 private extension WorkbenchModelTests {
     func connectedModelWithFakeBoard() async throws -> (WorkbenchModel, SnapshotRecorder) {
-        let discovery = FakeBoardDiscovery()
-        let boards = BoardMonitor(discovery: discovery)
-        let model = WorkbenchModel(boards: boards)
-        boards.start()
-        let capabilities = fixtureCapabilities()
         let appliedSnapshots = SnapshotRecorder()
-        discovery.simulateConnect(
-            BoardIdentitySnapshot(vendorID: 1, productID: 2, enumeratedSerial: capabilities.serial),
-            transport: FakeBoardTransport(behavior: .success(capabilities), appliedSnapshots: appliedSnapshots)
-        )
-        try await waitUntilVerified(boards)
+        let model = try await WorkbenchModel(boards: verifiedMonitor(FakeBoardTransport(
+            behavior: .success(fixtureCapabilities()),
+            appliedSnapshots: appliedSnapshots
+        )))
         return (model, appliedSnapshots)
-    }
-
-    func waitUntilVerified(_ monitor: BoardMonitor, timeout: Duration = .seconds(1)) async throws {
-        let deadline = ContinuousClock.now + timeout
-        while ContinuousClock.now < deadline {
-            if case .verified = monitor.state {
-                return
-            }
-            try await Task.sleep(for: .milliseconds(5))
-        }
-        throw FakeStorageError.simulatedFailure
     }
 }

@@ -132,8 +132,15 @@ private struct PreviewBoardTransport: BoardTransport {
 
     func applyState(_: DeviceSnapshot) async throws {}
 
+    func persistState() async throws {}
+
     func requestRuntimeStatus() async throws -> DeviceRuntimeStatus {
         DeviceRuntimeStatus()
+    }
+
+    /// Unsaved, so the connected render shows the storage status line and an enabled save button.
+    func requestStorageState() async throws -> BoardStorageState {
+        .unsaved
     }
 }
 
