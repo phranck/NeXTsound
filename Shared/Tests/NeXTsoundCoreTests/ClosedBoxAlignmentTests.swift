@@ -98,4 +98,15 @@ struct ClosedBoxAlignmentTests {
             try ClosedBoxAlignment(driver: .tectonicTEBM28C10_4B(), netVolumeLiters: 0.178332)
         }
     }
+
+    @Test func enclosureConvenienceInitializerReadsVbFromTheEnclosuresOwnVolume() throws {
+        let alignment = try ClosedBoxAlignment(driver: .tectonicTEBM28C10_4(), enclosure: .nextSoundBoxMini())
+        #expect(abs(alignment.cornerFrequencyHz - 176.394_613) < 0.000_1)
+    }
+
+    @Test func enclosureWithoutAVolumeIsRejectedByName() {
+        #expect(throws: ClosedBoxAlignmentError.invalidNetVolume) {
+            try ClosedBoxAlignment(driver: .tectonicTEBM28C10_4(), enclosure: EnclosureRecord())
+        }
+    }
 }

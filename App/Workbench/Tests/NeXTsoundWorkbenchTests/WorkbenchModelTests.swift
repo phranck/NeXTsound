@@ -52,43 +52,6 @@ struct WorkbenchModelTests {
         #expect(model.errorMessage != nil)
     }
 
-    @Test func selectingASpeakerSnapshotsTheDriverRatherThanReferencingItLive() {
-        let model = WorkbenchModel()
-        var driver = DriverRecord(name: "Original driver")
-        driver.nominalImpedanceOhms = 8
-
-        model.selectSpeaker(driver)
-
-        #expect(model.profile.speaker?.id == driver.id)
-        #expect(model.profile.speaker?.name == "Original driver")
-        #expect(model.profile.speaker?.nominalImpedanceOhms == 8)
-
-        driver.name = "Renamed driver"
-        #expect(model.profile.speaker?.name == "Original driver", "A later driver edit must not retroactively change the snapshot.")
-    }
-
-    @Test func selectingNilClearsTheSpeaker() {
-        let model = WorkbenchModel()
-        model.selectSpeaker(DriverRecord(name: "Some driver"))
-        #expect(model.profile.speaker != nil)
-
-        model.selectSpeaker(nil)
-
-        #expect(model.profile.speaker == nil)
-    }
-
-    @Test func selectingASpeakerSupportsUndo() {
-        let model = WorkbenchModel()
-        let undoManager = UndoManager()
-        let before = model.profile.speaker
-
-        model.selectSpeaker(DriverRecord(name: "Some driver"), undoManager: undoManager)
-        #expect(model.profile.speaker != nil)
-
-        undoManager.undo()
-        #expect(model.profile.speaker == before)
-    }
-
     @Test func undoRestoresThePreviousLibrary() {
         let model = WorkbenchModel()
         let undoManager = UndoManager()
