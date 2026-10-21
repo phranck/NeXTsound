@@ -18,6 +18,9 @@ struct DriverForm: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 18) {
+                Text(draft.name.isEmpty ? String(localized: "Untitled") : draft.name)
+                    .font(.title2.weight(.semibold))
+                    .textSelection(.enabled)
                 DriverPreviewHeader(draft: draft)
                 HStack {
                     AddImageButton(draft: $draft)
