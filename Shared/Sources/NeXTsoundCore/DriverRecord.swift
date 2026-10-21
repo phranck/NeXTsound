@@ -384,4 +384,78 @@ public extension DriverRecord {
         """
         return driver
     }
+
+    /// A candidate miniature full-range driver read from Visaton's own shared datasheet for
+    /// the BF 37 family (05.10.2018, catalog year 2026), which covers both impedance variants
+    /// on one sheet. Optimized for small vented enclosures/passive-radiator enclosures per
+    /// Visaton's own description, not the sealed enclosure this product actually uses.
+    static func visatonBF37_4() -> DriverRecord {
+        let id = UUID(uuid: (0x5C, 0x6F, 0xA3, 0xB6, 0x34, 0xDB, 0x4C, 0x65, 0x93, 0xFA, 0x91, 0xD4, 0xE1, 0xDA, 0x87, 0xCD))
+        var driver = DriverRecord(id: id, name: "Visaton BF 37 - 4 Ohm")
+        driver.manufacturer = "Visaton"
+        driver.model = "BF 37 (Art. No. 2260)"
+        driver.origin = .datasheet
+        driver.sourceURLs = [
+            URL(string: "https://www.visaton.de/sites/default/files/dd_product/BF37-4-8-Ohm_datasheet_2.pdf")!,
+        ]
+        driver.nominalImpedanceOhms = 4
+        driver.fsHz = 170
+        driver.xmaxMillimeters = 3.4
+        driver.frameDiameterMillimeters = 41
+        driver.mountingPitchCircleDiameterMillimeters = 35.5
+        driver.mountingHoleDiameterMillimeters = 2.5
+        driver.mountingHoleCount = 4
+        driver.ratedPowerWatts = 5
+        driver.notes = """
+        Datasheet dated 05.10.2018 (2026 catalog reprint), shared across both impedance \
+        variants (Art. No. 2260 = 4 ohm, 2261 = 8 ohm). As with FR 58, Visaton's own sheet \
+        gives only these basic values, not a full Thiele/Small table; \
+        qts/qes/qms/vasLiters/sdSquareCentimeters/mmsGrams/blTeslaMeters/reOhms/\
+        leMillihenries all stay nil rather than taken from third-party aggregations that \
+        cannot be checked against Visaton's own source. xmaxMillimeters holds the sheet's \
+        own "excursion limit xmech" (+/-3.4 mm), a mechanical limit, not a linear-excursion \
+        rating. Overall depth is 23.8 mm; the drawing gives two further depth figures \
+        (21.5 mm, 12 mm) without labeling which marks a front/rear split, so \
+        frontProtrusionMillimeters and rearDepthMillimeters stay nil rather than guessed. No \
+        official CAD/3D model was found on Visaton's product page, which offers only the \
+        datasheet.
+        """
+        return driver
+    }
+
+    /// The 8 ohm counterpart to `visatonBF37_4()`, same physical part and datasheet, Art. \
+    /// No. 2261.
+    static func visatonBF37_8() -> DriverRecord {
+        let id = UUID(uuid: (0xF3, 0x69, 0x43, 0x89, 0x64, 0x50, 0x4F, 0x1C, 0x85, 0xC6, 0xE0, 0x46, 0x70, 0xC4, 0xE4, 0x25))
+        var driver = DriverRecord(id: id, name: "Visaton BF 37 - 8 Ohm")
+        driver.manufacturer = "Visaton"
+        driver.model = "BF 37 (Art. No. 2261)"
+        driver.origin = .datasheet
+        driver.sourceURLs = [
+            URL(string: "https://www.visaton.de/sites/default/files/dd_product/BF37-4-8-Ohm_datasheet_2.pdf")!,
+        ]
+        driver.nominalImpedanceOhms = 8
+        driver.fsHz = 170
+        driver.xmaxMillimeters = 3.4
+        driver.frameDiameterMillimeters = 41
+        driver.mountingPitchCircleDiameterMillimeters = 35.5
+        driver.mountingHoleDiameterMillimeters = 2.5
+        driver.mountingHoleCount = 4
+        driver.ratedPowerWatts = 5
+        driver.notes = """
+        Datasheet dated 05.10.2018 (2026 catalog reprint), shared across both impedance \
+        variants (Art. No. 2260 = 4 ohm, 2261 = 8 ohm). As with FR 58, Visaton's own sheet \
+        gives only these basic values, not a full Thiele/Small table; \
+        qts/qes/qms/vasLiters/sdSquareCentimeters/mmsGrams/blTeslaMeters/reOhms/\
+        leMillihenries all stay nil rather than taken from third-party aggregations that \
+        cannot be checked against Visaton's own source. xmaxMillimeters holds the sheet's \
+        own "excursion limit xmech" (+/-3.4 mm), a mechanical limit, not a linear-excursion \
+        rating. Overall depth is 23.8 mm; the drawing gives two further depth figures \
+        (21.5 mm, 12 mm) without labeling which marks a front/rear split, so \
+        frontProtrusionMillimeters and rearDepthMillimeters stay nil rather than guessed. No \
+        official CAD/3D model was found on Visaton's product page, which offers only the \
+        datasheet.
+        """
+        return driver
+    }
 }
