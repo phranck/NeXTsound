@@ -12,7 +12,7 @@ struct NumericFieldRow: View {
     var body: some View {
         HStack {
             Text(title)
-            Spacer(minLength: 8)
+                .frame(width: 190, alignment: .leading)
             TextField(title, value: $value, format: .number.precision(.fractionLength(fractionDigits)))
                 .textFieldStyle(.roundedBorder)
                 .multilineTextAlignment(.trailing)
@@ -21,6 +21,7 @@ struct NumericFieldRow: View {
                 .accessibilityLabel(title)
             Text(unit)
                 .foregroundStyle(.secondary)
+                .frame(width: 36, alignment: .leading)
         }
     }
 }
