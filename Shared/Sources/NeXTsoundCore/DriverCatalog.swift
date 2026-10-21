@@ -32,7 +32,6 @@ public extension DriverRecord {
         driver.mountingPitchCircleDiameterMillimeters = 48.0
         driver.mountingHoleCount = 4
         driver.ratedPowerWatts = 10
-        driver.model3DAssetName = "TEBM28C10-4-Driver.stl"
         driver.notes = """
         Datasheet identifies the model as TEBM28C10-4/A; the CAD reference labels it \
         TEBM28C10-4B. The correspondence between this physical unit and either identity is \
@@ -42,17 +41,7 @@ public extension DriverRecord {
         excursion as 8.0 mm peak-to-peak; xmaxMillimeters holds half of that (4.0 mm one-way) \
         to match this field's one-way convention. Mounting pitch circle diameter (48.0 mm) and \
         hole count (4, read directly from the outline drawing) agree with the independently \
-        measured enclosure CAD record's pilot pattern. The bundled 3D preview is Tectonic \
-        Audio Labs' own published TEBM28C10-4B CAD model (SolidWorks 2023, STEP AP214, \
-        "TEBM28C10-4 Space Model.STEP", from \
-        https://www.tectonicaudiolabs.com/product-family/tebm28c-family), tessellated to STL \
-        via OpenCascade (through cadquery) at 0.05 mm linear / 0.2 rad angular tolerance; no \
-        further decimation. Bounding box (46.04 x 46.04 x 25.77 mm) matches the datasheet \
-        frame diameter and the independently measured enclosure CAD record's driver axial \
-        extent. Tectonic's product page serves this identical file (confirmed by sha256) for \
-        the -4/A, -4B, and -4BE downloads alike, so it is the mechanical envelope shared by \
-        all three, not merely a -4B stand-in; it is a preview aid, not an additional \
-        geometric source for this unit's own electrical/Thiele-Small parameters.
+        measured enclosure CAD record's pilot pattern.
         """
         return driver
     }
@@ -85,7 +74,6 @@ public extension DriverRecord {
         driver.mountingHoleDiameterMillimeters = 3.3
         driver.mountingHoleCount = 4
         driver.ratedPowerWatts = 10
-        driver.model3DAssetName = "TEBM28C10-4-Driver.stl"
         driver.notes = """
         Datasheet revision E, 4/7/2026. Qes/Qms are not given, only the combined Qts. Vas is \
         not given; Cms (0.67 mm/N) and Mms are, but Vas is not computed from them here since \
@@ -94,11 +82,7 @@ public extension DriverRecord {
         rearDepthMillimeters stay nil rather than guessed. Max linear excursion is stated as \
         2.8 mm peak-to-peak (Klippel LSI); xmaxMillimeters holds half of that (1.4 mm \
         one-way). Mounting pitch circle (48.0 mm from a 33.9 mm square hole spacing) and hole \
-        diameter (3.3 mm) match the independently measured enclosure CAD record. The bundled \
-        3D preview is this exact model's own CAD file: Tectonic Audio Labs' product page \
-        serves the identical "TEBM28C10-4 Space Model.STEP" (same sha256) for the -4/A, -4B, \
-        and -4BE product-page downloads alike, confirming the three share one mechanical \
-        envelope and differ only in internal tuning.
+        diameter (3.3 mm) match the independently measured enclosure CAD record.
         """
         return driver
     }
@@ -132,18 +116,13 @@ public extension DriverRecord {
         driver.mountingHoleDiameterMillimeters = 3.3
         driver.mountingHoleCount = 4
         driver.ratedPowerWatts = 10
-        driver.model3DAssetName = "TEBM28C10-4-Driver.stl"
         driver.notes = """
         Datasheet revision D, 1/20/2025. Qes/Qms are not given, only the combined Qts. Vas is \
         not given; Cms (0.88 mm/N) and Mms are, but Vas is not computed from them here since \
         the datasheet does not state it directly. Overall depth is 24 mm; front/rear split \
         stays nil for the same reason as TEBM28C10-4B. Max linear excursion is stated as \
         2.8 mm peak-to-peak (Klippel LSI); xmaxMillimeters holds half of that (1.4 mm \
-        one-way). Mounting pitch circle and hole diameter match TEBM28C10-4B's drawing. The \
-        bundled 3D preview is Tectonic Audio Labs' published "TEBM28C10-4 Space Model.STEP"; \
-        its product page serves this identical file (confirmed by sha256) for the -4/A, -4B, \
-        and -4BE downloads alike, so it is the shared mechanical envelope, not an additional \
-        geometric source for this unit's own electrical parameters.
+        one-way). Mounting pitch circle and hole diameter match TEBM28C10-4B's drawing.
         """
         return driver
     }
@@ -182,12 +161,7 @@ public extension DriverRecord {
         datasheet, unlike the Tectonic family's peak-to-peak convention, so no conversion is \
         applied here. The mounting holes are called out as "4-M3" (M3 thread), not a measured \
         clearance diameter; mountingHoleDiameterMillimeters holds the M3 nominal size (3.0 mm) \
-        as the closest available reading, not a measured clearance hole. Dayton Audio does \
-        publish an official "3D File" for this part (daytonaudio.com/product/1921 and the \
-        Parts Express listing both link one), but both download endpoints sit behind an \
-        Incapsula bot challenge that an automated fetch cannot pass without impersonating a \
-        browser; no model3DAssetName is set here rather than attempt that. A human downloading \
-        it directly from either page can add it.
+        as the closest available reading, not a measured clearance hole.
         """
         return driver
     }
@@ -221,11 +195,7 @@ public extension DriverRecord {
         xmaxMillimeters holds the sheet's own "excursion limit xmech" (+/-2.5 mm), the only \
         excursion figure this sheet gives; it is a mechanical limit, not a linear-excursion \
         rating. Cutout diameter is 57 mm. 2.3" overall diameter is somewhat larger than the \
-        requested 1.5"-2" range. No official CAD/3D model was found: Visaton's own product \
-        page offers only the datasheet and frequency-response data, not a STEP/CAD download; \
-        third-party model hosts (GrabCAD, Sketchfab, 3DMDB) were checked and none host this \
-        exact part (Art. No. 2204). No model3DAssetName is set here rather than substitute an \
-        unrelated model.
+        requested 1.5"-2" range.
         """
         return driver
     }
@@ -267,8 +237,7 @@ public extension DriverRecord {
         leMillihenries all come straight from it rather than staying nil. xmaxMillimeters \
         holds the sheet's own "Grenzauslenkung xmech" (5.5 mm one-way), not the separately \
         stated "maximum linear displacement" (+/-0.55 mm); it is a mechanical limit, not a \
-        linear-excursion rating. Cutout diameter is 57 mm. No official CAD/3D model was \
-        found, for the same reason as the 4 ohm variant.
+        linear-excursion rating. Cutout diameter is 57 mm.
         """
         return driver
     }
@@ -304,9 +273,7 @@ public extension DriverRecord {
         own "excursion limit xmech" (+/-3.4 mm), a mechanical limit, not a linear-excursion \
         rating. Overall depth is 23.8 mm; the drawing gives two further depth figures \
         (21.5 mm, 12 mm) without labeling which marks a front/rear split, so \
-        frontProtrusionMillimeters and rearDepthMillimeters stay nil rather than guessed. No \
-        official CAD/3D model was found on Visaton's product page, which offers only the \
-        datasheet.
+        frontProtrusionMillimeters and rearDepthMillimeters stay nil rather than guessed.
         """
         return driver
     }
@@ -339,9 +306,7 @@ public extension DriverRecord {
         own "excursion limit xmech" (+/-3.4 mm), a mechanical limit, not a linear-excursion \
         rating. Overall depth is 23.8 mm; the drawing gives two further depth figures \
         (21.5 mm, 12 mm) without labeling which marks a front/rear split, so \
-        frontProtrusionMillimeters and rearDepthMillimeters stay nil rather than guessed. No \
-        official CAD/3D model was found on Visaton's product page, which offers only the \
-        datasheet.
+        frontProtrusionMillimeters and rearDepthMillimeters stay nil rather than guessed.
         """
         return driver
     }

@@ -24,14 +24,9 @@ targets:
       - Application
     settings:
       base:
+        PRODUCT_NAME: NeXTsound
         PRODUCT_BUNDLE_IDENTIFIER: work.layered.NeXTsound
         COMBINE_HIDPI_IMAGES: YES
-        # Only this target signs: it needs the iCloud entitlement for the driver library's
-        # synced assets. Every other target stays unsigned per the project-wide base setting.
-        CODE_SIGNING_ALLOWED: YES
-        CODE_SIGN_STYLE: Automatic
-        DEVELOPMENT_TEAM: 2Z5E3BGZR8
-        CODE_SIGN_ENTITLEMENTS: NeXTsound.entitlements
     dependencies:
       - package: Workbench
         product: NeXTsoundWorkbench

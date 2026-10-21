@@ -21,11 +21,10 @@ struct DriverForm: View {
                 Text(draft.name.isEmpty ? String(localized: "Untitled") : draft.name)
                     .font(.title2.weight(.semibold))
                     .textSelection(.enabled)
-                DriverPreviewHeader(draft: draft)
-                HStack {
-                    AddImageButton(draft: $draft)
-                    ExpandAllToggle(sections: sections)
+                if let datasheetURL = draft.sourceURLs.first {
+                    Link("Datasheet", destination: datasheetURL)
                 }
+                ExpandAllToggle(sections: sections)
                 CollapsibleSection(title: "Identity", systemImage: "tag", isExpanded: sections.identityBinding) {
                     IdentityGroup(draft: $draft, sourceURLText: $sourceURLText)
                 }
@@ -50,7 +49,7 @@ struct DriverForm: View {
         }
         .fontDesign(.monospaced)
         .safeAreaInset(edge: .bottom, spacing: 0) {
-            ApplyBar(driverID: draft.id, validationError: validationError, onApply: apply)
+            ApplyBar(validationError: validationError, onApply: apply)
         }
     }
 }
@@ -194,18 +193,13 @@ private struct ExpandAllToggle: View {
 }
 
 private struct ApplyBar: View {
-    let driverID: UUID
     let validationError: String?
     let onApply: () -> Void
-    @Environment(\.openWindow) private var openWindow
 
     var body: some View {
         VStack(spacing: 0) {
             Divider()
             HStack {
-                Button("View 3D Model", systemImage: "cube") {
-                    openWindow(id: WorkbenchLayout.driver3DModelWindowID, value: driverID)
-                }
                 if let validationError {
                     Label(validationError, systemImage: "exclamationmark.triangle")
                         .foregroundStyle(.red)
