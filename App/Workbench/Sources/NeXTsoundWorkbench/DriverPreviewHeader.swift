@@ -1,3 +1,4 @@
+import AppKit
 import NeXTsoundCore
 import SceneKit
 import SceneKit.ModelIO
@@ -77,7 +78,9 @@ private extension DriverPreviewHeader {
         guard asset.count != 0 else {
             return nil
         }
-        return SCNScene(mdlAsset: asset)
+        let scene = SCNScene(mdlAsset: asset)
+        scene.background.contents = NSColor(WorkbenchTheme.ink)
+        return scene
     }
 }
 
