@@ -28,7 +28,7 @@ public struct Driver3DModelWindow: View {
                 ContentUnavailableView(
                     "No 3D model yet",
                     systemImage: "cube.transparent",
-                    description: Text("Add a USDZ, STL, or OBJ file to show it here.")
+                    description: Text("Add a USDZ, STL, OBJ, or STEP file to show it here.")
                 )
             }
         }
@@ -64,6 +64,8 @@ private extension Driver3DModelWindow {
         UTType(filenameExtension: "usdz"),
         UTType(filenameExtension: "stl"),
         UTType(filenameExtension: "obj"),
+        UTType(filenameExtension: "step"),
+        UTType(filenameExtension: "stp"),
     ].compactMap(\.self)
 
     var driver: DriverRecord? {

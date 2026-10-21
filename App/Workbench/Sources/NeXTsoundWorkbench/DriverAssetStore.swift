@@ -1,11 +1,13 @@
 import Foundation
 import NeXTsoundCore
+import OCCTSwift
 
 public enum DriverAssetStoreError: Error, Equatable, Sendable {
     case missingFileExtension
     case copyFailed
     case invalidURL
     case downloadFailed
+    case conversionFailed
 }
 
 extension DriverAssetStoreError: LocalizedError {
@@ -15,9 +17,13 @@ extension DriverAssetStoreError: LocalizedError {
         case .copyFailed: String(localized: "The file could not be imported.")
         case .invalidURL: String(localized: "That's not a valid URL.")
         case .downloadFailed: String(localized: "The file could not be downloaded.")
+        case .conversionFailed: String(localized: "The STEP file could not be converted.")
         }
     }
 }
+
+/// STEP (`.step`/`.stp`) file extensions, matched case-insensitively against a candidate asset.
+private let stepFileExtensions: Set<String> = ["step", "stp"]
 
 /// Owner-imported per-driver assets (images, 3D models), stored alongside the driver library
 /// so they sync through the same iCloud container. Resolves a stored asset name against the
@@ -46,7 +52,31 @@ public extension DriverAssetStore {
 
     /// Copies the file at `sourceURL` into the asset store under a name stable for `driverID`,
     /// and returns that name for storage in `DriverRecord.model3DAssetName`/`imageAssetName`.
+    ///
+    /// No Apple framework parses STEP (ISO 10303), so a `.step`/`.stp` source is first converted
+    /// to STL via OCCTSwift (Open CASCADE); the preview path (Model I/O/SceneKit) stays unchanged.
     func importFile(at sourceURL: URL, forDriver driverID: UUID, role: String) throws -> String {
+        var sourceURL = sourceURL
+        var convertedTempURL: URL?
+        if stepFileExtensions.contains(sourceURL.pathExtension.lowercased()) {
+            let stlURL = FileManager.default.temporaryDirectory
+                .appendingPathComponent(UUID().uuidString)
+                .appendingPathExtension("stl")
+            do {
+                let shape = try Shape.load(from: sourceURL)
+                try Exporter.writeSTL(shape: shape, to: stlURL)
+            } catch {
+                throw DriverAssetStoreError.conversionFailed
+            }
+            sourceURL = stlURL
+            convertedTempURL = stlURL
+        }
+        defer {
+            if let convertedTempURL {
+                try? FileManager.default.removeItem(at: convertedTempURL)
+            }
+        }
+
         let extensionName = sourceURL.pathExtension
         guard !extensionName.isEmpty else {
             throw DriverAssetStoreError.missingFileExtension
