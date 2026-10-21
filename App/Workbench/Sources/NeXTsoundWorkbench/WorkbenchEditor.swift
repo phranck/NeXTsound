@@ -3,14 +3,13 @@ import SwiftUI
 
 struct WorkbenchEditor: View {
     @Binding var profile: SoundProfile
-    let connectionState: BoardConnectionState
-    let onRenameBoard: (String) async -> Void
+    let board: BoardHeading
     @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 18) {
-                WorkbenchHeading(connectionState: connectionState, onRenameBoard: onRenameBoard)
+                WorkbenchHeading(board: board)
                 TextField("Profile name", text: $profile.name)
                     .textFieldStyle(.roundedBorder)
                     .accessibilityLabel("Profile name")
@@ -31,30 +30,62 @@ struct WorkbenchEditor: View {
     }
 }
 
-private struct WorkbenchHeading: View {
+/// What the editor header shows about the connected SoundBox, and the board actions it offers.
+struct BoardHeading {
+    /// The connection state the badge and the board actions follow.
     let connectionState: BoardConnectionState
-    let onRenameBoard: (String) async -> Void
+    /// Whether the board starts with the settings it plays; nil hides the line.
+    let storageStatus: String?
+    /// Enables "Save to SoundBox".
+    let canSave: Bool
+    /// Writes a new persisted name to the board.
+    let onRename: (String) async -> Void
+    /// Applies the current profile to the board and saves it there.
+    let onSave: () async -> Void
+}
+
+private struct WorkbenchHeading: View {
+    let board: BoardHeading
     @State private var isRenaming = false
     @State private var isShowingFlashSheet = false
 
     var body: some View {
         HStack(alignment: .firstTextBaseline) {
-            ConnectionBadge(state: connectionState)
-            if case let .verified(capabilities) = connectionState {
+            ConnectionBadge(state: board.connectionState, storageStatus: board.storageStatus)
+            if case let .verified(capabilities) = board.connectionState {
                 Button("Rename SoundBox", systemImage: "pencil") { isRenaming = true }
                     .labelStyle(.iconOnly)
                     .popover(isPresented: $isRenaming) {
                         BoardRenameForm(currentName: capabilities.deviceName) { name in
                             isRenaming = false
-                            Task { await onRenameBoard(name) }
+                            Task { await board.onRename(name) }
                         }
                     }
             }
             Spacer()
-            Button("Flash Firmware", systemImage: "bolt") { isShowingFlashSheet = true }
-                .sheet(isPresented: $isShowingFlashSheet) {
-                    FlashFirmwareSheet(connectionState: connectionState)
+            HStack {
+                if case .verified = board.connectionState {
+                    Button {
+                        Task { await board.onSave() }
+                    } label: {
+                        Label("Save to SoundBox", systemImage: "memorychip")
+                            .frame(maxHeight: .infinity)
+                    }
+                    .disabled(!board.canSave)
+                    .help("Save the current profile on the SoundBox, so it starts with it")
                 }
+                Button {
+                    isShowingFlashSheet = true
+                } label: {
+                    Label("Flash Firmware", systemImage: "bolt")
+                        .frame(maxHeight: .infinity)
+                }
+            }
+            // The two symbols differ in height; both labels take the taller one's, so the buttons match.
+            .fixedSize(horizontal: false, vertical: true)
+            .sheet(isPresented: $isShowingFlashSheet) {
+                FlashFirmwareSheet(connectionState: board.connectionState)
+            }
         }
     }
 }
@@ -183,6 +214,7 @@ private struct BoardRenameForm: View {
 
 private struct ConnectionBadge: View {
     let state: BoardConnectionState
+    let storageStatus: String?
 
     var body: some View {
         HStack(spacing: 8) {
@@ -194,6 +226,10 @@ private struct ConnectionBadge: View {
                 Text(title)
                 if let subtitle {
                     Text(subtitle)
+                        .foregroundStyle(.secondary)
+                }
+                if let storageStatus {
+                    Text(storageStatus)
                         .foregroundStyle(.secondary)
                 }
             }
@@ -236,7 +272,7 @@ private struct ProfileValidationNotice: View {
             Label(message, systemImage: "exclamationmark.triangle")
                 .foregroundStyle(.red)
         } else {
-            Text("Editing this profile never changes a connected SoundBox.")
+            Text("A connected SoundBox plays every edit right away.")
                 .foregroundStyle(.secondary)
         }
     }

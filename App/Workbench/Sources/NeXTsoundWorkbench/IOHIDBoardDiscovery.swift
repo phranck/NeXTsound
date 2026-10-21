@@ -120,21 +120,22 @@ public final class USBHostBoardTransport: BoardTransport, @unchecked Sendable {
     }
 
     public func setDeviceName(_ name: String) async throws {
-        let current = try await exchange(WireMessage(operation: .capabilities, requestID: .random(in: 1 ... .max)))
+        let generation = try await currentGeneration()
         let payload = try WireCodec.encodeDeviceName(name)
-        let request = WireMessage(operation: .setName, requestID: .random(in: 1 ... .max), generation: current.generation, payload: payload)
+        let request = WireMessage(operation: .setName, requestID: .random(in: 1 ... .max), generation: generation, payload: payload)
         _ = try await exchangeUntilComplete(request)
     }
 
     public func applyState(_ snapshot: DeviceSnapshot) async throws {
-        let current = try await exchange(WireMessage(operation: .capabilities, requestID: .random(in: 1 ... .max)))
+        let generation = try await currentGeneration()
         let payload = try WireCodec.encodeSnapshot(snapshot)
-        let request = WireMessage(
-            operation: .applyState,
-            requestID: .random(in: 1 ... .max),
-            generation: current.generation,
-            payload: payload
-        )
+        let request = WireMessage(operation: .applyState, requestID: .random(in: 1 ... .max), generation: generation, payload: payload)
+        _ = try await exchangeUntilComplete(request)
+    }
+
+    public func persistState() async throws {
+        let generation = try await currentGeneration()
+        let request = WireMessage(operation: .persistState, requestID: .random(in: 1 ... .max), generation: generation)
         _ = try await exchangeUntilComplete(request)
     }
 
@@ -143,9 +144,20 @@ public final class USBHostBoardTransport: BoardTransport, @unchecked Sendable {
         let message = try await exchange(request)
         return try WireCodec.decodeRuntimeStatus(message.payload)
     }
+
+    public func requestStorageState() async throws -> BoardStorageState {
+        let message = try await exchange(WireMessage(operation: .status, requestID: .random(in: 1 ... .max)))
+        return try BoardStorageState(activeGeneration: message.generation, status: WireCodec.decodeRuntimeStatus(message.payload))
+    }
 }
 
 private extension USBHostBoardTransport {
+    /// The firmware accepts a write only with the generation it currently plays, which every reply
+    /// carries, so a write first asks for the capabilities to learn it.
+    func currentGeneration() async throws -> UInt32 {
+        try await exchange(WireMessage(operation: .capabilities, requestID: .random(in: 1 ... .max))).generation
+    }
+
     func exchange(_ request: WireMessage) async throws -> WireMessage {
         let response = try await transfer(request)
         try response.validateResponse(to: request)

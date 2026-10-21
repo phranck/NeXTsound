@@ -11,13 +11,16 @@ public final class WorkbenchModel {
     public var errorMessage: String?
     public var isImporting = false
     public var isExporting = false
+    /// True from the moment a save to the SoundBox is requested until its flash write finished or failed.
+    public private(set) var isSavingToBoard = false
     public let boards: BoardMonitor
 
     @ObservationIgnored private let storage: (any ProfileLibraryStorage)?
     @ObservationIgnored private var saveTask: Task<Void, Never>?
     @ObservationIgnored private var boardApplyTask: Task<Void, Never>?
-    @ObservationIgnored private var isApplyingToBoard = false
+    @ObservationIgnored private var isWritingToBoard = false
     @ObservationIgnored private var boardApplyIsPending = false
+    @ObservationIgnored private var boardSaveIsPending = false
     @ObservationIgnored private var hasStarted = false
     private var savedRevision: UInt64 = 0
 
@@ -43,6 +46,31 @@ public final class WorkbenchModel {
         return savedRevision == library.revision
             ? String(localized: "Profiles saved on this Mac")
             : String(localized: "Saving profiles…")
+    }
+
+    /// Says whether the connected SoundBox starts with the settings it plays. Nil while no board is
+    /// verified or its storage state is unknown.
+    public var boardStorageStatus: String? {
+        guard case .verified = boards.state else {
+            return nil
+        }
+        if isSavingToBoard {
+            return String(localized: "Saving to the SoundBox…")
+        }
+        switch boards.storage {
+        case .unknown: return nil
+        case .saved: return String(localized: "Settings saved on the SoundBox")
+        case .unsaved: return String(localized: "Settings not saved on the SoundBox")
+        case .unavailable: return String(localized: "This SoundBox cannot save settings")
+        }
+    }
+
+    /// True while a verified board with usable storage is connected and no save is running.
+    public var canSaveToBoard: Bool {
+        guard case .verified = boards.state else {
+            return false
+        }
+        return boards.storage != .unavailable && !isSavingToBoard
     }
 
     public init(library: ProfileLibrary = ProfileLibrary(), storage: (any ProfileLibraryStorage)? = nil, boards: BoardMonitor? = nil) {
@@ -129,32 +157,25 @@ public extension WorkbenchModel {
     /// exactly as edited. Never writes to flash, so a reconnect or power cycle reverts to the
     /// last persisted state.
     ///
-    /// At most one call is ever in flight against the transport. An edit that arrives while a
-    /// call is already running only marks a follow-up as pending instead of starting a second,
+    /// At most one write is ever in flight against the transport. An edit that arrives while a
+    /// write is already running only marks a follow-up as pending instead of starting a second,
     /// independent call: the transport serializes every board exchange on one queue, so a second
     /// call would queue up behind the first and its own timeout clock would already be ticking
     /// before it ever reaches the wire.
     func applyToBoard() async {
-        guard case .verified = boards.state else {
+        await writeToBoard()
+    }
+
+    /// Applies the current profile to the connected SoundBox and then saves it to the board's flash,
+    /// so the board starts with what it plays after the next power-up. A save requested while a
+    /// write is in flight runs right after it, through the same single write as `applyToBoard()`.
+    func saveToBoard() async {
+        guard canSaveToBoard else {
             return
         }
-        guard !isApplyingToBoard else {
-            boardApplyIsPending = true
-            return
-        }
-        isApplyingToBoard = true
-        defer { isApplyingToBoard = false }
-        repeat {
-            boardApplyIsPending = false
-            do {
-                let snapshot = DeviceSnapshot(profileID: profile.id, profileRevision: profile.revision, settings: profile.settings)
-                try await boards.apply(snapshot)
-            } catch is CancellationError {
-                // Superseded by a newer edit; scheduleBoardApply() already queued the latest state.
-            } catch {
-                errorMessage = error.localizedDescription
-            }
-        } while boardApplyIsPending
+        isSavingToBoard = true
+        boardSaveIsPending = true
+        await writeToBoard()
     }
 
     /// Captures the current profile's DSP settings into slot A, overwriting whatever was there.
@@ -258,6 +279,40 @@ private extension WorkbenchModel {
                 storageError = error.localizedDescription
             }
         }
+    }
+
+    /// The one board write in flight. Each pass applies the current profile, and persists it when a
+    /// save was requested, until no apply or save is pending any more.
+    func writeToBoard() async {
+        guard case .verified = boards.state else {
+            return
+        }
+        guard !isWritingToBoard else {
+            boardApplyIsPending = true
+            return
+        }
+        isWritingToBoard = true
+        defer { isWritingToBoard = false }
+        repeat {
+            boardApplyIsPending = false
+            let saves = boardSaveIsPending
+            boardSaveIsPending = false
+            do {
+                let snapshot = DeviceSnapshot(profileID: profile.id, profileRevision: profile.revision, settings: profile.settings)
+                try await boards.apply(snapshot)
+                if saves {
+                    try await boards.persist()
+                }
+            } catch is CancellationError {
+                // Superseded by a newer edit; scheduleBoardApply() already queued the latest state.
+                // A save cancelled with it ends without an error; saving again writes the latest state.
+            } catch {
+                errorMessage = error.localizedDescription
+            }
+            if saves, !boardSaveIsPending {
+                isSavingToBoard = false
+            }
+        } while boardApplyIsPending || boardSaveIsPending
     }
 
     /// Mirrors the current profile to the connected board after edits settle, so the signal

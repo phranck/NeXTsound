@@ -108,6 +108,29 @@ final class SnapshotRecorder: @unchecked Sendable {
     }
 }
 
+/// Records every write a fake board receives, in order, so a test can tell an apply from a persist.
+final class BoardWriteRecorder: @unchecked Sendable {
+    enum Write: Equatable {
+        case apply(DeviceSnapshot)
+        case persist
+    }
+
+    private(set) var writes: [Write] = []
+
+    func record(_ write: Write) {
+        writes.append(write)
+    }
+}
+
+/// The fake board's storage state, shared between the copies of one `FakeBoardTransport` value.
+final class FakeBoardStorage: @unchecked Sendable {
+    var state: BoardStorageState
+
+    init(_ state: BoardStorageState = .saved) {
+        self.state = state
+    }
+}
+
 final class FlashPhaseRecorder: @unchecked Sendable {
     private(set) var phases: [FlashPhase] = []
     func record(_ phase: FlashPhase) {
@@ -130,6 +153,9 @@ struct FakeBoardTransport: BoardTransport {
     var applyStateCalls: CallCounter?
     var appliedSnapshots: SnapshotRecorder?
     var applyDelay: Duration?
+    var persistError: BoardTransportError?
+    var writes: BoardWriteRecorder?
+    var storage = FakeBoardStorage()
 
     func requestCapabilities() async throws -> DeviceCapabilities {
         switch behavior {
@@ -164,11 +190,48 @@ struct FakeBoardTransport: BoardTransport {
         if let applyError {
             throw applyError
         }
+        writes?.record(.apply(snapshot))
+        // Like the firmware, an applied snapshot moves the board past the settings it saved.
+        if storage.state == .saved {
+            storage.state = .unsaved
+        }
+    }
+
+    func persistState() async throws {
+        if let persistError {
+            throw persistError
+        }
+        writes?.record(.persist)
+        storage.state = .saved
+    }
+
+    func requestStorageState() async throws -> BoardStorageState {
+        storage.state
     }
 }
 
 func fixtureCapabilities(serial: String = "D4CDD489AFE28CC5") -> DeviceCapabilities {
     DeviceCapabilities(serial: serial, firmwareVersion: "1.0.0")
+}
+
+/// Starts a monitor, connects the fake board through the discovery, and returns once the monitor
+/// verified it. Throws a timeout when verification takes longer than a second.
+@MainActor
+func verifiedMonitor(_ transport: FakeBoardTransport, discovery: FakeBoardDiscovery = FakeBoardDiscovery()) async throws -> BoardMonitor {
+    let monitor = BoardMonitor(discovery: discovery)
+    monitor.start()
+    discovery.simulateConnect(
+        BoardIdentitySnapshot(vendorID: 1, productID: 2, enumeratedSerial: fixtureCapabilities().serial),
+        transport: transport
+    )
+    let deadline = ContinuousClock.now + .seconds(1)
+    while ContinuousClock.now < deadline {
+        if case .verified = monitor.state {
+            return monitor
+        }
+        try await Task.sleep(for: .milliseconds(5))
+    }
+    throw BoardTransportError.timeout
 }
 
 final class FakePicotoolRunner: PicotoolRunning, @unchecked Sendable {
