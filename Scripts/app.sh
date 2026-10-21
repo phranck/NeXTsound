@@ -16,9 +16,18 @@ export NXS_XCODEGEN_VERSION NXS_MACOS_MINIMUM NXS_PROFILE_IDENTIFIER NXS_PROFILE
 generator=$(tool_executable xcodegen)
 "$generator" generate --spec "$root/App/project.yml" --project "$root/App"
 
+# The CI runner has no Apple Developer identity or provisioning profile for
+# work.layered.NeXTsound, so it can't honor project.yml's real signing settings on the
+# NeXTsound target; CI builds unsigned instead. GitHub Actions sets CI=true automatically.
+# A developer machine signed into Xcode keeps the real signing identity unchanged.
+signing_override=()
+if [ "${CI:-}" = "true" ]; then
+    signing_override=(CODE_SIGNING_ALLOWED=NO)
+fi
+
 for configuration in Debug Release; do
     xcodebuild -quiet -project "$root/App/NeXTsound.xcodeproj" -scheme NeXTsound \
         -configuration "$configuration" -destination 'generic/platform=macOS' \
-        -derivedDataPath "$root/.build/macOS" build
+        -derivedDataPath "$root/.build/macOS" build "${signing_override[@]}"
     printf '%s app: %s\n' "$configuration" "$root/.build/macOS/Build/Products/$configuration/NeXTsound.app"
 done
