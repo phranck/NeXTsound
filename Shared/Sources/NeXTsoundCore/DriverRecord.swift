@@ -202,10 +202,15 @@ public extension DriverRecord {
         excursion as 8.0 mm peak-to-peak; xmaxMillimeters holds half of that (4.0 mm one-way) \
         to match this field's one-way convention. Mounting pitch circle diameter (48.0 mm) and \
         hole count (4, read directly from the outline drawing) agree with the independently \
-        measured enclosure CAD record's pilot pattern. The bundled 3D preview is this \
-        physical driver's own chassis solid, extracted from the owner's enclosure assembly \
-        CAD export and decimated to a 0.5 mm vertex grid; it is a preview aid, not an \
-        additional geometric source.
+        measured enclosure CAD record's pilot pattern. The bundled 3D preview is Tectonic \
+        Audio Labs' own published TEBM28C10-4B CAD model (SolidWorks 2023, STEP AP214, \
+        "TEBM28C10-4 Space Model.STEP", from \
+        https://www.tectonicaudiolabs.com/product-family/tebm28c-family), tessellated to STL \
+        via OpenCascade (through cadquery) at 0.05 mm linear / 0.2 rad angular tolerance; no \
+        further decimation. Bounding box (46.04 x 46.04 x 25.77 mm) matches the datasheet \
+        frame diameter and the independently measured enclosure CAD record's driver axial \
+        extent. It is a preview aid, the -4B variant per the CAD-reference caveat above, not \
+        an additional geometric source for this -4/A unit's own parameters.
         """
         return driver
     }

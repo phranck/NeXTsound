@@ -8,19 +8,56 @@ import SwiftUI
 /// never itself collapsible. Uses SceneKit rather than RealityKit's `Model3D`, which is
 /// unavailable on macOS.
 struct DriverPreviewHeader: View {
+    static let minimumHeight: CGFloat = 120
+    static let maximumHeight: CGFloat = 600
+
     let driver: DriverRecord
+    @AppStorage("driverForm.previewHeight") private var height = 200.0
+    @State private var dragStartHeight: CGFloat?
 
     var body: some View {
-        Group {
-            if let model3DAssetName = driver.model3DAssetName, let scene = Self.loadScene(named: model3DAssetName) {
-                SceneView(scene: scene, options: [.allowsCameraControl, .autoenablesDefaultLighting])
-            } else {
-                imageOrPlaceholder
+        VStack(spacing: 0) {
+            Group {
+                if let model3DAssetName = driver.model3DAssetName, let scene = Self.loadScene(named: model3DAssetName) {
+                    SceneView(scene: scene, options: [.allowsCameraControl, .autoenablesDefaultLighting])
+                } else {
+                    imageOrPlaceholder
+                }
             }
+            .frame(maxWidth: .infinity)
+            .frame(height: height)
+            .clipped()
+            ResizeHandle(height: $height, dragStartHeight: $dragStartHeight)
         }
-        .frame(maxWidth: .infinity)
-        .frame(height: 200)
         .background(.quaternary.opacity(0.2), in: RoundedRectangle(cornerRadius: 10))
+    }
+}
+
+private struct ResizeHandle: View {
+    @Binding var height: Double
+    @Binding var dragStartHeight: CGFloat?
+
+    var body: some View {
+        Capsule()
+            .fill(.secondary)
+            .frame(width: 36, height: 5)
+            .padding(.vertical, 6)
+            .frame(maxWidth: .infinity)
+            .contentShape(Rectangle())
+            .gesture(
+                DragGesture(minimumDistance: 1)
+                    .onChanged { value in
+                        if dragStartHeight == nil {
+                            dragStartHeight = height
+                        }
+                        let proposed = (dragStartHeight ?? height) + value.translation.height
+                        height = min(max(proposed, DriverPreviewHeader.minimumHeight), DriverPreviewHeader.maximumHeight)
+                    }
+                    .onEnded { _ in
+                        dragStartHeight = nil
+                    }
+            )
+            .help("Drag to resize the preview")
     }
 }
 
