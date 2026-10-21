@@ -140,19 +140,30 @@ public extension WorkbenchModel {
     ///
     /// When the driver's Fs, Qts, and Vas are all known, this also sets the electronic high-pass
     /// to the resulting closed-box corner frequency against the one fixed enclosure
-    /// (`EnclosureRecord.nextSoundBoxMini()`) and enables it: a physically grounded starting point
-    /// for the box this product actually ships, not a measurement. A driver missing any of those
-    /// three values leaves the high-pass exactly as it was; no missing input is guessed. This is
-    /// the one part of #19's planned calculation that needs no data beyond what the driver library
-    /// and the fixed enclosure already carry. Attenuation, the EQ bands, and the limiter stay
-    /// untouched: setting any of them to a specific physical limit needs the amplifier/supply
-    /// voltage transfer this project does not have yet.
+    /// (`EnclosureRecord.nextSoundBoxMini()`) and enables it, and sets band 1 to
+    /// `ClosedBoxAlignment.correctionGainDb` at that same frequency with quality equal to the
+    /// alignment's own Qtc, canceling the box's own magnitude deviation from flat at its corner:
+    /// a physically grounded starting point for the box this product actually ships, not a
+    /// measurement. Both figures are clamped to the firmware's own parameter bounds, since they
+    /// are a continuous physical quantity fit to a hardware-constrained control, not invented. A
+    /// driver missing any of the three values leaves the high-pass and that band exactly as they
+    /// were; no missing input is guessed. This is the one part of #19's planned calculation that
+    /// needs no data beyond what the driver library and the fixed enclosure already carry.
+    /// Attenuation, the remaining EQ bands, and the limiter stay untouched: setting any of them
+    /// to a specific physical limit needs the amplifier/supply voltage transfer this project does
+    /// not have yet.
     func selectSpeaker(_ driver: DriverRecord?, undoManager: UndoManager? = nil) {
         var proposed = profile
         proposed.speaker = driver.map(SpeakerRecord.init(driver:))
         if let driver, let alignment = try? ClosedBoxAlignment(driver: driver, enclosure: .nextSoundBoxMini()) {
+            let frequencyHz = Float(alignment.cornerFrequencyHz)
             proposed.settings.highPassEnabled = true
-            proposed.settings.highPassHz = Float(alignment.cornerFrequencyHz)
+            proposed.settings.highPassHz = frequencyHz
+            let gainBounds = DSPParameter.bandGain.bounds
+            let qualityBounds = DSPParameter.bandQuality.bounds
+            let gainDb = min(max(Float(alignment.correctionGainDb), gainBounds.lowerBound), gainBounds.upperBound)
+            let quality = min(max(Float(alignment.totalQ), qualityBounds.lowerBound), qualityBounds.upperBound)
+            proposed.settings.bands[0] = EQBand(frequencyHz: frequencyHz, gainDb: gainDb, quality: quality, isEnabled: true)
         }
         perform(undoManager: undoManager, action: "Select speaker") { try $0.updateSelected(proposed) }
     }

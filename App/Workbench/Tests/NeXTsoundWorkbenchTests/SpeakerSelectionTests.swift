@@ -29,7 +29,19 @@ struct SpeakerSelectionTests {
         #expect(abs(model.profile.settings.highPassHz - 176.394_613) < 0.001)
     }
 
-    @Test func selectingASpeakerMissingVasLeavesTheHighPassUnchanged() {
+    @Test func selectingASpeakerWithFullThieleSmallDataSetsTheFirstBandToTheQtcCorrection() {
+        let model = WorkbenchModel()
+
+        model.selectSpeaker(.tectonicTEBM28C10_4())
+
+        let band = model.profile.settings.bands[0]
+        #expect(band.isEnabled)
+        #expect(abs(band.frequencyHz - 176.394_613) < 0.001)
+        #expect(abs(band.gainDb - 5.527_4) < 0.001)
+        #expect(abs(band.quality - 0.529_183_839) < 0.000_001)
+    }
+
+    @Test func selectingASpeakerMissingVasLeavesTheHighPassAndFirstBandUnchanged() {
         let model = WorkbenchModel()
         let before = model.profile.settings
 
@@ -38,6 +50,7 @@ struct SpeakerSelectionTests {
 
         #expect(model.profile.settings.highPassEnabled == before.highPassEnabled)
         #expect(model.profile.settings.highPassHz == before.highPassHz)
+        #expect(model.profile.settings.bands[0] == before.bands[0])
     }
 
     @Test func selectingNilClearsTheSpeaker() {
