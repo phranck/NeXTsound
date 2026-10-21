@@ -26,6 +26,9 @@ let package = Package(
                 // committed, see .gitignore.
                 .copy("Resources/picotool"),
                 .copy("Resources/nxs_firmware.uf2"),
+                // The reference driver's chassis, decimated to a 0.5 mm vertex grid from the
+                // owner's STL export; shown in the driver library's 3D preview.
+                .copy("Resources/TEBM28C10-4-Driver.stl"),
             ]
         ),
         .executableTarget(

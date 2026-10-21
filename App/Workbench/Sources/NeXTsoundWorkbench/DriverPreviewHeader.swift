@@ -1,5 +1,6 @@
 import NeXTsoundCore
 import SceneKit
+import SceneKit.ModelIO
 import SwiftUI
 
 /// Shows the driver's 3D model when one is bundled, falling back to a static image, and to a
@@ -24,11 +25,22 @@ struct DriverPreviewHeader: View {
 }
 
 private extension DriverPreviewHeader {
+    /// Loaded through Model I/O rather than `SCNScene(url:)` directly, since SceneKit's own
+    /// loader does not import STL; `MDLAsset` does (`kUTTypeStereolithography`).
     static func loadScene(named name: String) -> SCNScene? {
-        guard let url = Bundle.module.url(forResource: name, withExtension: nil) else {
+        guard
+            let url = Bundle.module.url(forResource: name, withExtension: nil),
+            MDLAsset.canImportFileExtension(url.pathExtension)
+        else {
             return nil
         }
-        return try? SCNScene(url: url, options: nil)
+        let asset = MDLAsset(url: url)
+        // MDLAsset has no `isEmpty`, only `count`.
+        // swiftlint:disable:next empty_count
+        guard asset.count != 0 else {
+            return nil
+        }
+        return SCNScene(mdlAsset: asset)
     }
 }
 

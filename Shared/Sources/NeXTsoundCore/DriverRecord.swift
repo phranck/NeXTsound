@@ -192,6 +192,7 @@ public extension DriverRecord {
         driver.mountingPitchCircleDiameterMillimeters = 48.0
         driver.mountingHoleCount = 4
         driver.ratedPowerWatts = 10
+        driver.model3DAssetName = "TEBM28C10-4-Driver.stl"
         driver.notes = """
         Datasheet identifies the model as TEBM28C10-4/A; the CAD reference labels it \
         TEBM28C10-4B. The correspondence between this physical unit and either identity is \
@@ -201,7 +202,10 @@ public extension DriverRecord {
         excursion as 8.0 mm peak-to-peak; xmaxMillimeters holds half of that (4.0 mm one-way) \
         to match this field's one-way convention. Mounting pitch circle diameter (48.0 mm) and \
         hole count (4, read directly from the outline drawing) agree with the independently \
-        measured enclosure CAD record's pilot pattern.
+        measured enclosure CAD record's pilot pattern. The bundled 3D preview is this \
+        physical driver's own chassis solid, extracted from the owner's enclosure assembly \
+        CAD export and decimated to a 0.5 mm vertex grid; it is a preview aid, not an \
+        additional geometric source.
         """
         return driver
     }
