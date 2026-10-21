@@ -16,14 +16,8 @@ public actor DriverLibraryStore: DriverLibraryStorage {
 }
 
 public extension DriverLibraryStore {
-    static func standard() throws -> DriverLibraryStore {
-        let directory = try FileManager.default.url(
-            for: .applicationSupportDirectory,
-            in: .userDomainMask,
-            appropriateFor: nil,
-            create: false
-        )
-        return DriverLibraryStore(fileURL: directory.appendingPathComponent("NeXTsound/drivers.json"))
+    static func standard() -> DriverLibraryStore {
+        DriverLibraryStore(fileURL: DriverStorageLocation.resolveRootDirectory().appendingPathComponent("drivers.json"))
     }
 
     func load() throws -> DriverLibrary? {

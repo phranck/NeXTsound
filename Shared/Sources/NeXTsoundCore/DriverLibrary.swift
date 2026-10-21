@@ -42,6 +42,7 @@ public struct DriverLibrary: Codable, Equatable, Sendable {
         .tectonicTEBM28C10_4BE(),
         .daytonAudioCE41N4(),
         .visatonFR58_4(),
+        .visatonFR58_8(),
         .visatonBF37_4(),
         .visatonBF37_8(),
     ]
