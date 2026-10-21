@@ -104,6 +104,32 @@ struct ClosedBoxAlignmentTests {
         #expect(abs(alignment.cornerFrequencyHz - 176.394_613) < 0.000_1)
     }
 
+    @Test func correctionGainDbCancelsTheAlignmentsOwnGainAtItsCornerFrequency() throws {
+        // The reference driver's Qtc is below 1: the box sags at Fc, so correctionGainDb boosts.
+        let sagging = try ClosedBoxAlignment(driver: .tectonicTEBM28C10_4(), netVolumeLiters: 0.178332)
+        #expect(abs(sagging.correctionGainDb - 5.527_4) < 0.001)
+
+        // A vanishingly small alpha (huge Vb) isolates totalQ to the input Qts, as in the
+        // zero-compliance-ratio case above.
+        // A Qtc of exactly 1 has unity gain at Fc already: nothing to correct.
+        let unity = try ClosedBoxAlignment(
+            resonantFrequencyHz: 100,
+            totalQ: 1,
+            equivalentComplianceVolumeLiters: 0.1,
+            netVolumeLiters: 1_000_000
+        )
+        #expect(abs(unity.correctionGainDb) < 0.000_1)
+
+        // An underdamped (Qtc > 1) alignment peaks at Fc, so correctionGainDb cuts.
+        let peaking = try ClosedBoxAlignment(
+            resonantFrequencyHz: 100,
+            totalQ: 2,
+            equivalentComplianceVolumeLiters: 0.1,
+            netVolumeLiters: 1_000_000
+        )
+        #expect(peaking.correctionGainDb < 0)
+    }
+
     @Test func enclosureWithoutAVolumeIsRejectedByName() {
         #expect(throws: ClosedBoxAlignmentError.invalidNetVolume) {
             try ClosedBoxAlignment(driver: .tectonicTEBM28C10_4(), enclosure: EnclosureRecord())

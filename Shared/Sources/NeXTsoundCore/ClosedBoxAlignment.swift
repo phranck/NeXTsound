@@ -45,6 +45,16 @@ public struct ClosedBoxAlignment: Equatable, Sendable {
     public let totalQ: Double
     public let qualitativeAlignment: ClosedBoxQualitativeAlignment
 
+    /// The peaking-band gain that cancels this alignment's own magnitude deviation from the
+    /// flat passband at its corner frequency. A second-order high-pass's gain at its own corner
+    /// frequency equals its Q exactly, so boosting (or cutting, for an underdamped/Qtc > 1
+    /// alignment) by the inverse corrects that one deviation. This is a model correction derived
+    /// entirely from Fs/Qts/Vas/Vb, the same inputs `cornerFrequencyHz`/`totalQ` already use, not
+    /// a claim about absolute level: it never needs an amplifier or supply voltage figure.
+    public var correctionGainDb: Double {
+        -20 * log10(totalQ)
+    }
+
     public init(
         resonantFrequencyHz fsHz: Double?,
         totalQ qts: Double?,
