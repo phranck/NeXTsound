@@ -83,7 +83,7 @@ extension FaderUnit {
         }
     }
 
-    /// The value as VoiceOver reads it, with the unit the workbench's controls name.
+    /// The value as VoiceOver reads it, followed by its unit's symbol.
     func spoken(_ value: Float) -> String {
         "\(value.formatted(.number.precision(.fractionLength(0 ... 2)))) \(symbol)"
     }
