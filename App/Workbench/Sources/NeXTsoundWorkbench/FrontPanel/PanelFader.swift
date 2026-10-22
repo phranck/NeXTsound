@@ -38,7 +38,8 @@ extension PanelFader {
 ///
 /// A drag or a click anywhere in the track sets the value with the cap's center under the pointer, the way a console
 /// fader works. The keyboard steps the cap by a share of the travel, so a step feels the same on a logarithmic scale
-/// as on a linear one. The cap travels to a value set from elsewhere and follows a drag without delay.
+/// as on a linear one. A drag gives the fader the keyboard's focus, and the fader shows no ring while it has it. The
+/// cap travels to a value set from elsewhere and follows a drag without delay.
 private struct FaderControl: View {
     let label: LocalizedStringKey
     let scale: FaderScale
@@ -53,7 +54,7 @@ private struct FaderControl: View {
         ZStack(alignment: .top) {
             FaderTicks()
             FaderTrack()
-            FaderCap(isFocused: isFocused)
+            FaderCap()
                 .offset(y: (1 - position) * PanelFaderMetrics.travel)
                 .animation(isDragging ? nil : FrontPanelMotion.state(reduceMotion: reduceMotion), value: position)
         }
@@ -158,8 +159,6 @@ private struct FaderTrack: View {
 
 /// The light cap, lit from above, with the grip line that marks the value across its middle.
 private struct FaderCap: View {
-    let isFocused: Bool
-
     var body: some View {
         Capsule()
             .fill(
@@ -183,9 +182,6 @@ private struct FaderCap: View {
                 FaderGripLine()
             }
             .shadow(color: .black.opacity(0.55), radius: 1.5, y: 2)
-            .background {
-                FocusHalo(shape: Capsule(), isVisible: isFocused)
-            }
             .frame(width: PanelFaderMetrics.capWidth, height: PanelFaderMetrics.capHeight)
     }
 }

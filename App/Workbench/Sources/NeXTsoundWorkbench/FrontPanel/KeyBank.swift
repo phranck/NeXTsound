@@ -14,8 +14,8 @@ struct KeyBankKey<Value: Hashable>: Identifiable {
 /// A row of latching keys in a dark frame, of which exactly one is down, the way a tape deck's keys hold each other.
 ///
 /// The key that is down sits lower than its neighbors under a little shade, and the LED above it lights, while its
-/// plastic keeps its color as a real key's does. The bank is one stop for the keyboard. The arrow keys move the
-/// selection, the halo marks the key that is down, and VoiceOver reads the bank as a group of radio buttons.
+/// plastic keeps its color as a real key's does. The bank is one stop for the keyboard and shows no ring while it has
+/// the focus. The arrow keys move the selection, and VoiceOver reads the bank as a group of radio buttons.
 struct KeyBank<Value: Hashable, KeyMenu: View>: View {
     let label: LocalizedStringKey
     @Binding var selection: Value
@@ -28,7 +28,7 @@ struct KeyBank<Value: Hashable, KeyMenu: View>: View {
         VStack(spacing: KeyBankMetrics.captionSpacing) {
             HStack(alignment: .top, spacing: KeyBankMetrics.keyGap) {
                 ForEach(keys) { key in
-                    BankKey(isDown: key.value == selection, isFocused: isFocused && key.value == selection) {
+                    BankKey(isDown: key.value == selection) {
                         selection = key.value
                         isFocused = true
                     }
@@ -182,10 +182,9 @@ private struct MomentaryKeyFrame: View {
     }
 }
 
-/// One momentary key with its own focus halo.
+/// One momentary key, which takes the keyboard's focus without showing a ring.
 private struct MomentaryBankKey: View {
     let key: MomentaryKey
-    @FocusState private var isFocused: Bool
 
     var body: some View {
         Button(action: key.action) {
@@ -193,11 +192,7 @@ private struct MomentaryBankKey: View {
         }
         .buttonStyle(BankKeyStyle(isDown: false))
         .disabled(!key.isEnabled)
-        .focused($isFocused)
         .focusEffectDisabled()
-        .background {
-            FocusHalo(shape: RoundedRectangle(cornerRadius: KeyBankMetrics.keyRadius), isVisible: isFocused)
-        }
         .accessibilityLabel(key.name)
     }
 }
@@ -205,7 +200,6 @@ private struct MomentaryBankKey: View {
 /// One square key with the LED that sits above the bank's frame over it.
 private struct BankKey: View {
     let isDown: Bool
-    let isFocused: Bool
     let action: () -> Void
 
     var body: some View {
@@ -214,9 +208,6 @@ private struct BankKey: View {
         }
         .buttonStyle(BankKeyStyle(isDown: isDown))
         .focusable(false)
-        .background {
-            FocusHalo(shape: RoundedRectangle(cornerRadius: KeyBankMetrics.keyRadius), isVisible: isFocused)
-        }
         .overlay(alignment: .top) {
             PanelLED(isLit: isDown)
                 .offset(y: -(KeyBankMetrics.framePadding + KeyBankMetrics.ledLift + PanelLED.size))

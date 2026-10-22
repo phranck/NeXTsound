@@ -4,20 +4,18 @@ import SwiftUI
 ///
 /// A dark ring holds a cap shaded from top to bottom, whose upper rim catches the light while its lower rim lies in
 /// shade, and the button sits in the same recess as every other control. The light one saves, and the red one marks
-/// the one action that rewrites the board.
+/// the one action that rewrites the board. The button takes the keyboard's focus without showing a ring.
 struct PanelPushButton: View {
     /// What VoiceOver calls the button.
     let label: LocalizedStringKey
     let kind: PanelPushButtonKind
     let action: () -> Void
-    @FocusState private var isFocused: Bool
 
     var body: some View {
         Button(action: action) {
             EmptyView()
         }
-        .buttonStyle(PanelPushButtonStyle(kind: kind, isFocused: isFocused))
-        .focused($isFocused)
+        .buttonStyle(PanelPushButtonStyle(kind: kind))
         .focusEffectDisabled()
         .accessibilityLabel(label)
     }
@@ -31,10 +29,9 @@ enum PanelPushButtonKind {
 
 private struct PanelPushButtonStyle: ButtonStyle {
     let kind: PanelPushButtonKind
-    let isFocused: Bool
 
     func makeBody(configuration: Configuration) -> some View {
-        PanelPushButtonFace(kind: kind, isPressed: configuration.isPressed, isFocused: isFocused)
+        PanelPushButtonFace(kind: kind, isPressed: configuration.isPressed)
     }
 }
 
@@ -42,7 +39,6 @@ private struct PanelPushButtonStyle: ButtonStyle {
 private struct PanelPushButtonFace: View {
     let kind: PanelPushButtonKind
     let isPressed: Bool
-    let isFocused: Bool
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
@@ -61,9 +57,6 @@ private struct PanelPushButtonFace: View {
                 .scaleEffect(isPressed ? 0.97 : 1)
         }
         .frame(width: PanelPushButtonMetrics.size, height: PanelPushButtonMetrics.size)
-        .background {
-            FocusHalo(shape: Circle(), isVisible: isFocused)
-        }
         .contentShape(Circle())
         .animation(FrontPanelMotion.state(reduceMotion: reduceMotion), value: isPressed)
     }
