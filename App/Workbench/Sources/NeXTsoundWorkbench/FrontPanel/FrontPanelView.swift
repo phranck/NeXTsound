@@ -31,7 +31,7 @@ public struct FrontPanelView: View {
         .background {
             BrushedMetal()
         }
-        .ignoresSafeArea()
+        .panelWindowContent()
         .focusedSceneValue(\.frontPanelBand, FrontPanelBand(editor: editor, index: selectedBand))
         .focusedSceneValue(\.libraryEditor, LibraryEditor(model: model, undoManager: undoManager))
         .sheet(isPresented: $isShowingFlashSheet) {

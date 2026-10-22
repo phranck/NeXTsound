@@ -29,7 +29,7 @@ public struct LibraryPanel: View {
         .overlay(alignment: .top) {
             PanelWindowTitle(title: WorkbenchLayout.libraryWindowTitle)
         }
-        .ignoresSafeArea()
+        .panelWindowContent()
         .focusedSceneValue(\.libraryEditor, editor)
     }
 
