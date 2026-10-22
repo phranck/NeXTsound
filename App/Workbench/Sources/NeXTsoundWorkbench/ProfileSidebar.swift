@@ -39,7 +39,7 @@ private struct ProfileListSection: View {
     var body: some View {
         Section("Profiles") {
             ForEach(profiles) { profile in
-                Text(profile.name.isEmpty ? "Untitled" : profile.name)
+                Text(profile.displayName)
                     .tag(profile.id)
             }
         }

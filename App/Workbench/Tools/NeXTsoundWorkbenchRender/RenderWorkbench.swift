@@ -31,12 +31,13 @@ enum RenderWorkbench {
         try render(size: WorkbenchLayout.defaultSize, scheme: .light, connected: true, destination: destination)
         try renderFrontPanel(connected: false, destination: destination)
         try renderFrontPanel(connected: true, destination: destination)
+        try renderLibraryPanel(destination: destination)
     }
 }
 
 private extension RenderWorkbench {
-    /// The scale the front panel is rendered at.
-    static let frontPanelScale: CGFloat = 2
+    /// The scale both panels are rendered at.
+    static let panelScale: CGFloat = 2
 
     static func render(size: CGSize, scheme: ColorScheme, connected: Bool, destination: URL) throws {
         let appearance = scheme == .dark ? "dark" : "light"
@@ -89,9 +90,6 @@ private extension RenderWorkbench {
         print("Rendered \(stem)")
     }
 
-    /// Renders the front panel through SwiftUI's own renderer at scale 2, the scale its dots fall on whole device
-    /// pixels at. The panel holds no AppKit control that only a window could draw, and `cacheDisplay(in:to:)`, which
-    /// the workbench renders need for theirs, inverts the panel's inner shadows.
     static func renderFrontPanel(connected: Bool, destination: URL) throws {
         let profile = FactoryPreset.warm.makeProfile()
         let boards = connected ? BoardMonitor(discovery: PreviewBoardDiscovery()) : nil
@@ -99,12 +97,35 @@ private extension RenderWorkbench {
         model.boards.start()
         // The preview board verifies through the main run loop, which a render that never runs it would never see.
         RunLoop.main.run(until: Date(timeIntervalSinceNow: 0.3))
-        let renderer = ImageRenderer(content: FrontPanelView(model: model))
-        renderer.scale = frontPanelScale
+        try renderPanel(
+            FrontPanelView(model: model),
+            stem: "front-panel" + (connected ? "-connected" : "") + "@2x",
+            destination: destination
+        )
+    }
+
+    /// Renders the Library panel with the mockup's sample profiles, its speaker and a verified board.
+    static func renderLibraryPanel(destination: URL) throws {
+        let profiles = ["Soul Funk", "Flat", "Warm", "Speech", "Late Night", "Desk Monitor"].map { SoundProfile(name: $0) }
+        let model = try WorkbenchModel(
+            library: ProfileLibrary(profiles: profiles, selectedID: profiles[0].id),
+            boards: BoardMonitor(discovery: PreviewBoardDiscovery())
+        )
+        model.boards.start()
+        model.selectSpeaker(DriverRecord(name: "Dayton Audio CE41N-4"))
+        RunLoop.main.run(until: Date(timeIntervalSinceNow: 0.3))
+        try renderPanel(LibraryPanel(model: model, driverLibrary: DriverLibraryModel()), stem: "library-panel@2x", destination: destination)
+    }
+
+    /// Renders a panel through SwiftUI's own renderer at scale 2, the scale its dots fall on whole device pixels at.
+    /// The panels hold no AppKit view with an area, which only a window could draw, and `cacheDisplay(in:to:)`, which
+    /// the workbench renders need for their controls, inverts the panels' inner shadows.
+    static func renderPanel(_ panel: some View, stem: String, destination: URL) throws {
+        let renderer = ImageRenderer(content: panel)
+        renderer.scale = panelScale
         guard let image = renderer.cgImage else {
             throw CocoaError(.fileWriteUnknown)
         }
-        let stem = "front-panel" + (connected ? "-connected" : "") + "@2x"
         try writePNG(NSBitmapImageRep(cgImage: image), to: destination.appendingPathComponent(stem + ".png"))
         print("Rendered \(stem)")
     }

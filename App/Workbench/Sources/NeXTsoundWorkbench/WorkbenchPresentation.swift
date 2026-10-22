@@ -25,6 +25,11 @@ extension SoundProfile {
             return error.localizedDescription
         }
     }
+
+    /// The name the profile shows under, which is Untitled for a profile without one.
+    var displayName: String {
+        name.isEmpty ? String(localized: "Untitled") : name
+    }
 }
 
 extension BoardConnectionState {

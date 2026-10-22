@@ -18,7 +18,7 @@ public struct FrontPanelView: View {
         WholePointFrame {
             VStack(spacing: 0) {
                 FrontPanelHeader()
-                DisplayBay(settings: model.profile.settings, profileName: displayedProfileName, status: status, theme: theme)
+                DisplayBay(settings: model.profile.settings, profileName: model.profile.displayName, status: status, theme: theme)
                     .padding(FrontPanelLayout.bayMargin)
                 FrontPanelControlRow(editor: editor, boardButtons: boardButtons, selectedBand: $selectedBand, theme: $theme)
             }
@@ -30,6 +30,7 @@ public struct FrontPanelView: View {
         }
         .ignoresSafeArea()
         .focusedSceneValue(\.frontPanelBand, FrontPanelBand(editor: editor, index: selectedBand))
+        .focusedSceneValue(\.libraryEditor, LibraryEditor(model: model, undoManager: undoManager))
         .sheet(isPresented: $isShowingFlashSheet) {
             FlashFirmwareSheet(connectionState: model.boards.state)
         }
@@ -74,11 +75,6 @@ private extension FrontPanelView {
             storageStatus: model.storageStatus,
             storageFailed: model.storageError != nil
         )
-    }
-
-    /// A profile without a name shows as Untitled, as it does in the sidebar.
-    var displayedProfileName: String {
-        model.profile.name.isEmpty ? String(localized: "Untitled") : model.profile.name
     }
 }
 

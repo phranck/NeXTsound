@@ -26,19 +26,37 @@ extension View {
 /// A small dot-matrix readout in its dark frame, such as the one above every slider.
 ///
 /// Its dots keep their empty border inside the glass, so the rounded corners never clip one. The frame takes the
-/// middle of the big display's shade.
+/// middle of the big display's shade. A readout with the keyboard's focus shows the focus halo on its frame. The
+/// glass lies on the frame's shade, so the halo's glow stays outside it, as an outer shadow does in the mockup.
 struct PanelReadout: View {
-    let text: String
+    let lines: [DotMatrixLine]
     let layout: DotMatrixLinesLayout
     var alignment: DotMatrixAlignment = .leading
     let theme: PhosphorTheme
+    var isFocused = false
 
     var body: some View {
-        DotMatrixLinesView(lines: [DotMatrixLine(text: text)], layout: layout, alignment: alignment, theme: theme)
+        DotMatrixLinesView(lines: lines, layout: layout, alignment: alignment, theme: theme)
             .vfdGlass(cornerRadius: PanelReadoutMetrics.glassRadius)
+            .background(PanelReadoutMetrics.frameColor, in: RoundedRectangle(cornerRadius: PanelReadoutMetrics.glassRadius))
+            .background {
+                FocusHalo(shape: RoundedRectangle(cornerRadius: PanelReadoutMetrics.glassRadius), isVisible: isFocused)
+            }
             .padding(FrontPanelLayout.frameWidth)
             .background(PanelReadoutMetrics.frameColor, in: RoundedRectangle(cornerRadius: PanelReadoutMetrics.frameRadius))
             .frameHighlight(cornerRadius: PanelReadoutMetrics.frameRadius, opacity: 0.05)
+    }
+}
+
+extension PanelReadout {
+    /// A readout of one bright line.
+    init(text: String, layout: DotMatrixLinesLayout, alignment: DotMatrixAlignment = .leading, theme: PhosphorTheme) {
+        self.init(lines: [DotMatrixLine(text: text)], layout: layout, alignment: alignment, theme: theme)
+    }
+
+    /// The layout of a readout of `lines` lines that fills `width` points, its frame included.
+    static func fillingLayout(width: CGFloat, lines: Int = 1) -> DotMatrixLinesLayout {
+        .filling(width: width - 2 * FrontPanelLayout.frameWidth, lines: lines)
     }
 }
 

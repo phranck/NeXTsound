@@ -29,18 +29,40 @@ struct FrontPanelRenderTests {
     /// ghost color at scale 2. A dot that lands between device pixels blends its edges into the glass, which leaves
     /// shorter runs of the exact ghost color.
     @Test func everyDotIsThreeByThreeDevicePixelsAtScaleTwo() async throws {
-        let dotPixels = 3
         let (panel, ghost) = try await MainActor.run {
             let profile = FactoryPreset.warm.makeProfile()
             let model = try WorkbenchModel(library: ProfileLibrary(profiles: [profile], selectedID: profile.id))
-            let panel = try RenderedPixels(FrontPanelView(model: model))
-            let ghost = try RenderedPixels(PhosphorTheme.blue.ghost.frame(width: 1, height: 1)).pixel(column: 0, row: 0)
-            return (panel, ghost)
+            return try renderedWithGhost(FrontPanelView(model: model))
         }
         let runs = panel.runLengths(of: ghost)
-        #expect(runs.keys.sorted() == [dotPixels])
-        #expect(runs[dotPixels, default: 0] > 10000)
+        #expect(runs.keys.sorted() == [Self.dotPixels])
+        #expect(runs[Self.dotPixels, default: 0] > 10000)
     }
+
+    /// The Library panel's readouts keep the same grid. Its AppKit views take no room, so an image render draws no
+    /// placeholder over a dot.
+    @Test func everyLibraryDotIsThreeByThreeDevicePixelsAtScaleTwo() async throws {
+        let (panel, ghost) = try await MainActor.run {
+            let profiles = ["Soul Funk", "Flat", "Warm"].map { SoundProfile(name: $0) }
+            let model = try WorkbenchModel(library: ProfileLibrary(profiles: profiles, selectedID: profiles[0].id))
+            return try renderedWithGhost(LibraryPanel(model: model, driverLibrary: DriverLibraryModel()))
+        }
+        let runs = panel.runLengths(of: ghost)
+        #expect(runs.keys.sorted() == [Self.dotPixels])
+        #expect(runs[Self.dotPixels, default: 0] > 10000)
+    }
+}
+
+private extension FrontPanelRenderTests {
+    /// The edge of one dot in device pixels at scale 2.
+    static let dotPixels = 3
+}
+
+/// A view rendered at scale 2, with the blue theme's ghost color as it renders.
+@MainActor
+private func renderedWithGhost(_ view: some View) throws -> (pixels: RenderedPixels, ghost: RenderedPixel) {
+    let ghost = try RenderedPixels(PhosphorTheme.blue.ghost.frame(width: 1, height: 1)).pixel(column: 0, row: 0)
+    return try (RenderedPixels(view), ghost)
 }
 
 /// The pixels of a view rendered at scale 2, as 8-bit sRGB with the top row first.
@@ -84,7 +106,6 @@ private extension RenderedPixels {
         return RenderedPixel(red: Int(bytes[offset]), green: Int(bytes[offset + 1]), blue: Int(bytes[offset + 2]))
     }
 
-    /// The smallest pixel rectangle holding every pixel of one color, or nil when none has it.
     /// How often each length of an unbroken run of one color occurs, along every row and along every column.
     func runLengths(of color: RenderedPixel) -> [Int: Int] {
         var counts: [Int: Int] = [:]

@@ -1,8 +1,9 @@
 import CoreGraphics
 import SwiftUI
 
-/// The front panel's brushed metal: the mockup's metal gradient under faint, slightly slanted brush strokes and a fine
-/// grain. Its top edge catches a highlight and its bottom edge lies in shade, as the window's edges do in the mockup.
+/// The brushed metal of the front panel and the Library panel: the mockup's metal gradient under faint, slightly
+/// slanted brush strokes and a fine grain. Its top edge catches a highlight and its bottom edge lies in shade, as the
+/// windows' edges do in the mockup.
 struct BrushedMetal: View {
     var body: some View {
         Rectangle()
