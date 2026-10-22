@@ -25,11 +25,11 @@ struct FrontPanelDisplayLayoutTests {
 }
 
 struct FrontPanelRenderTests {
-    /// Every dot of the display is a block of 3 × 3 pixels in one color at scale 2, and the pixel column and row
-    /// after it show the glass. A dot that lands between device pixels blends into its neighbors and fails both.
+    /// Every unlit dot of every display, the big one and the readouts alike, is a block of 3 × 3 device pixels in the
+    /// ghost color at scale 2. A dot that lands between device pixels blends its edges into the glass, which leaves
+    /// shorter runs of the exact ghost color.
     @Test func everyDotIsThreeByThreeDevicePixelsAtScaleTwo() async throws {
         let dotPixels = 3
-        let pitchPixels = 4
         let (panel, ghost) = try await MainActor.run {
             let profile = FactoryPreset.warm.makeProfile()
             let model = try WorkbenchModel(library: ProfileLibrary(profiles: [profile], selectedID: profile.id))
@@ -37,24 +37,9 @@ struct FrontPanelRenderTests {
             let ghost = try RenderedPixels(PhosphorTheme.blue.ghost.frame(width: 1, height: 1)).pixel(column: 0, row: 0)
             return (panel, ghost)
         }
-        let grid = try #require(panel.bounds(of: ghost))
-        #expect(grid.width > 1000 && grid.height > 400)
-        var strayPixels = 0
-        for row in grid.minY ..< grid.maxY {
-            for column in grid.minX ..< grid.maxX {
-                let phase = (column: (column - grid.minX) % pitchPixels, row: (row - grid.minY) % pitchPixels)
-                let pixel = panel.pixel(column: column, row: row)
-                let isGlass = pixel.isDarker(thanHalfOf: ghost)
-                if phase.column == dotPixels || phase.row == dotPixels {
-                    strayPixels += isGlass ? 0 : 1
-                } else {
-                    let dotCorner = panel.pixel(column: column - phase.column, row: row - phase.row)
-                    strayPixels += !isGlass && pixel == dotCorner ? 0 : 1
-                }
-            }
-        }
-        #expect(strayPixels == 0)
-        #expect(grid.width % pitchPixels == dotPixels && grid.height % pitchPixels == dotPixels)
+        let runs = panel.runLengths(of: ghost)
+        #expect(runs.keys.sorted() == [dotPixels])
+        #expect(runs[dotPixels, default: 0] > 10000)
     }
 }
 
@@ -100,20 +85,38 @@ private extension RenderedPixels {
     }
 
     /// The smallest pixel rectangle holding every pixel of one color, or nil when none has it.
-    func bounds(of color: RenderedPixel) -> PixelRect? {
-        var minX = width
-        var minY = height
-        var maxX = 0
-        var maxY = 0
-        for row in 0 ..< height {
-            for column in 0 ..< width where pixel(column: column, row: row) == color {
-                minX = min(minX, column)
-                minY = min(minY, row)
-                maxX = max(maxX, column + 1)
-                maxY = max(maxY, row + 1)
+    /// How often each length of an unbroken run of one color occurs, along every row and along every column.
+    func runLengths(of color: RenderedPixel) -> [Int: Int] {
+        var counts: [Int: Int] = [:]
+        func close(_ length: inout Int) {
+            if length > 0 {
+                counts[length, default: 0] += 1
             }
+            length = 0
         }
-        return minX < maxX ? PixelRect(minX: minX, minY: minY, maxX: maxX, maxY: maxY) : nil
+        for row in 0 ..< height {
+            var length = 0
+            for column in 0 ..< width {
+                if pixel(column: column, row: row) == color {
+                    length += 1
+                } else {
+                    close(&length)
+                }
+            }
+            close(&length)
+        }
+        for column in 0 ..< width {
+            var length = 0
+            for row in 0 ..< height {
+                if pixel(column: column, row: row) == color {
+                    length += 1
+                } else {
+                    close(&length)
+                }
+            }
+            close(&length)
+        }
+        return counts
     }
 }
 
@@ -121,25 +124,4 @@ private struct RenderedPixel: Equatable {
     let red: Int
     let green: Int
     let blue: Int
-
-    /// Whether every channel is under half of another color's, which holds for the glass against the unlit dots and
-    /// fails for a dot's edge blended into the glass.
-    func isDarker(thanHalfOf other: RenderedPixel) -> Bool {
-        red * 2 < other.red && green * 2 < other.green && blue * 2 < other.blue
-    }
-}
-
-private struct PixelRect {
-    let minX: Int
-    let minY: Int
-    let maxX: Int
-    let maxY: Int
-
-    var width: Int {
-        maxX - minX
-    }
-
-    var height: Int {
-        maxY - minY
-    }
 }

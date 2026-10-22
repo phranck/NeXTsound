@@ -3,29 +3,34 @@ import SwiftUI
 
 /// The front panel window's content.
 ///
-/// Brushed metal holds the header and the multifunction display, which shows the selected profile's live EQ curve.
-/// The metal reaches under the hidden title bar, so the window's buttons sit on it. The panel keeps a fixed width
-/// until its row of controls sets one.
+/// Brushed metal holds the header, the multifunction display with the selected profile's live EQ curve, and the row
+/// of controls that edits the profile. The row sets the panel's width, and the header and the display take it, so
+/// they end where the controls end. The metal reaches under the hidden title bar, so the window's buttons sit on it.
 public struct FrontPanelView: View {
     private let model: WorkbenchModel
+    @State private var selectedBand = 0
+    @AppStorage(Self.phosphorThemeKey) private var theme = PhosphorTheme.blue
+    @Environment(\.undoManager) private var undoManager
 
     public var body: some View {
         WholePointFrame {
             VStack(spacing: 0) {
                 FrontPanelHeader()
-                DisplayBay(settings: model.profile.settings, profileName: displayedProfileName, theme: .blue)
+                DisplayBay(settings: model.profile.settings, profileName: displayedProfileName, theme: theme)
                     .padding(FrontPanelLayout.bayMargin)
+                FrontPanelControlRow(editor: editor, selectedBand: $selectedBand, theme: $theme)
             }
             .padding(FrontPanelLayout.panelPadding)
-            .frame(width: FrontPanelLayout.interimWidth)
+            .fixedSize()
         }
         .background {
             BrushedMetal()
         }
         .ignoresSafeArea()
+        .focusedSceneValue(\.frontPanelBand, FrontPanelBand(editor: editor, index: selectedBand))
     }
 
-    /// - Parameter model: The workbench's model, whose selected profile the panel shows.
+    /// - Parameter model: The workbench's model, whose selected profile the panel shows and edits.
     public init(model: WorkbenchModel) {
         _ = FrontPanelFonts.registration
         self.model = model
@@ -33,6 +38,13 @@ public struct FrontPanelView: View {
 }
 
 private extension FrontPanelView {
+    /// The defaults key of the display color, which the panel keeps across launches.
+    static let phosphorThemeKey = "frontPanelPhosphorTheme"
+
+    var editor: FrontPanelEditor {
+        FrontPanelEditor(model: model, undoManager: undoManager)
+    }
+
     /// A profile without a name shows as Untitled, as it does in the sidebar.
     var displayedProfileName: String {
         model.profile.name.isEmpty ? String(localized: "Untitled") : model.profile.name
@@ -53,24 +65,19 @@ private struct DisplayBay: View {
     var body: some View {
         FrontPanelDisplay(settings: settings, profileName: profileName, theme: theme)
             .padding(FrontPanelLayout.screenPadding)
-            .background(
-                PhosphorTheme.glass
-                    .shadow(.inner(color: .white.opacity(0.03), radius: 0, x: 1, y: 1))
-                    .shadow(.inner(color: .black.opacity(0.6), radius: 0, x: -1, y: -1)),
-                in: RoundedRectangle(cornerRadius: FrontPanelLayout.bayRadius - FrontPanelLayout.frameWidth)
-            )
+            .vfdGlass(cornerRadius: FrontPanelLayout.bayRadius - FrontPanelLayout.frameWidth)
             .padding(FrontPanelLayout.frameWidth)
             .background(
-                LinearGradient(colors: [Color(hex: 0x16181A), Color(hex: 0x0C0D0E)], startPoint: .top, endPoint: .bottom)
-                    .shadow(.inner(color: .black.opacity(0.7), radius: 2.5, y: 2))
-                    .shadow(.inner(color: .white.opacity(0.04), radius: 0, y: -1)),
+                LinearGradient(
+                    colors: [Color(hex: FrontPanelPalette.frameTop), Color(hex: FrontPanelPalette.frameBottom)],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+                .shadow(.inner(color: .black.opacity(0.7), radius: 2.5, y: 2))
+                .shadow(.inner(color: .white.opacity(0.04), radius: 0, y: -1)),
                 in: RoundedRectangle(cornerRadius: FrontPanelLayout.bayRadius)
             )
-            .background {
-                RoundedRectangle(cornerRadius: FrontPanelLayout.bayRadius)
-                    .fill(.white.opacity(0.05))
-                    .offset(y: 1)
-            }
+            .frameHighlight(cornerRadius: FrontPanelLayout.bayRadius, opacity: 0.05)
     }
 }
 
@@ -92,8 +99,6 @@ private struct WholePointFrame: Layout {
 
 /// The front panel's measurements, from the approved mockup.
 enum FrontPanelLayout {
-    /// The panel's width until its row of controls sets one, the width the mockup's controls give it.
-    static let interimWidth: CGFloat = 1188
     static let panelPadding = EdgeInsets(top: 26, leading: 30, bottom: 22, trailing: 30)
     static let bayMargin = EdgeInsets(top: 2, leading: 36, bottom: 20, trailing: 36)
     static let screenPadding = EdgeInsets(top: 8, leading: 10, bottom: 8, trailing: 10)

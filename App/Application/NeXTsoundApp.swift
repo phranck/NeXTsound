@@ -14,6 +14,9 @@ struct NeXTsoundApp: App {
         }
         .defaultSize(width: WorkbenchLayout.defaultSize.width, height: WorkbenchLayout.defaultSize.height)
         .windowResizability(.contentMinSize)
+        .commands {
+            FrontPanelCommands()
+        }
 
         Window(WorkbenchLayout.driverLibraryWindowTitle, id: WorkbenchLayout.driverLibraryWindowID) {
             DriverLibraryView(model: driverLibrary)

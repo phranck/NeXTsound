@@ -21,7 +21,7 @@ private struct HighPassControls: View {
         GroupBox("High-pass") {
             VStack(alignment: .leading, spacing: 12) {
                 Toggle("Enabled", isOn: $settings.highPassEnabled)
-                ParameterControl(title: "Cutoff", parameter: .highPassFrequency, unit: "Hz", value: $settings.highPassHz, logarithmic: true)
+                ParameterControl(title: "Cutoff", parameter: .highPassFrequency, unit: "Hz", value: $settings.highPassHz)
                     .disabled(!settings.highPassEnabled)
             }
             .padding(10)
@@ -37,20 +37,11 @@ private struct OutputControls: View {
             VStack(alignment: .leading, spacing: 12) {
                 Toggle("Muted", isOn: $settings.isMuted)
                 ParameterControl(title: "Master Volume", parameter: .attenuation, unit: "dB", value: $settings.attenuationDb)
-                Text(attenuationPercentText)
+                Text(settings.shareOfFullVolumeText)
                     .foregroundStyle(.secondary)
             }
             .padding(10)
         }
-    }
-}
-
-private extension OutputControls {
-    /// A perceptual anchor alongside the dB value: how loud the signal is relative to full
-    /// scale, since -24 dB on its own does not say much before you have learned the scale.
-    var attenuationPercentText: String {
-        let amplitudePercent = pow(10, settings.attenuationDb / 20) * 100
-        return String(localized: "\(amplitudePercent.formatted(.number.precision(.fractionLength(0 ... 1)))) % of full volume")
     }
 }
 
@@ -61,13 +52,7 @@ private struct LimiterControls: View {
         GroupBox("Sample-peak limiter") {
             VStack(alignment: .leading, spacing: 12) {
                 ParameterControl(title: "Ceiling", parameter: .limiterThreshold, unit: "dB", value: $settings.limiterThresholdDb)
-                ParameterControl(
-                    title: "Release",
-                    parameter: .limiterRelease,
-                    unit: "ms",
-                    value: $settings.limiterReleaseMs,
-                    logarithmic: true
-                )
+                ParameterControl(title: "Release", parameter: .limiterRelease, unit: "ms", value: $settings.limiterReleaseMs)
             }
             .padding(10)
         }

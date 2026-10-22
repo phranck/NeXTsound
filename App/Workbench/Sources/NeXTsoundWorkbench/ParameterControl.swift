@@ -7,7 +7,6 @@ struct ParameterControl: View {
     let parameter: DSPParameter
     let unit: String
     @Binding var value: Float
-    var logarithmic = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
@@ -24,8 +23,8 @@ struct ParameterControl: View {
                     .foregroundStyle(.secondary)
             }
             Group {
-                if logarithmic, let scale = try? LogarithmicScale(bounds: parameter.bounds) {
-                    Slider(value: scaledBinding(scale), in: 0 ... 1) { Text(title) }
+                if parameter.usesLogarithmicScale {
+                    Slider(value: positionBinding, in: 0 ... 1) { Text(title) }
                 } else {
                     Slider(value: $value, in: parameter.bounds) { Text(title) }
                 }
@@ -39,7 +38,9 @@ struct ParameterControl: View {
 }
 
 private extension ParameterControl {
-    func scaledBinding(_ scale: LogarithmicScale) -> Binding<Double> {
-        Binding(get: { scale.position(for: value) }, set: { value = scale.value(at: $0) })
+    /// The slider's position on the parameter's logarithmic scale, mapped back to the value as it moves.
+    var positionBinding: Binding<Double> {
+        let scale = FaderScale(parameter: parameter)
+        return Binding(get: { scale.position(for: value) }, set: { value = scale.value(at: $0) })
     }
 }
