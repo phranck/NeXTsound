@@ -19,5 +19,11 @@ struct NeXTsoundApp: App {
             DriverLibraryView(model: driverLibrary)
         }
         .defaultSize(width: 640, height: 480)
+
+        Window(WorkbenchLayout.frontPanelWindowTitle, id: WorkbenchLayout.frontPanelWindowID) {
+            FrontPanelView(model: model)
+        }
+        .windowStyle(.hiddenTitleBar)
+        .windowResizability(.contentSize)
     }
 }

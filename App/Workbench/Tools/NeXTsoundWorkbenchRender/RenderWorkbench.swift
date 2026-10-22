@@ -29,10 +29,14 @@ enum RenderWorkbench {
             }
         }
         try render(size: WorkbenchLayout.defaultSize, scheme: .light, connected: true, destination: destination)
+        try renderFrontPanel(destination: destination)
     }
 }
 
 private extension RenderWorkbench {
+    /// The scale the front panel is rendered at.
+    static let frontPanelScale: CGFloat = 2
+
     static func render(size: CGSize, scheme: ColorScheme, connected: Bool, destination: URL) throws {
         let appearance = scheme == .dark ? "dark" : "light"
         let nativeAppearance = NSAppearance(named: scheme == .dark ? .darkAqua : .aqua)
@@ -68,11 +72,8 @@ private extension RenderWorkbench {
         host.effectiveAppearance.performAsCurrentDrawingAppearance {
             host.cacheDisplay(in: host.bounds, to: bitmap)
         }
-        guard let data = bitmap.representation(using: .png, properties: [:]) else {
-            throw CocoaError(.fileWriteUnknown)
-        }
         let stem = "workbench-\(Int(size.width))x\(Int(size.height))-\(appearance)" + (connected ? "-connected" : "")
-        try data.write(to: destination.appendingPathComponent(stem + ".png"), options: .atomic)
+        try writePNG(bitmap, to: destination.appendingPathComponent(stem + ".png"))
         let report = RenderReport(
             width: size.width,
             height: size.height,
@@ -85,6 +86,28 @@ private extension RenderWorkbench {
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
         try encoder.encode(report).write(to: destination.appendingPathComponent(stem + ".json"), options: .atomic)
         print("Rendered \(stem)")
+    }
+
+    /// Renders the front panel through SwiftUI's own renderer at scale 2, the scale its dots fall on whole device
+    /// pixels at. The panel holds no AppKit control that only a window could draw, and `cacheDisplay(in:to:)`, which
+    /// the workbench renders need for theirs, inverts the panel's inner shadows.
+    static func renderFrontPanel(destination: URL) throws {
+        let profile = FactoryPreset.warm.makeProfile()
+        let model = try WorkbenchModel(library: ProfileLibrary(profiles: [profile], selectedID: profile.id))
+        let renderer = ImageRenderer(content: FrontPanelView(model: model))
+        renderer.scale = frontPanelScale
+        guard let image = renderer.cgImage else {
+            throw CocoaError(.fileWriteUnknown)
+        }
+        try writePNG(NSBitmapImageRep(cgImage: image), to: destination.appendingPathComponent("front-panel@2x.png"))
+        print("Rendered front-panel@2x")
+    }
+
+    static func writePNG(_ bitmap: NSBitmapImageRep, to url: URL) throws {
+        guard let data = bitmap.representation(using: .png, properties: [:]) else {
+            throw CocoaError(.fileWriteUnknown)
+        }
+        try data.write(to: url, options: .atomic)
     }
 
     static func controls(in view: NSView, root: NSView) -> [ControlReport] {
