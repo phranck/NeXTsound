@@ -40,8 +40,9 @@ public struct WorkbenchView: View {
             isPresented: $model.isExporting,
             document: ProfileFile(profile: model.profile),
             contentType: .neXTsoundProfile,
-            defaultFilename: model.profile.name.isEmpty ? "Untitled" : model.profile.name
+            defaultFilename: model.profile.displayName
         ) { _ in }
+        .focusedSceneValue(\.libraryEditor, LibraryEditor(model: model, undoManager: undoManager))
         .alert("The profile could not be changed", isPresented: errorIsPresented) {
             Button("OK", role: .cancel) { model.errorMessage = nil }
         } message: {

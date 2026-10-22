@@ -112,6 +112,96 @@ enum KeyBankNavigation {
     }
 }
 
+/// One momentary key: its action, its caption, its name for VoiceOver, and whether it can be pressed.
+struct MomentaryKey: Identifiable {
+    let id: String
+    /// The caption in its localized form, which a caption under a single key is measured from.
+    let caption: String
+    let name: Text
+    var isEnabled = true
+    let action: () -> Void
+}
+
+/// A row of momentary keys in a key bank's frame, with each key's caption under it.
+///
+/// Each key springs back when it is let go and starts an action of its own, so the bank has no LEDs, and each is a
+/// stop of its own for the keyboard. Every key names its action in a whole word, which stays clear of its neighbor's
+/// only without the captions' usual letter spacing.
+struct MomentaryKeyBank: View {
+    let keys: [MomentaryKey]
+
+    var body: some View {
+        VStack(spacing: KeyBankMetrics.captionSpacing) {
+            MomentaryKeyFrame(keys: keys)
+            HStack(spacing: KeyBankMetrics.keyGap) {
+                ForEach(keys) { key in
+                    ControlCaption(caption: Text(verbatim: key.caption), tracking: 0)
+                        .frame(width: KeyBankMetrics.keySize)
+                }
+            }
+            .padding(.horizontal, KeyBankMetrics.framePadding)
+            .accessibilityHidden(true)
+        }
+    }
+}
+
+extension MomentaryKeyBank {
+    /// The width of a bank of `keyCount` keys, its frame included.
+    nonisolated static func width(keyCount: Int) -> CGFloat {
+        let keys = KeyBankMetrics.keySize * CGFloat(keyCount)
+        return keys + KeyBankMetrics.keyGap * CGFloat(max(keyCount - 1, 0)) + 2 * KeyBankMetrics.framePadding
+    }
+}
+
+/// A single momentary key in its frame, with its caption under it broken between its words, so the two take no more
+/// width than the frame or the caption's widest word.
+struct LabeledMomentaryKey: View {
+    let key: MomentaryKey
+
+    var body: some View {
+        VStack(spacing: FrontPanelLayout.captionSpacing) {
+            MomentaryKeyFrame(keys: [key])
+            ControlCaption(wrappingToWidestWord: key.caption)
+                .accessibilityHidden(true)
+        }
+    }
+}
+
+/// Momentary keys side by side in a key bank's frame.
+private struct MomentaryKeyFrame: View {
+    let keys: [MomentaryKey]
+
+    var body: some View {
+        HStack(alignment: .top, spacing: KeyBankMetrics.keyGap) {
+            ForEach(keys) { key in
+                MomentaryBankKey(key: key)
+            }
+        }
+        .padding(KeyBankMetrics.framePadding)
+        .background(KeyBankFrame())
+    }
+}
+
+/// One momentary key with its own focus halo.
+private struct MomentaryBankKey: View {
+    let key: MomentaryKey
+    @FocusState private var isFocused: Bool
+
+    var body: some View {
+        Button(action: key.action) {
+            EmptyView()
+        }
+        .buttonStyle(BankKeyStyle(isDown: false))
+        .disabled(!key.isEnabled)
+        .focused($isFocused)
+        .focusEffectDisabled()
+        .background {
+            FocusHalo(shape: RoundedRectangle(cornerRadius: KeyBankMetrics.keyRadius), isVisible: isFocused)
+        }
+        .accessibilityLabel(key.name)
+    }
+}
+
 /// One square key with the LED that sits above the bank's frame over it.
 private struct BankKey: View {
     let isDown: Bool

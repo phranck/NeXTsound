@@ -34,6 +34,9 @@ struct DotMatrixLinesLayout: Equatable, Sendable {
     var lines = 1
     /// The empty border around the dots, in points.
     var margin: CGFloat = DotMatrixMetrics.pitch
+    /// Dot columns beyond the cells' own, which a readout that fills a width keeps, so its dots reach as far as
+    /// that width allows.
+    var extraColumns = 0
 }
 
 extension DotMatrixAlignment {
@@ -56,9 +59,17 @@ extension DotMatrixAlignment {
 }
 
 extension DotMatrixLinesLayout {
+    /// A layout that fills `width` points, border included, with as many dot columns as that width holds and as many
+    /// whole cells as those columns hold.
+    static func filling(width: CGFloat, lines: Int = 1, margin: CGFloat = DotMatrixMetrics.pitch) -> Self {
+        let columns = DotMatrixMetrics.columns(fitting: width - 2 * margin)
+        let cells = DotMatrixMetrics.cells(inColumns: columns)
+        return Self(cells: cells, lines: lines, margin: margin, extraColumns: columns - DotMatrixMetrics.columns(forCells: cells))
+    }
+
     /// The dot columns of each line.
     var columns: Int {
-        DotMatrixMetrics.columns(forCells: cells)
+        DotMatrixMetrics.columns(forCells: cells) + extraColumns
     }
 
     /// The dot rows of all lines together.

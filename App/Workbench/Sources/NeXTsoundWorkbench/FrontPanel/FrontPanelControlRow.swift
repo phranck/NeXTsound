@@ -198,7 +198,7 @@ private struct LimiterModule: View {
                     theme: theme
                 )
             } bottom: {
-                VStack(spacing: PanelRowMetrics.captionSpacing) {
+                VStack(spacing: FrontPanelLayout.captionSpacing) {
                     PanelLED(isLit: buttons.saveLEDIsLit, confirms: true)
                     PanelPushButton(label: "Save to SoundBox", kind: .save, action: buttons.save)
                     ControlCaption(caption: Text("Save to SoundBox"), wrapWidth: PanelFader.columnWidth)
@@ -215,7 +215,7 @@ private struct LimiterModule: View {
                     theme: theme
                 )
             } bottom: {
-                VStack(spacing: PanelRowMetrics.captionSpacing) {
+                VStack(spacing: FrontPanelLayout.captionSpacing) {
                     PanelPushButton(label: "Flash Firmware", kind: .flash, action: buttons.flash)
                     ControlCaption(caption: Text("Flash Firmware"), wrapWidth: PanelFader.columnWidth)
                         .accessibilityHidden(true)
@@ -292,7 +292,7 @@ private struct LabeledToggle: View {
     @Binding var isOn: Bool
 
     var body: some View {
-        VStack(spacing: PanelRowMetrics.captionSpacing) {
+        VStack(spacing: FrontPanelLayout.captionSpacing) {
             SlideToggle(label: label, isOn: $isOn)
             ControlCaption(caption: Text(caption))
                 .accessibilityHidden(true)
@@ -318,7 +318,6 @@ private enum PanelRowMetrics {
     static let stackSpacing: CGFloat = 14
     /// The least space between two controls side by side.
     static let controlSpacing: CGFloat = 6
-    static let captionSpacing: CGFloat = 5
     /// The display color column's padding, which centers its LEDs on the titles' line.
     static let colorColumnPadding = EdgeInsets(
         top: panelPadding.top + (FrontPanelType.lineHeight - PanelLED.size) / 2,

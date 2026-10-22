@@ -16,6 +16,7 @@ struct NeXTsoundApp: App {
         .windowResizability(.contentMinSize)
         .commands {
             FrontPanelCommands()
+            LibraryCommands()
         }
 
         Window(WorkbenchLayout.driverLibraryWindowTitle, id: WorkbenchLayout.driverLibraryWindowID) {
@@ -25,6 +26,12 @@ struct NeXTsoundApp: App {
 
         Window(WorkbenchLayout.frontPanelWindowTitle, id: WorkbenchLayout.frontPanelWindowID) {
             FrontPanelView(model: model)
+        }
+        .windowStyle(.hiddenTitleBar)
+        .windowResizability(.contentSize)
+
+        UtilityWindow(WorkbenchLayout.libraryWindowTitle, id: WorkbenchLayout.libraryWindowID) {
+            LibraryPanel(model: model, driverLibrary: driverLibrary)
         }
         .windowStyle(.hiddenTitleBar)
         .windowResizability(.contentSize)
