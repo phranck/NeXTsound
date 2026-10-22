@@ -79,7 +79,8 @@ struct ControlCaption: View {
         if let wrapWidth {
             styledCaption
                 .multilineTextAlignment(.center)
-                .lineSpacing(FrontPanelType.lineHeight - FrontPanelType.textLineHeight)
+                .lineSpacing(Self.leading)
+                .padding(.vertical, Self.leading / 2)
                 .frame(width: wrapWidth)
                 .fixedSize(horizontal: false, vertical: true)
         } else {
@@ -92,6 +93,11 @@ struct ControlCaption: View {
 }
 
 private extension ControlCaption {
+    /// What a line of the mockup's type is taller than a line of SwiftUI's. It goes between the lines of a caption
+    /// that breaks, and half of it above and below the caption, as CSS shares a line's leading out, so every line
+    /// stands where the mockup's does.
+    static let leading = FrontPanelType.lineHeight - FrontPanelType.textLineHeight
+
     var styledCaption: some View {
         caption
             .font(FrontPanelType.font)
