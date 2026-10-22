@@ -11,6 +11,10 @@ enum PhosphorTheme: String, CaseIterable, Sendable {
 }
 
 extension PhosphorTheme {
+    /// The defaults key of the display color, which the front panel and the Library panel share and keep across
+    /// launches.
+    static let storageKey = "frontPanelPhosphorTheme"
+
     /// The glass every display's dots sit behind.
     static let glass = Color(red: 5 / 255, green: 8 / 255, blue: 10 / 255).opacity(0.92)
 

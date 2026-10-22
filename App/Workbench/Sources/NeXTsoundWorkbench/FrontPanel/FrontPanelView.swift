@@ -11,7 +11,7 @@ public struct FrontPanelView: View {
     @State private var selectedBand = 0
     @State private var saveFeedback = FrontPanelSaveFeedback()
     @State private var isShowingFlashSheet = false
-    @AppStorage(Self.phosphorThemeKey) private var theme = PhosphorTheme.blue
+    @AppStorage(PhosphorTheme.storageKey) private var theme = PhosphorTheme.blue
     @Environment(\.undoManager) private var undoManager
 
     public var body: some View {
@@ -43,9 +43,6 @@ public struct FrontPanelView: View {
 }
 
 private extension FrontPanelView {
-    /// The defaults key of the display color, which the panel keeps across launches.
-    static let phosphorThemeKey = "frontPanelPhosphorTheme"
-
     var editor: FrontPanelEditor {
         FrontPanelEditor(model: model, undoManager: undoManager)
     }
@@ -116,22 +113,6 @@ private struct DisplayBay: View {
     }
 }
 
-/// Rounds its content's size up to whole points and keeps the content at the top leading corner.
-///
-/// The dot grids give the panel half-point heights, and its hosting view measures it in whole points. The host would
-/// center the panel and leave a strip above it unpainted, so the rounding moves the remainder inside the metal at
-/// the bottom.
-private struct WholePointFrame: Layout {
-    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache _: inout ()) -> CGSize {
-        let size = subviews.first?.sizeThatFits(proposal) ?? .zero
-        return CGSize(width: size.width.rounded(.up), height: size.height.rounded(.up))
-    }
-
-    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache _: inout ()) {
-        subviews.first?.place(at: bounds.origin, anchor: .topLeading, proposal: proposal)
-    }
-}
-
 /// The front panel's measurements, from the approved mockup.
 enum FrontPanelLayout {
     static let panelPadding = EdgeInsets(top: 26, leading: 30, bottom: 22, trailing: 30)
@@ -140,4 +121,6 @@ enum FrontPanelLayout {
     static let bayRadius: CGFloat = 10
     /// The width of the dark frame around every display.
     static let frameWidth: CGFloat = 2
+    /// The space between a control and the caption under it.
+    static let captionSpacing: CGFloat = 5
 }
