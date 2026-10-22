@@ -1,8 +1,6 @@
 import SwiftUI
 
-/// A labeled numeric text field row, extracted from `ParameterControl`'s original layout so a
-/// non-slider optional value (nil meaning "unknown") can share the same visual shape as the DSP
-/// sliders.
+/// A labeled numeric text field for an optional value, where nil means unknown, with the value's unit beside it.
 struct NumericFieldRow: View {
     let title: LocalizedStringKey
     let unit: String

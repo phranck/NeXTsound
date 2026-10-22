@@ -1,7 +1,6 @@
 import SwiftUI
 
-/// The form that gives the connected SoundBox a new name, which the workbench's header and the Library panel open
-/// for a verified board.
+/// The form that gives the connected SoundBox a new name, which the Library panel opens for a verified board.
 struct BoardRenameForm: View {
     let currentName: String
     let onSubmit: (String) -> Void

@@ -33,7 +33,8 @@ extension SoundProfile {
 }
 
 extension BoardConnectionState {
-    /// The state in a few words, as the workbench's badge and the front panel's status column name it.
+    /// The state in a few words, as the front panel's status column names it and VoiceOver reads the Library panel's
+    /// CONNECTED LED.
     var title: String {
         switch self {
         case .disconnected: String(localized: "SoundBox not connected")

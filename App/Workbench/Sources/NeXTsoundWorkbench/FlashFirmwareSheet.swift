@@ -1,8 +1,8 @@
 import NeXTsoundCore
 import SwiftUI
 
-/// The sheet that writes the firmware the app ships with onto the SoundBox and verifies it, opened from the
-/// workbench's header and from the front panel's FLASH button.
+/// The sheet that writes the firmware the app ships with onto the SoundBox and verifies it, opened from the front
+/// panel's FLASH button.
 struct FlashFirmwareSheet: View {
     let connectionState: BoardConnectionState
     @State private var model: FlashFirmwareSheetModel

@@ -3,8 +3,7 @@ import SwiftUI
 
 /// Writes the front panel's edits into the selected profile through the model's edit path.
 ///
-/// Each edit advances the profile's revision, registers its undo and plays on a connected SoundBox, as an edit in the
-/// workbench does.
+/// Each edit advances the profile's revision, registers its undo and plays on a connected SoundBox.
 @MainActor
 struct FrontPanelEditor {
     let model: WorkbenchModel
@@ -157,7 +156,8 @@ private struct HighPassModule: View {
     }
 }
 
-/// The output module. VoiceOver reads the volume with its share of full volume, as the workbench shows it.
+/// The output module. VoiceOver reads the volume with its share of full volume, because the decibels alone say little
+/// before the scale is learned.
 private struct OutputModule: View {
     let editor: FrontPanelEditor
     let theme: PhosphorTheme
