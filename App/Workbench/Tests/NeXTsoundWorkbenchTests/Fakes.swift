@@ -156,6 +156,9 @@ struct FakeBoardTransport: BoardTransport {
     var persistError: BoardTransportError?
     var writes: BoardWriteRecorder?
     var storage = FakeBoardStorage()
+    /// The live values every status request reports.
+    var runtime = DeviceRuntimeStatus()
+    var statusCalls: CallCounter?
 
     func requestCapabilities() async throws -> DeviceCapabilities {
         switch behavior {
@@ -177,8 +180,9 @@ struct FakeBoardTransport: BoardTransport {
         }
     }
 
-    func requestRuntimeStatus() async throws -> DeviceRuntimeStatus {
-        DeviceRuntimeStatus()
+    func requestStatus() async throws -> BoardStatusReading {
+        statusCalls?.increment()
+        return BoardStatusReading(runtime: runtime, storage: storage.state)
     }
 
     func applyState(_ snapshot: DeviceSnapshot) async throws {
@@ -203,10 +207,6 @@ struct FakeBoardTransport: BoardTransport {
         }
         writes?.record(.persist)
         storage.state = .saved
-    }
-
-    func requestStorageState() async throws -> BoardStorageState {
-        storage.state
     }
 }
 
@@ -234,8 +234,12 @@ func waitUntil(timeout: Duration = .seconds(2), _ condition: () -> Bool) async -
 /// Starts a monitor, connects the fake board through the discovery, and returns once the monitor
 /// verified it. Throws a timeout when verification takes longer than `waitUntil(timeout:_:)` waits.
 @MainActor
-func verifiedMonitor(_ transport: FakeBoardTransport, discovery: FakeBoardDiscovery = FakeBoardDiscovery()) async throws -> BoardMonitor {
-    let monitor = BoardMonitor(discovery: discovery)
+func verifiedMonitor(
+    _ transport: FakeBoardTransport,
+    discovery: FakeBoardDiscovery = FakeBoardDiscovery(),
+    statusInterval: Duration = .seconds(1)
+) async throws -> BoardMonitor {
+    let monitor = BoardMonitor(discovery: discovery, statusInterval: statusInterval)
     monitor.start()
     discovery.simulateConnect(
         BoardIdentitySnapshot(vendorID: 1, productID: 2, enumeratedSerial: fixtureCapabilities().serial),

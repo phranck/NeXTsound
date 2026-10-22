@@ -63,10 +63,34 @@ public protocol BoardTransport: Sendable {
     /// Writes the snapshot the board plays to its flash, so the board starts with it after the next
     /// power-up. Returns once the flash write completed.
     func persistState() async throws
-    /// Sends the non-mutating runtime-status request and returns its validated reply. Never applies, persists, or resets.
-    func requestRuntimeStatus() async throws -> DeviceRuntimeStatus
-    /// Sends the non-mutating runtime-status request and reports whether the board plays the settings it saved.
-    func requestStorageState() async throws -> BoardStorageState
+    /// Sends the non-mutating runtime-status request and returns the board's live values together with whether it
+    /// plays the settings it saved, both from the one validated reply. Never applies, persists, or resets.
+    func requestStatus() async throws -> BoardStatusReading
+}
+
+public extension BoardTransport {
+    /// The live values of one runtime-status request.
+    func requestRuntimeStatus() async throws -> DeviceRuntimeStatus {
+        try await requestStatus().runtime
+    }
+
+    /// Whether the board plays the settings it saved, from one runtime-status request.
+    func requestStorageState() async throws -> BoardStorageState {
+        try await requestStatus().storage
+    }
+}
+
+/// What one runtime-status request reports.
+public struct BoardStatusReading: Equatable, Sendable {
+    /// The board's live values: streaming, host volume and mute, peaks, xruns and processing time.
+    public var runtime: DeviceRuntimeStatus
+    /// Whether the board plays the settings it saved.
+    public var storage: BoardStorageState
+
+    public init(runtime: DeviceRuntimeStatus, storage: BoardStorageState) {
+        self.runtime = runtime
+        self.storage = storage
+    }
 }
 
 public protocol BoardDiscovery: Sendable {
@@ -82,17 +106,28 @@ public protocol BoardDiscovery: Sendable {
 public final class BoardMonitor {
     public private(set) var state: BoardConnectionState = .disconnected
     public private(set) var storage: BoardStorageState = .unknown
+    /// The verified board's live values, read about once every `statusInterval`. Nil while no board is verified.
+    public private(set) var runtime: DeviceRuntimeStatus?
 
     @ObservationIgnored private let isEnabled: Bool
     @ObservationIgnored private let discovery: any BoardDiscovery
+    @ObservationIgnored private let statusInterval: Duration
     @ObservationIgnored private var hasStarted = false
     @ObservationIgnored private var queryTask: Task<Void, Never>?
+    @ObservationIgnored private var statusTask: Task<Void, Never>?
     @ObservationIgnored private var generation = 0
     @ObservationIgnored private var transport: (any BoardTransport)?
+    @ObservationIgnored private var writesInFlight = 0
+    @ObservationIgnored private var writeCount = 0
 
-    public init(isEnabled: Bool = true, discovery: (any BoardDiscovery)? = nil) {
+    /// - Parameters:
+    ///   - isEnabled: Whether `start()` looks for boards at all.
+    ///   - discovery: How boards are found, the system's HID discovery unless a test passes its own.
+    ///   - statusInterval: How long the monitor waits between two reads of a verified board's live values.
+    public init(isEnabled: Bool = true, discovery: (any BoardDiscovery)? = nil, statusInterval: Duration = .seconds(1)) {
         self.isEnabled = isEnabled
         self.discovery = discovery ?? IOHIDBoardDiscovery()
+        self.statusInterval = statusInterval
     }
 }
 
@@ -133,17 +168,19 @@ public extension BoardMonitor {
             throw BoardTransportError.notConnected
         }
         let current = generation
+        beginWrite()
+        defer { endWrite() }
         try await transport.setDeviceName(name)
         guard generation == current else {
             return
         }
         let capabilities = try await transport.requestCapabilities()
-        let storage = await Self.readStorage(from: transport)
+        let status = await Self.readStatus(from: transport)
         guard generation == current else {
             return
         }
         state = .verified(capabilities)
-        self.storage = storage
+        show(status)
     }
 
     /// Applies a DSP snapshot to the connected board's audio owner for the next block.
@@ -153,6 +190,8 @@ public extension BoardMonitor {
             throw BoardTransportError.notConnected
         }
         let current = generation
+        beginWrite()
+        defer { endWrite() }
         try await transport.applyState(snapshot)
         // An applied snapshot advances the firmware's active generation past the one it saved.
         if generation == current, storage == .saved {
@@ -167,12 +206,14 @@ public extension BoardMonitor {
             throw BoardTransportError.notConnected
         }
         let current = generation
+        beginWrite()
+        defer { endWrite() }
         try await transport.persistState()
-        let storage = await Self.readStorage(from: transport)
+        let status = await Self.readStatus(from: transport)
         guard generation == current else {
             return
         }
-        self.storage = storage
+        show(status)
     }
 }
 
@@ -183,6 +224,7 @@ private extension BoardMonitor {
         state = .detected
         self.transport = transport
         queryTask?.cancel()
+        statusTask?.cancel()
         queryTask = Task { [weak self] in
             do {
                 let capabilities = try await transport.requestCapabilities()
@@ -197,12 +239,13 @@ private extension BoardMonitor {
                     state = .mismatched(String(localized: "The reported serial does not match the enumerated device."))
                     return
                 }
-                let storage = await Self.readStorage(from: transport)
+                let status = await Self.readStatus(from: transport)
                 guard generation == current else {
                     return
                 }
-                self.storage = storage
+                show(status)
                 state = .verified(capabilities)
+                readStatusContinually(from: transport, generation: current)
             } catch {
                 guard
                     let self,
@@ -219,13 +262,61 @@ private extension BoardMonitor {
         generation += 1
         queryTask?.cancel()
         queryTask = nil
+        statusTask?.cancel()
+        statusTask = nil
         transport = nil
         state = .disconnected
         storage = .unknown
+        runtime = nil
     }
 
-    /// A board whose storage state cannot be read still verifies; its status line then stays empty.
-    static func readStorage(from transport: any BoardTransport) async -> BoardStorageState {
-        await (try? transport.requestStorageState()) ?? .unknown
+    /// Reads the verified board's live values every `statusInterval` until it disconnects. A read waits while a
+    /// write is on the wire, and a reading that a write overtook is dropped, so the storage state never runs behind
+    /// an apply.
+    func readStatusContinually(from transport: any BoardTransport, generation current: Int) {
+        statusTask = Task { [weak self, statusInterval] in
+            while !Task.isCancelled {
+                try? await Task.sleep(for: statusInterval)
+                guard
+                    let self,
+                    generation == current
+                else {
+                    return
+                }
+                guard writesInFlight == 0 else {
+                    continue
+                }
+                let writes = writeCount
+                guard let reading = try? await transport.requestStatus() else {
+                    continue
+                }
+                if generation == current, writeCount == writes, writesInFlight == 0 {
+                    show(reading)
+                }
+            }
+        }
+    }
+
+    func beginWrite() {
+        writesInFlight += 1
+        writeCount += 1
+    }
+
+    func endWrite() {
+        writesInFlight -= 1
+    }
+
+    /// Shows what a status request read. A failed read leaves the storage state unknown and keeps the last live
+    /// values.
+    func show(_ reading: BoardStatusReading?) {
+        storage = reading?.storage ?? .unknown
+        if let reading {
+            runtime = reading.runtime
+        }
+    }
+
+    /// A board whose status cannot be read still verifies; its status lines then stay empty.
+    static func readStatus(from transport: any BoardTransport) async -> BoardStatusReading? {
+        try? await transport.requestStatus()
     }
 }

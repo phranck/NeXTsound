@@ -158,13 +158,16 @@ private struct PreviewBoardTransport: BoardTransport {
 
     func persistState() async throws {}
 
-    func requestRuntimeStatus() async throws -> DeviceRuntimeStatus {
-        DeviceRuntimeStatus()
-    }
-
-    /// Unsaved, so the connected render shows the storage status line and an enabled save button.
-    func requestStorageState() async throws -> BoardStorageState {
-        .unsaved
+    /// Unsaved, so the connected render shows the storage status line and an enabled save button, and streaming with
+    /// the mockup's sample values, so a status column shows live values.
+    func requestStatus() async throws -> BoardStatusReading {
+        var runtime = DeviceRuntimeStatus()
+        runtime.isStreaming = true
+        runtime.hostVolumeDb = -12
+        runtime.maxProcessingUs = 410
+        runtime.blockDeadlineUs = 1000
+        runtime.storageIsAvailable = true
+        return BoardStatusReading(runtime: runtime, storage: .unsaved)
     }
 }
 
