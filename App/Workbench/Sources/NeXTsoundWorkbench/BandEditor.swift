@@ -17,7 +17,7 @@ struct BandEditor: View {
                 if bands.indices.contains(selectedBand) {
                     EQBandControls(band: $bands[selectedBand])
                     Button("Reset band", systemImage: "arrow.counterclockwise") {
-                        bands[selectedBand] = DSPSettings().bands[selectedBand]
+                        bands[selectedBand] = DSPSettings.defaultBand(at: selectedBand)
                     }
                     .controlSize(.regular)
                 }
@@ -34,9 +34,9 @@ private struct EQBandControls: View {
         VStack(alignment: .leading, spacing: 12) {
             Toggle("Band enabled", isOn: $band.isEnabled)
             VStack(spacing: 12) {
-                ParameterControl(title: "Frequency", parameter: .bandFrequency, unit: "Hz", value: $band.frequencyHz, logarithmic: true)
+                ParameterControl(title: "Frequency", parameter: .bandFrequency, unit: "Hz", value: $band.frequencyHz)
                 ParameterControl(title: "Gain", parameter: .bandGain, unit: "dB", value: $band.gainDb)
-                ParameterControl(title: "Quality", parameter: .bandQuality, unit: "Q", value: $band.quality, logarithmic: true)
+                ParameterControl(title: "Quality", parameter: .bandQuality, unit: "Q", value: $band.quality)
             }
             .disabled(!band.isEnabled)
         }
