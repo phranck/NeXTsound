@@ -1,0 +1,69 @@
+import AppKit
+import NeXTsoundCore
+import SwiftUI
+import Testing
+@testable import NeXTsoundWorkbench
+
+@MainActor
+struct PanelWindowTests {
+    /// A panel reaches under its window's hidden title bar, and the window still takes the panel's own size, so the
+    /// metal lies under the title bar and reaches the window's bottom edge.
+    @Test func eachWindowIsAsTallAsItsPanel() async throws {
+        let profile = FactoryPreset.warm.makeProfile()
+        let model = try WorkbenchModel(library: ProfileLibrary(profiles: [profile], selectedID: profile.id))
+        try await expectWindowFits(FrontPanelView(model: model))
+        try await expectWindowFits(LibraryPanel(model: model, driverLibrary: DriverLibraryModel()))
+    }
+}
+
+/// Hosts a panel the way a scene with a hidden title bar and content-sized resizability does, and expects the window
+/// to take the size that a window without a title bar takes for the same panel, with the metal in the middle of the
+/// title bar and in the window's last row of pixels.
+///
+/// The panel's size comes from a window on the same screen, because the dot grids snap to its pixels, so the panel
+/// is a different number of points tall at another display scale.
+@MainActor
+private func expectWindowFits(_ panel: some View, sourceLocation: SourceLocation = #_sourceLocation) async throws {
+    let untitled = hostingWindow(for: panel, styleMask: [.borderless])
+    let titled = hostingWindow(for: panel, styleMask: [.titled, .closable, .miniaturizable, .fullSizeContentView])
+    defer {
+        untitled.window.close()
+        titled.window.close()
+    }
+    let view = titled.controller.view
+    let hasTitleBar = await waitUntil { view.safeAreaInsets.top > 0 }
+    try #require(hasTitleBar, "The window has no title bar to reach under.", sourceLocation: sourceLocation)
+    let panelSize = untitled.controller.preferredContentSize
+    let fits = await waitUntil { titled.controller.preferredContentSize == panelSize }
+    #expect(
+        fits,
+        "The window asks for \(titled.controller.preferredContentSize), the panel is \(panelSize).",
+        sourceLocation: sourceLocation
+    )
+    titled.window.setContentSize(titled.controller.preferredContentSize)
+    view.layoutSubtreeIfNeeded()
+    let bitmap = try #require(view.bitmapImageRepForCachingDisplay(in: view.bounds))
+    view.cacheDisplay(in: view.bounds, to: bitmap)
+    let pixelsPerPoint = CGFloat(bitmap.pixelsHigh) / view.bounds.height
+    let titleBarMiddle = Int((view.safeAreaInsets.top / 2 * pixelsPerPoint).rounded(.down))
+    for row in [titleBarMiddle, bitmap.pixelsHigh - 1] {
+        let alpha = bitmap.colorAt(x: bitmap.pixelsWide / 2, y: row)?.alphaComponent ?? 0
+        #expect(alpha == 1, "Pixel row \(row) of \(bitmap.pixelsHigh) shows no metal.", sourceLocation: sourceLocation)
+    }
+}
+
+/// A window whose content is `panel` and whose size follows the size the panel asks for.
+@MainActor
+private func hostingWindow<Panel: View>(
+    for panel: Panel,
+    styleMask: NSWindow.StyleMask
+) -> (window: NSWindow, controller: NSHostingController<Panel>) {
+    let controller = NSHostingController(rootView: panel)
+    controller.sizingOptions = [.preferredContentSize]
+    let window = NSWindow(contentViewController: controller)
+    window.styleMask = styleMask
+    window.titlebarAppearsTransparent = true
+    window.titleVisibility = .hidden
+    window.isReleasedWhenClosed = false
+    return (window, controller)
+}
