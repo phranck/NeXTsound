@@ -217,10 +217,12 @@ func fixtureCapabilities(serial: String = "D4CDD489AFE28CC5") -> DeviceCapabilit
 /// Waits until a condition holds, checking it every five milliseconds, and tells whether it held before the timeout.
 ///
 /// The work a test waits for runs on the main actor, so a fixed sleep runs out whenever another test keeps the main
-/// actor busy for longer than the sleep lasts.
+/// actor busy for longer than the sleep lasts. The timeout is long for the same reason: the render tests hold the main
+/// actor for seconds on a CI runner, and every caller waits for a state it expects, so the timeout only bounds a wait
+/// that fails.
 @MainActor
 @discardableResult
-func waitUntil(timeout: Duration = .seconds(2), _ condition: () -> Bool) async -> Bool {
+func waitUntil(timeout: Duration = .seconds(10), _ condition: () -> Bool) async -> Bool {
     let deadline = ContinuousClock.now + timeout
     while ContinuousClock.now < deadline {
         if condition() {
