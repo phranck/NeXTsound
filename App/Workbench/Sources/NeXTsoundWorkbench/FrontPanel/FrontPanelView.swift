@@ -1,13 +1,16 @@
 import NeXTsoundCore
 import SwiftUI
+import UniformTypeIdentifiers
 
-/// The front panel window's content.
+/// The content of the app's main window.
 ///
 /// Brushed metal holds the header, the multifunction display with the selected profile's live EQ curve, and the row
 /// of controls that edits the profile. The row sets the panel's width, and the header and the display take it, so
 /// they end where the controls end. The metal reaches under the hidden title bar, so the window's buttons sit on it.
+/// The window presents the panels that import and export a profile, which the Library panel and the File menu ask
+/// for.
 public struct FrontPanelView: View {
-    private let model: WorkbenchModel
+    @Bindable private var model: WorkbenchModel
     @State private var selectedBand = 0
     @State private var saveFeedback = FrontPanelSaveFeedback()
     @State private var isShowingFlashSheet = false
@@ -34,6 +37,18 @@ public struct FrontPanelView: View {
         .sheet(isPresented: $isShowingFlashSheet) {
             FlashFirmwareSheet(connectionState: model.boards.state)
         }
+        .fileImporter(isPresented: $model.isImporting, allowedContentTypes: [.neXTsoundProfile, .json]) { result in
+            guard case let .success(url) = result else {
+                return
+            }
+            Task { await model.importProfile(at: url, undoManager: undoManager) }
+        }
+        .fileExporter(
+            isPresented: $model.isExporting,
+            document: ProfileFile(profile: model.profile),
+            contentType: .neXTsoundProfile,
+            defaultFilename: model.profile.displayName
+        ) { _ in }
     }
 
     /// - Parameter model: The workbench's model, whose selected profile the panel shows and edits.
