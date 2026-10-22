@@ -7,7 +7,7 @@ import Testing
 @MainActor
 struct PanelWindowTests {
     /// A panel reaches under its window's hidden title bar, and the window still takes the panel's own size, so the
-    /// metal lies under the title bar and reaches the window's bottom edge.
+    /// metal reaches from the window's top edge to its bottom edge.
     @Test func eachWindowIsAsTallAsItsPanel() async throws {
         let profile = FactoryPreset.warm.makeProfile()
         let model = try WorkbenchModel(library: ProfileLibrary(profiles: [profile], selectedID: profile.id))
@@ -17,8 +17,8 @@ struct PanelWindowTests {
 }
 
 /// Hosts a panel the way a scene with a hidden title bar and content-sized resizability does, and expects the window
-/// to take the size that a window without a title bar takes for the same panel, with the metal in the middle of the
-/// title bar and in the window's last row of pixels.
+/// to take the size that a window without a title bar takes for the same panel, with the metal in every pixel of the
+/// window's first and last rows.
 ///
 /// The panel's size comes from a window on the same screen, because the dot grids snap to its pixels, so the panel
 /// is a different number of points tall at another display scale.
@@ -44,11 +44,15 @@ private func expectWindowFits(_ panel: some View, sourceLocation: SourceLocation
     view.layoutSubtreeIfNeeded()
     let bitmap = try #require(view.bitmapImageRepForCachingDisplay(in: view.bounds))
     view.cacheDisplay(in: view.bounds, to: bitmap)
-    let pixelsPerPoint = CGFloat(bitmap.pixelsHigh) / view.bounds.height
-    let titleBarMiddle = Int((view.safeAreaInsets.top / 2 * pixelsPerPoint).rounded(.down))
-    for row in [titleBarMiddle, bitmap.pixelsHigh - 1] {
-        let alpha = bitmap.colorAt(x: bitmap.pixelsWide / 2, y: row)?.alphaComponent ?? 0
-        #expect(alpha == 1, "Pixel row \(row) of \(bitmap.pixelsHigh) shows no metal.", sourceLocation: sourceLocation)
+    for row in [0, bitmap.pixelsHigh - 1] {
+        let uncovered = (0 ..< bitmap.pixelsWide).first { column in
+            (bitmap.colorAt(x: column, y: row)?.alphaComponent ?? 0) < 1
+        }
+        #expect(
+            uncovered == nil,
+            "Pixel row \(row) of \(bitmap.pixelsHigh) shows no metal at column \(uncovered ?? -1).",
+            sourceLocation: sourceLocation
+        )
     }
 }
 
