@@ -4,6 +4,10 @@ import SwiftUI
 /// The brushed metal of the front panel and the Library panel: the mockup's metal gradient under faint, slightly
 /// slanted brush strokes and a fine grain. Its top edge catches a highlight and its bottom edge lies in shade, as the
 /// windows' edges do in the mockup.
+///
+/// The metal draws as one compositing group. Without it, a window draws the gradient with its inner shadows one
+/// pixel below the metal's frame wherever the metal's height in points has an odd whole part, as the Library panel's
+/// has. The window's top row of pixels then shows no gradient, and its bottom row shows gaps.
 struct BrushedMetal: View {
     var body: some View {
         Rectangle()
@@ -26,6 +30,7 @@ struct BrushedMetal: View {
             .overlay {
                 MetalGrain()
             }
+            .compositingGroup()
     }
 }
 
