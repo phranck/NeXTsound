@@ -18,10 +18,7 @@ struct BoardStorageTests {
         let monitor = try await verifiedMonitor(FakeBoardTransport(behavior: .success(fixtureCapabilities())), discovery: discovery)
         #expect(monitor.storage == .saved)
         discovery.simulateDisconnect()
-        let deadline = ContinuousClock.now + .seconds(1)
-        while monitor.state != .disconnected, ContinuousClock.now < deadline {
-            try await Task.sleep(for: .milliseconds(5))
-        }
+        await waitUntil { monitor.state == .disconnected }
         #expect(monitor.storage == .unknown)
     }
 

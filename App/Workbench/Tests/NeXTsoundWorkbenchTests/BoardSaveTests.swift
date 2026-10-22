@@ -63,14 +63,17 @@ struct BoardSaveTests {
 
     @Test func aSaveRequestedWhileAnApplyRunsFollowsIt() async throws {
         let writes = BoardWriteRecorder()
+        let applyStateCalls = CallCounter()
         let model = try await WorkbenchModel(boards: verifiedMonitor(FakeBoardTransport(
             behavior: .success(fixtureCapabilities()),
+            applyStateCalls: applyStateCalls,
             applyDelay: .milliseconds(200),
             writes: writes
         )))
 
         async let apply: Void = model.applyToBoard()
-        try await Task.sleep(for: .milliseconds(10))
+        await waitUntil { applyStateCalls.total == 1 }
+        try #require(applyStateCalls.total == 1, "The apply is on the wire before the save is requested.")
         await model.saveToBoard()
         #expect(model.isSavingToBoard, "The save waits for the apply already on the wire.")
         await apply

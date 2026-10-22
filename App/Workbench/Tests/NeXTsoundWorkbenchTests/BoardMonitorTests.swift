@@ -235,14 +235,7 @@ struct BoardMonitorTests {
 
 @MainActor
 private extension BoardMonitorTests {
-    func waitFor(_ monitor: BoardMonitor, timeout: Duration = .seconds(1), matches: (BoardConnectionState) -> Bool) async -> Bool {
-        let deadline = ContinuousClock.now + timeout
-        while ContinuousClock.now < deadline {
-            if matches(monitor.state) {
-                return true
-            }
-            try? await Task.sleep(for: .milliseconds(5))
-        }
-        return matches(monitor.state)
+    func waitFor(_ monitor: BoardMonitor, matches: (BoardConnectionState) -> Bool) async -> Bool {
+        await waitUntil { matches(monitor.state) }
     }
 }

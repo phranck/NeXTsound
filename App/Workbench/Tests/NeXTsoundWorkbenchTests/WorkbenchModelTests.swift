@@ -34,14 +34,14 @@ struct WorkbenchModelTests {
         #expect(model.library.profiles.count == 2, "Editing must keep working while persistence is broken.")
     }
 
-    @Test func addingAProfileSelectsItAndSchedulesASave() async throws {
+    @Test func addingAProfileSelectsItAndSchedulesASave() async {
         let storage = FakeProfileLibraryStorage(loadResult: .value(nil))
         let model = WorkbenchModel(storage: storage)
         await model.start()
         model.addProfile()
         #expect(model.library.profiles.count == 2)
         #expect(model.library.selectedID == model.profile.id)
-        try await Task.sleep(for: .milliseconds(400))
+        await waitUntil { storage.savedLibraries.last == model.library }
         #expect(storage.savedLibraries.last == model.library)
     }
 
@@ -94,13 +94,13 @@ struct WorkbenchModelTests {
         #expect(storage.savedLibraries.last == model.library)
     }
 
-    @Test func aSaveFailureSurfacesAnErrorButEditingContinues() async throws {
+    @Test func aSaveFailureSurfacesAnErrorButEditingContinues() async {
         let storage = FakeProfileLibraryStorage(loadResult: .value(nil))
         storage.saveError = FakeStorageError.simulatedFailure
         let model = WorkbenchModel(storage: storage)
         await model.start()
         model.addProfile()
-        try await Task.sleep(for: .milliseconds(400))
+        await waitUntil { model.storageError != nil }
         #expect(model.storageError != nil)
         model.addProfile()
         #expect(model.library.profiles.count == 3)
@@ -211,7 +211,7 @@ struct WorkbenchModelTests {
         model.updateProfile(profile)
 
         #expect(appliedSnapshots.snapshots.isEmpty, "The push is debounced, not immediate.")
-        try await Task.sleep(for: .milliseconds(400))
+        await waitUntil { !appliedSnapshots.snapshots.isEmpty }
         let sent = try #require(appliedSnapshots.snapshots.last)
         #expect(sent.settings.attenuationDb == -6)
     }
@@ -224,13 +224,16 @@ struct WorkbenchModelTests {
     }
 
     @Test func cancellingAnInFlightApplyNeverSurfacesAnError() async throws {
+        let calls = CallCounter()
         let model = try await WorkbenchModel(boards: verifiedMonitor(FakeBoardTransport(
             behavior: .success(fixtureCapabilities()),
+            applyStateCalls: calls,
             applyDelay: .seconds(5)
         )))
 
         let inFlight = Task { await model.applyToBoard() }
-        try await Task.sleep(for: .milliseconds(20))
+        await waitUntil { calls.total == 1 }
+        try #require(calls.total == 1, "The apply is on the wire before it is cancelled.")
         inFlight.cancel()
         _ = await inFlight.value
 
@@ -246,9 +249,9 @@ struct WorkbenchModelTests {
         )))
 
         async let first: Void = model.applyToBoard()
-        try await Task.sleep(for: .milliseconds(10))
+        await waitUntil { calls.total == 1 }
+        try #require(calls.total == 1, "The first apply is on the wire before the next edits arrive.")
         async let second: Void = model.applyToBoard()
-        try await Task.sleep(for: .milliseconds(10))
         async let third: Void = model.applyToBoard()
         _ = await (first, second, third)
 

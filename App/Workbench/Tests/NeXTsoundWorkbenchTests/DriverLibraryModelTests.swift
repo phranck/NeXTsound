@@ -24,13 +24,13 @@ struct DriverLibraryModelTests {
         #expect(model.drivers.count == DriverLibrary.knownCandidates.count + 1)
     }
 
-    @Test func addingADriverPersistsIt() async throws {
+    @Test func addingADriverPersistsIt() async {
         let storage = FakeDriverLibraryStorage(loadResult: .value(nil))
         let model = DriverLibraryModel(storage: storage)
         await model.start()
         model.addDriver()
         #expect(model.drivers.count == DriverLibrary.knownCandidates.count + 1)
-        try await Task.sleep(for: .milliseconds(20))
+        await waitUntil { storage.savedLibraries.last?.drivers.count == DriverLibrary.knownCandidates.count + 1 }
         #expect(storage.savedLibraries.last?.drivers.count == DriverLibrary.knownCandidates.count + 1)
     }
 
@@ -61,15 +61,10 @@ struct DriverLibraryModelTests {
 
     @Test func mutatingTheDriverLibraryNeverWritesToAConnectedBoard() async throws {
         let setDeviceNameCalls = CallCounter()
-        let discovery = FakeBoardDiscovery()
-        let boards = BoardMonitor(discovery: discovery)
-        boards.start()
-        discovery.simulateConnect(
-            BoardIdentitySnapshot(vendorID: 0x1234, productID: 0x5678),
-            transport: FakeBoardTransport(behavior: .success(fixtureCapabilities()), setDeviceNameCalls: setDeviceNameCalls)
-        )
-        try await Task.sleep(for: .milliseconds(20))
-        #expect(boards.state == .verified(fixtureCapabilities()))
+        let boards = try await verifiedMonitor(FakeBoardTransport(
+            behavior: .success(fixtureCapabilities()),
+            setDeviceNameCalls: setDeviceNameCalls
+        ))
 
         let model = DriverLibraryModel()
         model.addDriver()

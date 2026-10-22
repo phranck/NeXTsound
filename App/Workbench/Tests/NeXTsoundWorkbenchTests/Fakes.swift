@@ -214,8 +214,25 @@ func fixtureCapabilities(serial: String = "D4CDD489AFE28CC5") -> DeviceCapabilit
     DeviceCapabilities(serial: serial, firmwareVersion: "1.0.0")
 }
 
+/// Waits until a condition holds, checking it every five milliseconds, and tells whether it held before the timeout.
+///
+/// The work a test waits for runs on the main actor, so a fixed sleep runs out whenever another test keeps the main
+/// actor busy for longer than the sleep lasts.
+@MainActor
+@discardableResult
+func waitUntil(timeout: Duration = .seconds(2), _ condition: () -> Bool) async -> Bool {
+    let deadline = ContinuousClock.now + timeout
+    while ContinuousClock.now < deadline {
+        if condition() {
+            return true
+        }
+        try? await Task.sleep(for: .milliseconds(5))
+    }
+    return condition()
+}
+
 /// Starts a monitor, connects the fake board through the discovery, and returns once the monitor
-/// verified it. Throws a timeout when verification takes longer than a second.
+/// verified it. Throws a timeout when verification takes longer than `waitUntil(timeout:_:)` waits.
 @MainActor
 func verifiedMonitor(_ transport: FakeBoardTransport, discovery: FakeBoardDiscovery = FakeBoardDiscovery()) async throws -> BoardMonitor {
     let monitor = BoardMonitor(discovery: discovery)
@@ -224,14 +241,17 @@ func verifiedMonitor(_ transport: FakeBoardTransport, discovery: FakeBoardDiscov
         BoardIdentitySnapshot(vendorID: 1, productID: 2, enumeratedSerial: fixtureCapabilities().serial),
         transport: transport
     )
-    let deadline = ContinuousClock.now + .seconds(1)
-    while ContinuousClock.now < deadline {
+    let verified = await waitUntil {
         if case .verified = monitor.state {
-            return monitor
+            true
+        } else {
+            false
         }
-        try await Task.sleep(for: .milliseconds(5))
     }
-    throw BoardTransportError.timeout
+    guard verified else {
+        throw BoardTransportError.timeout
+    }
+    return monitor
 }
 
 final class FakePicotoolRunner: PicotoolRunning, @unchecked Sendable {
