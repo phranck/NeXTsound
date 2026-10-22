@@ -139,15 +139,10 @@ public final class USBHostBoardTransport: BoardTransport, @unchecked Sendable {
         _ = try await exchangeUntilComplete(request)
     }
 
-    public func requestRuntimeStatus() async throws -> DeviceRuntimeStatus {
-        let request = WireMessage(operation: .status, requestID: .random(in: 1 ... .max))
-        let message = try await exchange(request)
-        return try WireCodec.decodeRuntimeStatus(message.payload)
-    }
-
-    public func requestStorageState() async throws -> BoardStorageState {
+    public func requestStatus() async throws -> BoardStatusReading {
         let message = try await exchange(WireMessage(operation: .status, requestID: .random(in: 1 ... .max)))
-        return try BoardStorageState(activeGeneration: message.generation, status: WireCodec.decodeRuntimeStatus(message.payload))
+        let runtime = try WireCodec.decodeRuntimeStatus(message.payload)
+        return BoardStatusReading(runtime: runtime, storage: BoardStorageState(activeGeneration: message.generation, status: runtime))
     }
 }
 

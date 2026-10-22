@@ -26,6 +26,8 @@ enum FrontPanelType {
     static let size: CGFloat = 11
     /// One line, the face's ascender and descender at that size.
     static let lineHeight: CGFloat = 14.5
+    /// The line height SwiftUI sets the face in, which `NSLayoutManager.defaultLineHeight(for:)` reports as well.
+    static let textLineHeight: CGFloat = 14
     /// A title's letter spacing of 0.14 em.
     static let titleTracking = size * 0.14
     /// A caption's letter spacing of 0.06 em.
@@ -70,16 +72,32 @@ struct PanelTitle: View {
 /// A caption wider than its control stays centered under it and reaches past both of its sides.
 struct ControlCaption: View {
     let caption: Text
+    /// The width a caption breaks into lines at, centering each line under its control, or nil for one line.
+    var wrapWidth: CGFloat?
 
     var body: some View {
+        if let wrapWidth {
+            styledCaption
+                .multilineTextAlignment(.center)
+                .lineSpacing(FrontPanelType.lineHeight - FrontPanelType.textLineHeight)
+                .frame(width: wrapWidth)
+                .fixedSize(horizontal: false, vertical: true)
+        } else {
+            styledCaption
+                .lineLimit(1)
+                .fixedSize()
+                .frame(height: FrontPanelType.lineHeight)
+        }
+    }
+}
+
+private extension ControlCaption {
+    var styledCaption: some View {
         caption
             .font(FrontPanelType.font)
             .tracking(FrontPanelType.captionTracking)
             .textCase(.uppercase)
             .foregroundStyle(FrontPanelPalette.caption)
-            .lineLimit(1)
-            .fixedSize()
-            .frame(height: FrontPanelType.lineHeight)
     }
 }
 

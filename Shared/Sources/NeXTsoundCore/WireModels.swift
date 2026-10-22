@@ -111,6 +111,13 @@ public struct DeviceCapabilities: Equatable, Sendable {
         featureFlags & UInt16(NXS_FEATURE_FLASH_VERIFIED) != 0
     }
 
+    /// The PCM sample sizes the board's USB audio accepts, in bits, smallest first.
+    public var sampleBits: [Int] {
+        [(NXS_FORMAT_PCM16, 16), (NXS_FORMAT_PCM24, 24)].compactMap { flag, bits in
+            sampleFormatMask & UInt8(flag) != 0 ? bits : nil
+        }
+    }
+
     public init(serial: String, firmwareVersion: String, deviceName: String = "") {
         self.serial = serial
         self.firmwareVersion = firmwareVersion

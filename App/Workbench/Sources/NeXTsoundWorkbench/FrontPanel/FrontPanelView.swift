@@ -9,6 +9,8 @@ import SwiftUI
 public struct FrontPanelView: View {
     private let model: WorkbenchModel
     @State private var selectedBand = 0
+    @State private var saveFeedback = FrontPanelSaveFeedback()
+    @State private var isShowingFlashSheet = false
     @AppStorage(Self.phosphorThemeKey) private var theme = PhosphorTheme.blue
     @Environment(\.undoManager) private var undoManager
 
@@ -16,9 +18,9 @@ public struct FrontPanelView: View {
         WholePointFrame {
             VStack(spacing: 0) {
                 FrontPanelHeader()
-                DisplayBay(settings: model.profile.settings, profileName: displayedProfileName, theme: theme)
+                DisplayBay(settings: model.profile.settings, profileName: displayedProfileName, status: status, theme: theme)
                     .padding(FrontPanelLayout.bayMargin)
-                FrontPanelControlRow(editor: editor, selectedBand: $selectedBand, theme: $theme)
+                FrontPanelControlRow(editor: editor, boardButtons: boardButtons, selectedBand: $selectedBand, theme: $theme)
             }
             .padding(FrontPanelLayout.panelPadding)
             .fixedSize()
@@ -28,6 +30,9 @@ public struct FrontPanelView: View {
         }
         .ignoresSafeArea()
         .focusedSceneValue(\.frontPanelBand, FrontPanelBand(editor: editor, index: selectedBand))
+        .sheet(isPresented: $isShowingFlashSheet) {
+            FlashFirmwareSheet(connectionState: model.boards.state)
+        }
     }
 
     /// - Parameter model: The workbench's model, whose selected profile the panel shows and edits.
@@ -45,6 +50,35 @@ private extension FrontPanelView {
         FrontPanelEditor(model: model, undoManager: undoManager)
     }
 
+    var boardButtons: FrontPanelBoardButtons {
+        FrontPanelBoardButtons(
+            saveLEDIsLit: saveFeedback.ledIsLit,
+            save: { Task { await saveFeedback.save(with: model) } },
+            flash: { isShowingFlashSheet = true }
+        )
+    }
+
+    var status: FrontPanelStatus {
+        FrontPanelStatus(
+            board: model.boards.state,
+            storage: model.boards.storage,
+            runtime: model.boards.runtime,
+            message: messageSources.message
+        )
+    }
+
+    var messageSources: FrontPanelMessageSources {
+        FrontPanelMessageSources(
+            saveInProgress: model.isSavingToBoard ? model.boardStorageStatus : nil,
+            saveSucceeded: saveFeedback.showsSuccess,
+            error: model.errorMessage,
+            board: model.boards.state,
+            validationProblem: model.profile.validationProblem,
+            storageStatus: model.storageStatus,
+            storageFailed: model.storageError != nil
+        )
+    }
+
     /// A profile without a name shows as Untitled, as it does in the sidebar.
     var displayedProfileName: String {
         model.profile.name.isEmpty ? String(localized: "Untitled") : model.profile.name
@@ -60,10 +94,11 @@ private extension FrontPanelView {
 private struct DisplayBay: View {
     let settings: DSPSettings
     let profileName: String
+    let status: FrontPanelStatus
     let theme: PhosphorTheme
 
     var body: some View {
-        FrontPanelDisplay(settings: settings, profileName: profileName, theme: theme)
+        FrontPanelDisplay(settings: settings, profileName: profileName, status: status, theme: theme)
             .padding(FrontPanelLayout.screenPadding)
             .vfdGlass(cornerRadius: FrontPanelLayout.bayRadius - FrontPanelLayout.frameWidth)
             .padding(FrontPanelLayout.frameWidth)

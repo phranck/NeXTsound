@@ -24,6 +24,12 @@ enum FrontPanelDisplayLayout {
     static let decibelRange = 15.0
     /// The frequencies that dotted lines mark across the curve.
     static let gridFrequenciesHz: [Double] = [100, 1000, 10000]
+    /// The marker before an error message's first line.
+    static let errorMarker = "! "
+    /// The marker before every other message's first line.
+    static let infoMarker = "> "
+    /// The indent of a message's later lines, as wide as its marker.
+    static let messageIndent = "  "
 }
 
 extension FrontPanelDisplayLayout {
@@ -35,6 +41,12 @@ extension FrontPanelDisplayLayout {
     /// The curve's dot columns on a display of `displayColumns` columns. The curve keeps at least two.
     static func graphColumns(displayColumns: Int) -> Int {
         max(displayColumns - DotMatrixMetrics.columns(forCells: statusCells) - statusGapColumns, 2)
+    }
+
+    /// The status column's first dot column on a display of `displayColumns` columns, so the column ends at the
+    /// display's right edge.
+    static func statusColumn(displayColumns: Int) -> Int {
+        displayColumns - DotMatrixMetrics.columns(forCells: statusCells)
     }
 
     /// The dot row a gain falls on among `rows` rows, with 0 dB in the middle row and every gain beyond the range on
@@ -58,12 +70,13 @@ extension FrontPanelDisplayLayout {
 
 /// The multifunction display's dot matrix.
 ///
-/// The live EQ curve takes its left part with the selected profile's name under it. The status column's place on the
-/// right stays unlit until the board status fills it. The grid starts at the display's leading edge, so every dot
-/// keeps its whole-pixel position.
+/// The live EQ curve takes its left part with the selected profile's name under it, and the status column on the
+/// right shows the SoundBox and the latest message. The grid starts at the display's leading edge, so every dot keeps
+/// its whole-pixel position.
 struct FrontPanelDisplay: View {
     let settings: DSPSettings
     let profileName: String
+    let status: FrontPanelStatus
     let theme: PhosphorTheme
 
     var body: some View {
@@ -72,32 +85,43 @@ struct FrontPanelDisplay: View {
             ZStack(alignment: .topLeading) {
                 DotMatrixGhosts(columns: columns, rows: FrontPanelDisplayLayout.rows, color: theme.ghost)
                     .equatable()
-                FrontPanelDisplayDots(settings: settings, profileName: profileName, theme: theme, columns: columns)
+                FrontPanelDisplayDots(settings: settings, profileName: profileName, status: status, theme: theme, columns: columns)
             }
         }
         .frame(height: FrontPanelDisplayLayout.height)
         .accessibilityElement()
         .accessibilityLabel("Analytical high-pass and equalizer response")
-        .accessibilityValue(profileName)
+        .accessibilityValue(spokenDescription)
     }
 }
 
-/// The lit dots of the multifunction display: the 0 dB line, the frequency lines, the curve and the profile's name.
+private extension FrontPanelDisplay {
+    /// What the display shows, as VoiceOver reads it: the profile, the connection, every field and the message.
+    var spokenDescription: String {
+        let fields = status.fields.map { "\($0.label) \($0.value)" }
+        return ([profileName, status.connection] + fields + [status.message?.text].compactMap(\.self)).joined(separator: ". ")
+    }
+}
+
+/// The lit dots of the multifunction display: the 0 dB line, the frequency lines, the curve, the profile's name and the
+/// status column.
 private struct FrontPanelDisplayDots: View {
     let settings: DSPSettings
     let profileName: String
+    let status: FrontPanelStatus
     let theme: PhosphorTheme
     let columns: Int
 
     var body: some View {
         Canvas { context, _ in
             let graphColumns = FrontPanelDisplayLayout.graphColumns(displayColumns: columns)
-            var grid = DotMatrixPainter()
+            var normal = DotMatrixPainter()
             var bright = DotMatrixPainter()
-            paintGrid(into: &grid, columns: graphColumns)
+            paintGrid(into: &normal, columns: graphColumns)
             paintCurve(into: &bright, columns: graphColumns)
             paintProfileName(into: &bright, columns: graphColumns)
-            grid.fill(context, color: theme.normal)
+            paintStatus(normal: &normal, bright: &bright)
+            normal.fill(context, color: theme.normal)
             bright.fill(context, color: theme.bright)
         }
         .frame(
@@ -145,5 +169,41 @@ private extension FrontPanelDisplayDots {
         let name = DotMatrixAlignment.leading.fit(profileName, cells: DotMatrixMetrics.cells(inColumns: columns))
         let nameColumns = DotMatrixMetrics.columns(forCells: name.count)
         painter.write(name, column: (columns - nameColumns) / 2, row: FrontPanelDisplayLayout.rows - DotMatrixFont.glyphRows)
+    }
+
+    /// Draws the status column at the display's right edge: the connection on the first line, each field's label in
+    /// the normal tone with its value bright after it, and the message on the bottom line. The message wraps upward
+    /// with a hanging indent into the lines the fields leave free.
+    func paintStatus(normal: inout DotMatrixPainter, bright: inout DotMatrixPainter) {
+        let layout = FrontPanelDisplayLayout.self
+        let labelColumn = layout.statusColumn(displayColumns: columns)
+        let valueColumn = labelColumn + DotMatrixMetrics.columns(forCells: layout.statusLabelCells) + DotMatrixMetrics.cellSpacing
+        let valueCells = layout.statusCells - layout.statusLabelCells
+        bright.write(DotMatrixAlignment.leading.fit(status.connection, cells: layout.statusCells), column: labelColumn, row: 0)
+        for (index, field) in status.fields.enumerated() {
+            let row = (index + 1) * DotMatrixMetrics.linePitch
+            normal.write(DotMatrixAlignment.leading.fit(field.label, cells: layout.statusLabelCells), column: labelColumn, row: row)
+            bright.write(DotMatrixAlignment.leading.fit(field.value, cells: valueCells), column: valueColumn, row: row)
+        }
+        guard let message = status.message else {
+            return
+        }
+        let bottomRow = layout.rows - DotMatrixFont.glyphRows
+        let room = layout.statusLines - 1 - status.fields.count
+        let lines = DotMatrixWrap.lines(
+            of: message.text,
+            width: layout.statusCells,
+            firstPrefix: message.isError ? layout.errorMarker : layout.infoMarker,
+            laterPrefix: layout.messageIndent
+        ).prefix(room)
+        for (index, line) in lines.enumerated() {
+            let row = bottomRow - (lines.count - 1 - index) * DotMatrixMetrics.linePitch
+            let text = DotMatrixAlignment.leading.fit(line, cells: layout.statusCells)
+            if message.tone == .bright {
+                bright.write(text, column: labelColumn, row: row)
+            } else {
+                normal.write(text, column: labelColumn, row: row)
+            }
+        }
     }
 }

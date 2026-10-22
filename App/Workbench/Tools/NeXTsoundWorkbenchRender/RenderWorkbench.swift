@@ -29,7 +29,8 @@ enum RenderWorkbench {
             }
         }
         try render(size: WorkbenchLayout.defaultSize, scheme: .light, connected: true, destination: destination)
-        try renderFrontPanel(destination: destination)
+        try renderFrontPanel(connected: false, destination: destination)
+        try renderFrontPanel(connected: true, destination: destination)
     }
 }
 
@@ -91,16 +92,21 @@ private extension RenderWorkbench {
     /// Renders the front panel through SwiftUI's own renderer at scale 2, the scale its dots fall on whole device
     /// pixels at. The panel holds no AppKit control that only a window could draw, and `cacheDisplay(in:to:)`, which
     /// the workbench renders need for theirs, inverts the panel's inner shadows.
-    static func renderFrontPanel(destination: URL) throws {
+    static func renderFrontPanel(connected: Bool, destination: URL) throws {
         let profile = FactoryPreset.warm.makeProfile()
-        let model = try WorkbenchModel(library: ProfileLibrary(profiles: [profile], selectedID: profile.id))
+        let boards = connected ? BoardMonitor(discovery: PreviewBoardDiscovery()) : nil
+        let model = try WorkbenchModel(library: ProfileLibrary(profiles: [profile], selectedID: profile.id), boards: boards)
+        model.boards.start()
+        // The preview board verifies through the main run loop, which a render that never runs it would never see.
+        RunLoop.main.run(until: Date(timeIntervalSinceNow: 0.3))
         let renderer = ImageRenderer(content: FrontPanelView(model: model))
         renderer.scale = frontPanelScale
         guard let image = renderer.cgImage else {
             throw CocoaError(.fileWriteUnknown)
         }
-        try writePNG(NSBitmapImageRep(cgImage: image), to: destination.appendingPathComponent("front-panel@2x.png"))
-        print("Rendered front-panel@2x")
+        let stem = "front-panel" + (connected ? "-connected" : "") + "@2x"
+        try writePNG(NSBitmapImageRep(cgImage: image), to: destination.appendingPathComponent(stem + ".png"))
+        print("Rendered \(stem)")
     }
 
     static func writePNG(_ bitmap: NSBitmapImageRep, to url: URL) throws {
@@ -149,6 +155,7 @@ private struct PreviewBoardTransport: BoardTransport {
     func requestCapabilities() async throws -> DeviceCapabilities {
         var capabilities = DeviceCapabilities(serial: "D4CDD489AFE28CC5", firmwareVersion: "1.2.0")
         capabilities.deviceName = "Bedroom SoundBox"
+        capabilities.flashSizeBytes = 4 * 1_048_576
         return capabilities
     }
 
@@ -158,13 +165,16 @@ private struct PreviewBoardTransport: BoardTransport {
 
     func persistState() async throws {}
 
-    func requestRuntimeStatus() async throws -> DeviceRuntimeStatus {
-        DeviceRuntimeStatus()
-    }
-
-    /// Unsaved, so the connected render shows the storage status line and an enabled save button.
-    func requestStorageState() async throws -> BoardStorageState {
-        .unsaved
+    /// Unsaved, so the connected render shows the storage status line and an enabled save button, and streaming with
+    /// the mockup's sample values, so a status column shows live values.
+    func requestStatus() async throws -> BoardStatusReading {
+        var runtime = DeviceRuntimeStatus()
+        runtime.isStreaming = true
+        runtime.hostVolumeDb = -12
+        runtime.maxProcessingUs = 410
+        runtime.blockDeadlineUs = 1000
+        runtime.storageIsAvailable = true
+        return BoardStatusReading(runtime: runtime, storage: .unsaved)
     }
 }
 

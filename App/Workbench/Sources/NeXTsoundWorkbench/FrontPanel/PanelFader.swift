@@ -27,6 +27,13 @@ struct PanelFader: View {
     }
 }
 
+extension PanelFader {
+    /// The width of a fader's column, the width of its readout, which a caption of several lines under it breaks at.
+    static var columnWidth: CGFloat {
+        PanelFaderMetrics.readoutLayout.size.width + 2 * FrontPanelLayout.frameWidth
+    }
+}
+
 /// The fader's track, scales and cap, and what it does with the pointer, the keyboard and VoiceOver.
 ///
 /// A drag or a click anywhere in the track sets the value with the cap's center under the pointer, the way a console

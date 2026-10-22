@@ -5,6 +5,9 @@ struct PanelLED: View {
     nonisolated static let size: CGFloat = 6
 
     let isLit: Bool
+    /// Whether the LED confirms an action, lighting at once and draining away over 900 ms, instead of fading both
+    /// ways as a state does.
+    var confirms = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
@@ -18,7 +21,16 @@ struct PanelLED: View {
                 .opacity(isLit ? 1 : 0)
         }
         .frame(width: Self.size, height: Self.size)
-        .animation(FrontPanelMotion.state(reduceMotion: reduceMotion), value: isLit)
+        .animation(animation, value: isLit)
         .accessibilityHidden(true)
+    }
+}
+
+private extension PanelLED {
+    var animation: Animation? {
+        guard confirms else {
+            return FrontPanelMotion.state(reduceMotion: reduceMotion)
+        }
+        return isLit ? nil : .easeOut(duration: reduceMotion ? 0.3 : 0.9)
     }
 }
