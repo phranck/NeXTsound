@@ -22,6 +22,7 @@ let package = Package(
             dependencies: ["NXSUSBHostShim", .product(name: "NeXTsoundCore", package: "Shared")],
             resources: [
                 .process("Resources/Localizable.xcstrings"),
+                .copy("Resources/Fonts"),
                 // Built by Scripts/bootstrap-picotool-usb.sh and Scripts/firmware.sh; neither is
                 // committed, see .gitignore.
                 .copy("Resources/picotool"),
