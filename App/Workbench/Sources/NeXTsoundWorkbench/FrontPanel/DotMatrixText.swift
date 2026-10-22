@@ -72,3 +72,29 @@ extension DotMatrixLinesLayout {
         return CGSize(width: grid.width + 2 * margin, height: grid.height + 2 * margin)
     }
 }
+
+/// Breaks texts into the lines of a dot-matrix surface.
+enum DotMatrixWrap {
+    /// Breaks a text between words into lines of `width` cells.
+    ///
+    /// The first line starts with `firstPrefix` and every later one with `laterPrefix`, which gives a message its
+    /// marker and its hanging indent. A word longer than a line takes a line of its own and is cut off where it is
+    /// drawn.
+    static func lines(of text: String, width: Int, firstPrefix: String, laterPrefix: String) -> [String] {
+        var lines: [String] = []
+        var line = firstPrefix
+        var lineHasWord = false
+        for word in text.split(whereSeparator: \.isWhitespace) {
+            let longer = lineHasWord ? line + " " + word : line + word
+            if lineHasWord, longer.count > width {
+                lines.append(line)
+                line = laterPrefix + word
+            } else {
+                line = longer
+            }
+            lineHasWord = true
+        }
+        lines.append(line)
+        return lines
+    }
+}

@@ -242,10 +242,13 @@ public extension WorkbenchModel {
 }
 
 private extension WorkbenchModel {
+    /// Runs one edit of the library. Its outcome replaces the last action's error, because the front panel shows the
+    /// error in its display until something newer takes its place.
     func perform(undoManager: UndoManager? = nil, action: String = "Change profile", mutation: (inout ProfileLibrary) throws -> Void) {
         guard isReady else {
             return
         }
+        errorMessage = nil
         do {
             let previous = library
             var candidate = previous

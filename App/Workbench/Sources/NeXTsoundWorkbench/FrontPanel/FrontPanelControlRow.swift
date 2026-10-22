@@ -56,6 +56,7 @@ private extension FrontPanelEditor {
 /// captions and the captions along the bottom each run on one line across the row.
 struct FrontPanelControlRow: View {
     let editor: FrontPanelEditor
+    let boardButtons: FrontPanelBoardButtons
     @Binding var selectedBand: Int
     @Binding var theme: PhosphorTheme
 
@@ -65,13 +66,20 @@ struct FrontPanelControlRow: View {
             EqualWidthRow(spacing: PanelRowMetrics.panelSpacing) {
                 HighPassModule(editor: editor, theme: theme)
                 OutputModule(editor: editor, theme: theme)
-                LimiterModule(editor: editor, theme: theme)
+                LimiterModule(editor: editor, buttons: boardButtons, theme: theme)
             }
             DisplayColorColumn(theme: $theme)
         }
         .fixedSize(horizontal: false, vertical: true)
         .padding(PanelRowMetrics.margin)
     }
+}
+
+/// The SoundBox's two buttons on the panel, and whether the SAVE LED is lit.
+struct FrontPanelBoardButtons {
+    let saveLEDIsLit: Bool
+    let save: () -> Void
+    let flash: () -> Void
 }
 
 /// The band panel: one set of sliders for the band its keys select, because five full sets never fit side by side
@@ -175,6 +183,7 @@ private struct OutputModule: View {
 
 private struct LimiterModule: View {
     let editor: FrontPanelEditor
+    let buttons: FrontPanelBoardButtons
     let theme: PhosphorTheme
 
     var body: some View {
@@ -189,7 +198,12 @@ private struct LimiterModule: View {
                     theme: theme
                 )
             } bottom: {
-                EmptyView()
+                VStack(spacing: PanelRowMetrics.captionSpacing) {
+                    PanelLED(isLit: buttons.saveLEDIsLit, confirms: true)
+                    PanelPushButton(label: "Save to SoundBox", kind: .save, action: buttons.save)
+                    ControlCaption(caption: Text("Save to SoundBox"), wrapWidth: PanelFader.columnWidth)
+                        .accessibilityHidden(true)
+                }
             }
             ControlColumn {
                 PanelFader(
@@ -201,7 +215,11 @@ private struct LimiterModule: View {
                     theme: theme
                 )
             } bottom: {
-                EmptyView()
+                VStack(spacing: PanelRowMetrics.captionSpacing) {
+                    PanelPushButton(label: "Flash Firmware", kind: .flash, action: buttons.flash)
+                    ControlCaption(caption: Text("Flash Firmware"), wrapWidth: PanelFader.columnWidth)
+                        .accessibilityHidden(true)
+                }
             }
         }
     }
