@@ -1,3 +1,4 @@
+import AppKit
 import NeXTsoundCore
 import SwiftUI
 import Testing
@@ -27,6 +28,15 @@ struct FrontPanelRenderTests {
             return try renderedWithMarker(panel, color: PhosphorTheme.blue.ghost)
         }
         Self.expectWholePixelDots(panel.runLengths(of: ghost), ghost: ghost)
+    }
+
+    /// The About window's readout keeps the same grid.
+    @Test func everyAboutDotIsThreeByThreeDevicePixelsAtScaleTwo() async throws {
+        let (panel, ghost) = try await MainActor.run {
+            let info = AboutInfo(version: "1.2.0", build: "34", copyright: "© 2026 LAYERED.work")
+            return try renderedWithMarker(AboutPanel(info: info, icon: NSImage()), color: PhosphorTheme.blue.ghost)
+        }
+        Self.expectWholePixelDots(panel.runLengths(of: ghost), ghost: ghost, minimumRuns: Self.minimumReadoutRuns)
     }
 
     /// While the status column is out, the curve's 0 dB line runs through the gap that stands before the column while
@@ -91,6 +101,8 @@ private extension FrontPanelRenderTests {
     /// More than twenty lit dots of 3 × 3 device pixels, which a display in amber passes many times over, while the
     /// marker's own dot stays far below it.
     static let minimumLitPixels = 200
+    /// The runs of the About window's one readout, whose several hundred unlit dots make six runs each.
+    static let minimumReadoutRuns = 500
 
     /// Renders the display with a flat profile and returns the pixel at the middle of the dot where the 0 dB line
     /// meets the last gap column before the status column's place.
@@ -113,12 +125,17 @@ private extension FrontPanelRenderTests {
         max(pixel.red, pixel.green, pixel.blue) > litThreshold
     }
 
-    /// Expects every run of the ghost color to be a dot's length, and many of them. A failure names the color and the
-    /// runs found of each length.
-    static func expectWholePixelDots(_ runs: [Int: Int], ghost: RenderedPixel, sourceLocation: SourceLocation = #_sourceLocation) {
+    /// Expects every run of the ghost color to be a dot's length, and more of them than `minimumRuns`, which a whole
+    /// panel's displays pass many times over. A failure names the color and the runs found of each length.
+    static func expectWholePixelDots(
+        _ runs: [Int: Int],
+        ghost: RenderedPixel,
+        minimumRuns: Int = 10000,
+        sourceLocation: SourceLocation = #_sourceLocation
+    ) {
         let found: Comment = "Runs of \(ghost) by length: \(runs.sorted { $0.key < $1.key })"
         #expect(runs.keys.sorted() == [dotPixels], found, sourceLocation: sourceLocation)
-        #expect(runs[dotPixels, default: 0] > 10000, found, sourceLocation: sourceLocation)
+        #expect(runs[dotPixels, default: 0] > minimumRuns, found, sourceLocation: sourceLocation)
     }
 }
 

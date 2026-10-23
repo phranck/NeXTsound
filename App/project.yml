@@ -34,6 +34,10 @@ targets:
       path: Generated/Info.plist
       properties:
         CFBundleDisplayName: NeXTsound
+        # XcodeGen writes 1.0 and 1 into a generated Info.plist unless these name the build settings above.
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        NSHumanReadableCopyright: "© 2026 LAYERED.work"
         NSPrincipalClass: NSApplication
         NSHighResolutionCapable: true
         LSApplicationCategoryType: public.app-category.music
