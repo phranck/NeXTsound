@@ -5,9 +5,9 @@ import SwiftUI
 /// speaker, and the connected SoundBox's name, side by side in three columns as wide as the profile keys.
 ///
 /// Its readouts take the display color that the front panel's keys choose. The CLOSE key at the bottom right closes
-/// the sheet. It is a bank of one key, so its face and its caption line up with the profile keys'. Escape does not
-/// close the sheet, because a key bound to Escape would take Escape before a rename does, and Escape during a rename
-/// restores the old name. While the sheet is shown, it presents the import and export panels over itself.
+/// the sheet. It is a bank of one key, so its face lines up with the profile keys'. Escape does not close the sheet,
+/// because a key bound to Escape would take Escape before a rename does, and Escape during a rename restores the old
+/// name. While the sheet is shown, it presents the import and export panels over itself.
 public struct LibraryPanel: View {
     private let model: WorkbenchModel
     private let driverLibrary: DriverLibraryModel
