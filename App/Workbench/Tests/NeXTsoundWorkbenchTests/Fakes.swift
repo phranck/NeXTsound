@@ -153,6 +153,8 @@ struct FakeBoardTransport: BoardTransport {
     var applyStateCalls: CallCounter?
     var appliedSnapshots: SnapshotRecorder?
     var applyDelay: Duration?
+    /// Holds every apply on the wire until the stream finishes, so a test decides when the write ends.
+    var applyRelease: AsyncStream<Void>?
     var persistError: BoardTransportError?
     var writes: BoardWriteRecorder?
     var storage = FakeBoardStorage()
@@ -190,6 +192,9 @@ struct FakeBoardTransport: BoardTransport {
         appliedSnapshots?.record(snapshot)
         if let applyDelay {
             try await Task.sleep(for: applyDelay)
+        }
+        if let applyRelease {
+            for await _ in applyRelease {}
         }
         if let applyError {
             throw applyError
