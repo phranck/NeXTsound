@@ -26,22 +26,16 @@ extension View {
 /// A small dot-matrix readout in its dark frame, such as the one above every slider.
 ///
 /// Its dots keep their empty border inside the glass, so the rounded corners never clip one. The frame takes the
-/// middle of the big display's shade. A readout with the keyboard's focus shows the focus halo on its frame. The
-/// glass lies on the frame's shade, so the halo's glow stays outside it, as an outer shadow does in the mockup.
+/// middle of the big display's shade.
 struct PanelReadout: View {
     let lines: [DotMatrixLine]
     let layout: DotMatrixLinesLayout
     var alignment: DotMatrixAlignment = .leading
     let theme: PhosphorTheme
-    var isFocused = false
 
     var body: some View {
         DotMatrixLinesView(lines: lines, layout: layout, alignment: alignment, theme: theme)
             .vfdGlass(cornerRadius: PanelReadoutMetrics.glassRadius)
-            .background(PanelReadoutMetrics.frameColor, in: RoundedRectangle(cornerRadius: PanelReadoutMetrics.glassRadius))
-            .background {
-                FocusHalo(shape: RoundedRectangle(cornerRadius: PanelReadoutMetrics.glassRadius), isVisible: isFocused)
-            }
             .padding(FrontPanelLayout.frameWidth)
             .background(PanelReadoutMetrics.frameColor, in: RoundedRectangle(cornerRadius: PanelReadoutMetrics.frameRadius))
             .frameHighlight(cornerRadius: PanelReadoutMetrics.frameRadius, opacity: 0.05)

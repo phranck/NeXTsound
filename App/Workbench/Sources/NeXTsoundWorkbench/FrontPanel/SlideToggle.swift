@@ -4,8 +4,8 @@ import SwiftUI
 ///
 /// While the setting is on, the knob sits left beside the lit ON legend, and while it is off it sits right beside the
 /// OFF legend. The toggle is drawn at the size of the kit's reference image and scaled to the panel, so every
-/// measurement in it reads as it does in the image, the focus halo included. Space toggles it from the keyboard, and
-/// VoiceOver reads it as a switch.
+/// measurement in it reads as it does in the image. A click gives it the keyboard's focus without showing a ring, Space
+/// then toggles it, and VoiceOver reads it as a switch.
 struct SlideToggle: View {
     /// What VoiceOver calls the toggle.
     let label: LocalizedStringKey
@@ -13,7 +13,7 @@ struct SlideToggle: View {
     @FocusState private var isFocused: Bool
 
     var body: some View {
-        SlideToggleBody(isOn: isOn, isFocused: isFocused)
+        SlideToggleBody(isOn: isOn)
             .scaleEffect(SlideToggleMetrics.zoom, anchor: .topLeading)
             .frame(
                 width: SlideToggleMetrics.size.width * SlideToggleMetrics.zoom,
@@ -41,7 +41,6 @@ struct SlideToggle: View {
 /// The toggle at the reference image's size: the recess ring, the track and the knob.
 private struct SlideToggleBody: View {
     let isOn: Bool
-    let isFocused: Bool
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
@@ -51,9 +50,6 @@ private struct SlideToggleBody: View {
                 .offset(x: SlideToggleMetrics.ring, y: SlideToggleMetrics.ring)
         }
         .frame(width: SlideToggleMetrics.size.width, height: SlideToggleMetrics.size.height, alignment: .topLeading)
-        .background {
-            FocusHalo(shape: RoundedRectangle(cornerRadius: SlideToggleMetrics.radius), isVisible: isFocused)
-        }
         .animation(FrontPanelMotion.state(reduceMotion: reduceMotion), value: isOn)
     }
 }
