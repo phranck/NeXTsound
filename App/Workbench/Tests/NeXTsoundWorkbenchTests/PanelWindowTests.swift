@@ -6,17 +6,12 @@ import Testing
 
 @MainActor
 struct PanelWindowTests {
-    /// A panel reaches under its window's hidden title bar, and the window still takes the panel's own size, so the
-    /// metal reaches from the window's top edge to its bottom edge.
-    @Test func eachWindowIsAsTallAsItsPanel() async throws {
+    /// The front panel reaches under its window's hidden title bar, and the window still takes the panel's own size,
+    /// so the metal reaches from the window's top edge to its bottom edge.
+    @Test func theWindowIsAsTallAsTheFrontPanel() async throws {
         let profile = FactoryPreset.warm.makeProfile()
         let model = try WorkbenchModel(library: ProfileLibrary(profiles: [profile], selectedID: profile.id))
-        try await expectWindowFits(FrontPanelView(model: model, libraryWindow: LibraryWindowAttachment()))
-        try await expectWindowFits(LibraryPanel(
-            model: model,
-            driverLibrary: DriverLibraryModel(),
-            libraryWindow: LibraryWindowAttachment()
-        ))
+        try await expectWindowFits(FrontPanelView(model: model, driverLibrary: DriverLibraryModel()))
     }
 }
 
