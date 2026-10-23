@@ -38,22 +38,24 @@ struct BoardStatusTests {
     @Test func noLiveValuesAreReadWhileAWriteIsOnTheWire() async throws {
         let statusCalls = CallCounter()
         let applyStateCalls = CallCounter()
+        let (applyRelease, release) = AsyncStream<Void>.makeStream()
         let monitor = try await verifiedMonitor(
             FakeBoardTransport(
                 behavior: .success(fixtureCapabilities()),
                 applyStateCalls: applyStateCalls,
-                applyDelay: .milliseconds(300),
+                applyRelease: applyRelease,
                 statusCalls: statusCalls
             ),
             statusInterval: .milliseconds(10)
         )
         async let apply: Void = monitor.apply(DeviceSnapshot(profileID: UUID(), profileRevision: 1, settings: DSPSettings()))
         await waitUntil { applyStateCalls.total == 1 }
-        // A read that began before the write may still arrive in the first moments; none may follow it.
-        try await Task.sleep(for: .milliseconds(30))
-        let duringWrite = statusCalls.total
+        let atWriteStart = statusCalls.total
         try await Task.sleep(for: .milliseconds(150))
-        #expect(statusCalls.total == duringWrite)
+        // The write lasts until `release` finishes, however busy the main actor is.
+        // The loop reads one at a time, so only the read it sent before the write began may still arrive.
+        #expect(statusCalls.total <= atWriteStart + 1)
+        release.finish()
         try await apply
     }
 }
