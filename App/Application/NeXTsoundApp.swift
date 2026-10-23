@@ -10,7 +10,7 @@ struct NeXTsoundApp: App {
         // The front panel is the app's one main window, so the app quits when it closes, and the window needs no item
         // in the Window menu. Removing the scene's commands takes that item away, so the app's own commands are added
         // after the removal. The Library is a sheet on this window.
-        Window(WorkbenchLayout.frontPanelWindowTitle, id: WorkbenchLayout.frontPanelWindowID) {
+        Window(WorkbenchWindows.frontPanelWindowTitle, id: WorkbenchWindows.frontPanelWindowID) {
             FrontPanelView(model: model, driverLibrary: driverLibrary)
                 .task { await model.start() }
                 .task { await driverLibrary.start() }
@@ -25,7 +25,7 @@ struct NeXTsoundApp: App {
             StatusColumnCommands()
         }
 
-        Window(WorkbenchLayout.driverLibraryWindowTitle, id: WorkbenchLayout.driverLibraryWindowID) {
+        Window(WorkbenchWindows.driverLibraryWindowTitle, id: WorkbenchWindows.driverLibraryWindowID) {
             DriverLibraryView(model: driverLibrary)
         }
         .defaultSize(width: 640, height: 480)

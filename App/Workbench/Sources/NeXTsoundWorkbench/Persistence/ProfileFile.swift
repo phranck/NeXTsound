@@ -58,23 +58,3 @@ public extension ProfileFile {
         profile = candidate
     }
 }
-
-public extension UTType {
-    static let neXTsoundProfile = UTType(exportedAs: ProfileFile.typeIdentifier, conformingTo: .json)
-}
-
-public enum WorkbenchError: Error, Equatable, Sendable {
-    case documentIdentityChanged
-    case invalidSampleCount
-    case invalidScale
-}
-
-extension WorkbenchError: LocalizedError {
-    public var errorDescription: String? {
-        switch self {
-        case .documentIdentityChanged: String(localized: "An edit cannot replace the profile identity or revision.")
-        case .invalidSampleCount: String(localized: "Choose between 2 and 2048 response samples.")
-        case .invalidScale: String(localized: "The logarithmic control requires finite positive bounds.")
-        }
-    }
-}

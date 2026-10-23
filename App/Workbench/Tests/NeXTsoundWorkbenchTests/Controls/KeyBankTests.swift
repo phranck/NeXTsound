@@ -1,5 +1,3 @@
-import Foundation
-import NeXTsoundCore
 import SwiftUI
 import Testing
 @testable import NeXTsoundWorkbench
@@ -13,35 +11,6 @@ struct KeyBankNavigationTests {
         #expect(KeyBankNavigation.steps[.downArrow] == 1)
         #expect(KeyBankNavigation.steps[.leftArrow] == -1)
         #expect(KeyBankNavigation.steps[.upArrow] == -1)
-    }
-}
-
-@MainActor
-struct FrontPanelEditorTests {
-    @Test func anEditFromAControlGoesThroughTheProfilesEditPath() {
-        let model = WorkbenchModel()
-        let revision = model.profile.revision
-        FrontPanelEditor(model: model, undoManager: nil).binding(band: 2, \.gainDb).wrappedValue = 4
-        #expect(model.profile.settings.bands[2].gainDb == 4)
-        #expect(model.profile.revision > revision)
-    }
-
-    @Test func anEditFromAControlCanBeUndone() {
-        let model = WorkbenchModel()
-        let undoManager = UndoManager()
-        let before = model.profile.settings
-        FrontPanelEditor(model: model, undoManager: undoManager).binding(\.attenuationDb).wrappedValue = -12
-        undoManager.undo()
-        #expect(model.profile.settings == before)
-    }
-
-    @Test func resettingABandRestoresTheBandOfANewProfile() {
-        let model = WorkbenchModel()
-        let editor = FrontPanelEditor(model: model, undoManager: nil)
-        editor.binding(band: 1, \.gainDb).wrappedValue = 6
-        editor.binding(band: 1, \.isEnabled).wrappedValue = false
-        editor.resetBand(1)
-        #expect(model.profile.settings.bands[1] == DSPSettings.defaultBand(at: 1))
     }
 }
 
@@ -107,22 +76,6 @@ struct KeyColorTests {
 private extension KeyColorTests {
     /// About a quarter of a key's face at scale 2, which a yellow key passes many times over.
     static let minimumYellowPixels = 2000
-}
-
-struct HSBComponentsTests {
-    /// The stripes' red has a hue of about 16 degrees, a gray has neither hue nor saturation, and the pure colors
-    /// fall on their thirds of the hue circle, with a pink just short of the circle's end.
-    @Test func aColorSplitsIntoHueSaturationAndBrightness() {
-        let red = HSBComponents(FrontPanelPalette.stripeRed)
-        #expect(abs(red.hue - 16.4 / 360) < 0.001)
-        #expect(abs(red.saturation - 0.889) < 0.001)
-        #expect(abs(red.brightness - 0.776) < 0.001)
-        let gray = HSBComponents(0x808080)
-        #expect(gray.hue == 0 && gray.saturation == 0)
-        #expect(abs(HSBComponents(0x00FF00).hue - 1 / 3) < 0.001)
-        #expect(abs(HSBComponents(0x0000FF).hue - 2 / 3) < 0.001)
-        #expect(abs(HSBComponents(0xFF0080).hue - 329.9 / 360) < 0.001)
-    }
 }
 
 /// A pixel's place in a render, counted from the top leading corner.
