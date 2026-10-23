@@ -6,7 +6,7 @@ import SwiftUI
 ///
 /// The panel's title bar is hidden like the front panel's, so the metal reaches under it, and the panel sets its
 /// title in the bar itself. Its readouts take the display color that the front panel's keys choose. Its window stands
-/// glued to the front panel window's right edge, and a drag on the panel moves both windows.
+/// beside the front panel window's right edge and moves with it, and a drag on the panel moves both windows.
 public struct LibraryPanel: View {
     private let model: WorkbenchModel
     private let driverLibrary: DriverLibraryModel
@@ -67,7 +67,9 @@ enum LibraryPanelLayout {
     static let titleSize: CGFloat = 11
     /// The width of the four profile keys, which every readout fills.
     static let contentWidth = MomentaryKeyBank.width(keyCount: 4)
-    static let padding = EdgeInsets(top: titleBarHeight + 12, leading: 18, bottom: 20, trailing: 18)
+    /// The space around the column. Its sides are wider than the mockup's, as wide as the front panel row's side
+    /// margin, so the column stands with room in its window.
+    static let padding = EdgeInsets(top: titleBarHeight + 12, leading: 24, bottom: 20, trailing: 24)
     static let sectionSpacing: CGFloat = 22
     /// The space between a section's title and its rows, and between the rows.
     static let rowSpacing: CGFloat = 12

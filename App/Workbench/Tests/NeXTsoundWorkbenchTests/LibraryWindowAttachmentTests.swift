@@ -5,9 +5,9 @@ import Testing
 /// The windows stand far off every screen, so the tests never show one.
 @MainActor
 struct LibraryWindowAttachmentTests {
-    /// An opening Library window sits at the front panel window's right edge with both tops in line, as its child
+    /// An opening Library window stands the gap right of the front panel window with both tops in line, as its child
     /// window, which moves along when the front panel window moves, and it cannot be moved on its own.
-    @Test func theLibraryWindowStaysGluedToTheFrontPanelsRightEdge() {
+    @Test func theLibraryWindowStaysBesideTheFrontPanelsRightEdge() {
         let windows = TestWindows()
         defer { windows.close() }
         let attachment = LibraryWindowAttachment()
@@ -16,9 +16,9 @@ struct LibraryWindowAttachmentTests {
         #expect(attachment.isLibraryOpen)
         #expect(windows.library.parent === windows.frontPanel)
         #expect(!windows.library.isMovable)
-        expectGlued(windows)
+        expectBeside(windows)
         windows.frontPanel.setFrameOrigin(NSPoint(x: -19500, y: -19700))
-        expectGlued(windows)
+        expectBeside(windows)
     }
 
     /// A Library window that opens before the front panel window is known, as a restored one can, attaches once the
@@ -31,7 +31,7 @@ struct LibraryWindowAttachmentTests {
         #expect(windows.library.parent == nil)
         attachment.frontPanelWindowChanged(windows.frontPanel)
         #expect(windows.library.parent === windows.frontPanel)
-        expectGlued(windows)
+        expectBeside(windows)
     }
 
     /// Closing the Library window releases the key and detaches the window.
@@ -60,7 +60,7 @@ struct LibraryWindowAttachmentTests {
         #expect(windows.frontPanel.frame.origin == NSPoint(x: origin.x + 10, y: origin.y - 4))
         attachment.dragFrontPanel(translation: CGSize(width: 30, height: -20), pointer: NSPoint(x: 130, y: 70))
         #expect(windows.frontPanel.frame.origin == NSPoint(x: origin.x + 30, y: origin.y + 20))
-        expectGlued(windows)
+        expectBeside(windows)
     }
 }
 
@@ -68,7 +68,7 @@ struct LibraryWindowAttachmentTests {
 @MainActor
 private struct TestWindows {
     let frontPanel = testWindow(NSRect(x: -20000, y: -20000, width: 1189, height: 704))
-    let library = testWindow(NSRect(x: -22000, y: -22000, width: 206, height: 635))
+    let library = testWindow(NSRect(x: -22000, y: -22000, width: 218, height: 635))
 
     func close() {
         library.close()
@@ -83,11 +83,15 @@ private func testWindow(_ frame: NSRect) -> NSWindow {
     return window
 }
 
-/// Expects the Library window's left edge on the front panel window's right edge and both tops in line.
+/// Expects the Library window's left edge the gap right of the front panel window's right edge and both tops in line.
 @MainActor
-private func expectGlued(_ windows: TestWindows, sourceLocation: SourceLocation = #_sourceLocation) {
+private func expectBeside(_ windows: TestWindows, sourceLocation: SourceLocation = #_sourceLocation) {
     let frontPanel = windows.frontPanel.frame
     let library = windows.library.frame
-    #expect(library.minX == frontPanel.maxX, "Library \(library), front panel \(frontPanel)", sourceLocation: sourceLocation)
+    #expect(
+        library.minX == frontPanel.maxX + LibraryWindowAttachment.gap,
+        "Library \(library), front panel \(frontPanel)",
+        sourceLocation: sourceLocation
+    )
     #expect(library.maxY == frontPanel.maxY, "Library \(library), front panel \(frontPanel)", sourceLocation: sourceLocation)
 }
