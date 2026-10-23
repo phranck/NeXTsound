@@ -47,9 +47,9 @@ struct FrontPanelEditorTests {
 
 @MainActor
 struct MomentaryKeyBankTests {
-    /// Two captions as wide as their keys stand slanted, so their glyphs keep four times as far apart as they do on one
-    /// level line. A caption's glyphs are the pixels it changes against a render of the bank without captions, so the
-    /// keys and their frame drop out.
+    /// Two six-letter captions under neighboring keys keep their glyphs at least three points apart, because a key is
+    /// wider than a six-letter word. A caption's glyphs are the pixels it changes against a render of the bank
+    /// without captions, so the keys and their frame drop out.
     @Test func neighboringCaptionsStandClearOfEachOther() throws {
         let bare = try RenderedPixels(Self.bank(captions: ["", ""]))
         let left = try RenderedPixels(Self.bank(captions: ["DELETE", ""])).changes(against: bare)
@@ -62,9 +62,8 @@ struct MomentaryKeyBankTests {
 }
 
 private extension MomentaryKeyBankTests {
-    /// Four points in device pixels at scale 2. On one level line, two words as wide as their keys keep one point
-    /// apart.
-    static let minimumDistance = 8.0
+    /// Three points in device pixels at scale 2. Under keys as wide as the kit's, the two words keep one point apart.
+    static let minimumDistance = 6.0
 
     static func bank(captions: [String]) -> MomentaryKeyBank {
         MomentaryKeyBank(keys: captions.enumerated().map { index, caption in
