@@ -47,11 +47,6 @@ enum FrontPanelType {
     static var appKitFont: NSFont? {
         NSFont(name: FrontPanelFonts.captions, size: size)
     }
-
-    /// The height of the face's capitals.
-    static var capHeight: CGFloat {
-        appKitFont?.capHeight ?? 0
-    }
 }
 
 /// The front panel's motion, all in the mockup's ease: 180 ms for a change of state, 80 ms with reduced motion, and
