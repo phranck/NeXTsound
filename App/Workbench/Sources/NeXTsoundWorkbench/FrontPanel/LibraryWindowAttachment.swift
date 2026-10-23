@@ -2,10 +2,11 @@ import AppKit
 import Observation
 import SwiftUI
 
-/// Keeps the Library window glued to the front panel window's right edge, and knows whether it is open.
+/// Keeps the Library window beside the front panel window's right edge, and knows whether it is open.
 ///
-/// Every time the Library window opens, its left edge sits on the front panel window's right edge with both tops in
-/// line, and it becomes the front panel window's child window, which AppKit moves along whenever its parent moves. The
+/// Every time the Library window opens, its left edge stands `gap` points right of the front panel window's right edge
+/// with both tops in line, and it becomes the front panel window's child window, which AppKit moves along whenever its
+/// parent moves. The
 /// Library window cannot be moved on its own, and a drag on it moves the front panel window and with it both. Whether
 /// it is open follows the window itself, so closing it with its close button or from the View menu releases the front
 /// panel's key as well.
@@ -23,6 +24,9 @@ public final class LibraryWindowAttachment {
 }
 
 extension LibraryWindowAttachment {
+    /// The space between the front panel window's right edge and the Library window.
+    static let gap: CGFloat = 12
+
     /// The drag on the Library panel, which moves the front panel window, so the Library window moves along with it.
     var libraryDrag: some Gesture {
         DragGesture()
@@ -82,7 +86,7 @@ private extension LibraryWindowAttachment {
         let origin: NSPoint
     }
 
-    /// Puts an open Library window at the front panel window's right edge and attaches it as its child window.
+    /// Puts an open Library window beside the front panel window's right edge and attaches it as its child window.
     func attachLibrary() {
         guard
             let frontPanelWindow,
@@ -105,7 +109,7 @@ private extension LibraryWindowAttachment {
             return
         }
         let frontPanel = frontPanelWindow.frame
-        libraryWindow.setFrameTopLeftPoint(NSPoint(x: frontPanel.maxX, y: frontPanel.maxY))
+        libraryWindow.setFrameTopLeftPoint(NSPoint(x: frontPanel.maxX + Self.gap, y: frontPanel.maxY))
     }
 
     /// Follows the Library window closing, coming back into view, and taking a new size, which would move its top.
