@@ -3,8 +3,9 @@ import SwiftUI
 /// A round push button built like the kit's red power button.
 ///
 /// A dark ring holds a cap shaded from top to bottom, whose upper rim catches the light while its lower rim lies in
-/// shade, and the button sits in the same recess as every other control. The light one saves, and the red one marks
-/// the one action that rewrites the board. The button takes the keyboard's focus without showing a ring.
+/// shade, and the button sits in the same recess as every other control. The light one saves, and the red one, in the
+/// red of the header's stripes, marks the one action that rewrites the board. The button takes the keyboard's focus
+/// without showing a ring.
 struct PanelPushButton: View {
     /// What VoiceOver calls the button.
     let label: LocalizedStringKey
@@ -70,13 +71,13 @@ private struct PanelPushButtonCap: View {
         let shades = PanelPushButtonMetrics.shades(of: kind)
         Circle()
             .fill(
-                LinearGradient(colors: [Color(hex: shades.top), Color(hex: shades.bottom)], startPoint: .top, endPoint: .bottom)
-                    .shadow(.inner(color: Color(hex: shades.rimLight), radius: 0, y: 2))
-                    .shadow(.inner(color: Color(hex: shades.rimDark), radius: 0, y: -2))
+                LinearGradient(colors: [shades.top, shades.bottom], startPoint: .top, endPoint: .bottom)
+                    .shadow(.inner(color: shades.rimLight, radius: 0, y: 2))
+                    .shadow(.inner(color: shades.rimDark, radius: 0, y: -2))
             )
             .overlay {
                 PanelPushButtonGlyph(kind: kind)
-                    .foregroundStyle(Color(hex: shades.engraving))
+                    .foregroundStyle(shades.engraving)
                     .shadow(color: shades.emboss, radius: 0, y: 1)
                     .frame(width: PanelPushButtonMetrics.glyphSize, height: PanelPushButtonMetrics.glyphSize)
             }
@@ -142,28 +143,79 @@ private enum PanelPushButtonMetrics {
     /// The glyph's size against the 24-point grid it is drawn on.
     static let glyphScale = glyphSize / 24
 
+    /// The mockup's brightest red, the flash cap's bottom, which becomes the stripes' red.
+    static let mockupFlashBottom: UInt32 = 0xDE0C2C
+
     struct Shades {
-        let top: UInt32
-        let bottom: UInt32
-        let rimLight: UInt32
-        let rimDark: UInt32
-        let engraving: UInt32
+        let top: Color
+        let bottom: Color
+        let rimLight: Color
+        let rimDark: Color
+        let engraving: Color
         let emboss: Color
     }
 
     static func shades(of kind: PanelPushButtonKind) -> Shades {
         switch kind {
         case .save:
-            Shades(top: 0x666666, bottom: 0xE6E6E6, rimLight: 0xEBEBEB, rimDark: 0x747474, engraving: 0x474747, emboss: .white.opacity(0.5))
+            Shades(
+                top: Color(hex: 0x666666),
+                bottom: Color(hex: 0xE6E6E6),
+                rimLight: Color(hex: 0xEBEBEB),
+                rimDark: Color(hex: 0x747474),
+                engraving: Color(hex: 0x474747),
+                emboss: .white.opacity(0.5)
+            )
         case .flash:
             Shades(
-                top: 0x74030B,
-                bottom: 0xDE0C2C,
-                rimLight: 0xE00A25,
-                rimDark: 0x820106,
-                engraving: 0x3A0919,
-                emboss: Color(red: 1, green: 130 / 255, blue: 130 / 255).opacity(0.35)
+                top: flashShade(0x74030B),
+                bottom: flashShade(mockupFlashBottom),
+                rimLight: flashShade(0xE00A25),
+                rimDark: flashShade(0x820106),
+                engraving: flashShade(0x3A0919),
+                emboss: flashShade(0xFF8282).opacity(0.35)
             )
         }
+    }
+
+    /// A shade of the mockup's red cap in the red of the header's stripes. It takes the stripes' hue, and its
+    /// saturation and brightness are scaled as much as the mockup's bottom red needs to become the stripes' red.
+    static func flashShade(_ mockupShade: UInt32) -> Color {
+        let shade = HSBComponents(mockupShade)
+        let reference = HSBComponents(mockupFlashBottom)
+        let stripes = HSBComponents(FrontPanelPalette.stripeRed)
+        return Color(
+            hue: stripes.hue,
+            saturation: min(shade.saturation * stripes.saturation / reference.saturation, 1),
+            brightness: min(shade.brightness * stripes.brightness / reference.brightness, 1)
+        )
+    }
+}
+
+/// A 24-bit sRGB value's hue, saturation and brightness, each from 0 to 1, as `Color(hue:saturation:brightness:)`
+/// takes them.
+struct HSBComponents {
+    let hue: Double
+    let saturation: Double
+    let brightness: Double
+
+    init(_ hex: UInt32) {
+        let red = Double((hex >> 16) & 0xFF) / 255
+        let green = Double((hex >> 8) & 0xFF) / 255
+        let blue = Double(hex & 0xFF) / 255
+        let brightest = max(red, green, blue)
+        let range = brightest - min(red, green, blue)
+        brightness = brightest
+        saturation = brightest > 0 ? range / brightest : 0
+        guard range > 0 else {
+            hue = 0
+            return
+        }
+        let sector: Double = switch brightest {
+        case red: (green - blue) / range
+        case green: (blue - red) / range + 2
+        default: (red - green) / range + 4
+        }
+        hue = (sector / 6 + 1).truncatingRemainder(dividingBy: 1)
     }
 }
