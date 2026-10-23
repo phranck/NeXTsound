@@ -62,6 +62,53 @@ struct LibraryWindowAttachmentTests {
         #expect(windows.frontPanel.frame.origin == NSPoint(x: origin.x + 30, y: origin.y + 20))
         expectBeside(windows)
     }
+
+    /// AppKit pulls a titled window back onto the screen when it orders the window front, which put the Library window
+    /// over the front panel window once the front panel window stood at the screen's right edge. The front panel window
+    /// moves left instead, until the Library window fits beside it on the screen. The windows stand on the main screen
+    /// for that, fully transparent.
+    @Test func theScreensEdgeNeverPushesTheLibraryWindowOverTheFrontPanel() throws {
+        let screen = try #require(NSScreen.main)
+        let visible = screen.visibleFrame
+        let frontPanel = transparentTitledWindow(NSRect(x: visible.midX - 300, y: visible.midY - 200, width: 600, height: 400))
+        let library = transparentTitledWindow(NSRect(x: visible.midX, y: visible.midY, width: 218, height: 300))
+        defer {
+            library.close()
+            frontPanel.close()
+        }
+        frontPanel.orderFront(nil)
+        let attachment = LibraryWindowAttachment()
+        attachment.frontPanelWindowChanged(frontPanel)
+        attachment.libraryWindowChanged(library)
+        frontPanel.setFrameOrigin(NSPoint(x: visible.maxX - frontPanel.frame.width, y: frontPanel.frame.minY))
+        library.orderFront(nil)
+        #expect(
+            library.frame.minX == frontPanel.frame.maxX + LibraryWindowAttachment.gap,
+            "Library \(library.frame), front panel \(frontPanel.frame)"
+        )
+        #expect(library.frame.maxX <= visible.maxX, "Library \(library.frame), screen \(visible)")
+    }
+
+    /// The Library window following its moving front panel window off the screen is no reason to move the front panel
+    /// window back, so a drag toward the screen's edge goes where the pointer takes it.
+    @Test func followingTheFrontPanelOffTheScreenLeavesTheFrontPanelWhereItWasMoved() throws {
+        let screen = try #require(NSScreen.main)
+        let visible = screen.visibleFrame
+        let frontPanel = transparentTitledWindow(NSRect(x: visible.midX - 300, y: visible.midY - 200, width: 600, height: 400))
+        let library = transparentTitledWindow(NSRect(x: visible.midX, y: visible.midY, width: 218, height: 300))
+        defer {
+            library.close()
+            frontPanel.close()
+        }
+        frontPanel.orderFront(nil)
+        let attachment = LibraryWindowAttachment()
+        attachment.frontPanelWindowChanged(frontPanel)
+        attachment.libraryWindowChanged(library)
+        let rightEdge = NSPoint(x: visible.maxX - frontPanel.frame.width, y: frontPanel.frame.minY)
+        frontPanel.setFrameOrigin(rightEdge)
+        #expect(frontPanel.frame.origin == rightEdge)
+        #expect(library.frame.minX == frontPanel.frame.maxX + LibraryWindowAttachment.gap)
+    }
 }
 
 /// A front panel window and a Library window of the panels' sizes, far off every screen.
@@ -79,6 +126,18 @@ private struct TestWindows {
 @MainActor
 private func testWindow(_ frame: NSRect) -> NSWindow {
     let window = NSWindow(contentRect: frame, styleMask: [.borderless], backing: .buffered, defer: false)
+    window.isReleasedWhenClosed = false
+    return window
+}
+
+/// A window with a hidden, full-size title bar like the panels' windows, which shows nothing because it is fully
+/// transparent.
+@MainActor
+private func transparentTitledWindow(_ frame: NSRect) -> NSWindow {
+    let window = NSWindow(contentRect: frame, styleMask: [.titled, .closable, .fullSizeContentView], backing: .buffered, defer: false)
+    window.titlebarAppearsTransparent = true
+    window.titleVisibility = .hidden
+    window.alphaValue = 0
     window.isReleasedWhenClosed = false
     return window
 }
