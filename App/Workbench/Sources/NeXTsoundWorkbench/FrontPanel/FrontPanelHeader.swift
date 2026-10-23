@@ -81,7 +81,7 @@ private enum FrontPanelHeaderMetrics {
     /// The LAYERED colors, the ones Prommer's `Color.layeredStripes` holds.
     static let stripeColors: [Color] = [
         Color(hex: 0xC64616),
-        Color(hex: 0xFBAC3E),
+        Color(hex: FrontPanelPalette.stripeYellow),
         Color(hex: 0x758C34),
         Color(hex: 0x2B7488),
     ]

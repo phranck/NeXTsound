@@ -85,6 +85,30 @@ private extension MomentaryKeyBankTests {
     }
 }
 
+@MainActor
+struct KeyColorTests {
+    /// A radio key keeps the kit's gray, and a momentary or push-on/push-off key takes the stripes' yellow, so only
+    /// the push keys' renders hold yellow pixels.
+    @Test func radioKeysStayGrayAndPushKeysTakeTheStripesYellow() throws {
+        let radio = try RenderedPixels(KeyBank(
+            "Radio",
+            selection: .constant(0),
+            keys: [KeyBankKey(value: 0, caption: Text(verbatim: "Key"), name: Text(verbatim: "Key"))]
+        ))
+        let momentary =
+            try RenderedPixels(MomentaryKeyBank(keys: [MomentaryKey(id: "key", caption: "Key", name: Text(verbatim: "Key")) {}]))
+        let latching = try RenderedPixels(LatchingKey(caption: "Key", isOn: .constant(false)))
+        #expect(radio.yellowPixelCount == 0)
+        #expect(momentary.yellowPixelCount > Self.minimumYellowPixels)
+        #expect(latching.yellowPixelCount > Self.minimumYellowPixels)
+    }
+}
+
+private extension KeyColorTests {
+    /// About a quarter of a key's face at scale 2, which a yellow key passes many times over.
+    static let minimumYellowPixels = 2000
+}
+
 /// A pixel's place in a render, counted from the top leading corner.
 private struct PixelPosition {
     let column: Int
@@ -94,6 +118,24 @@ private struct PixelPosition {
 private extension RenderedPixels {
     /// How far a channel may differ between two renders of the same view before the pixel counts as changed.
     static let changeThreshold = 24
+    /// How far red stands above blue in a pixel of the push keys' yellow at the least. The captions' warm gray stays
+    /// below 20.
+    static let yellowMargin = 60
+
+    /// The pixels in which red stands well above blue, which the push keys' yellow does and the gray keys, the
+    /// captions and the LEDs do not.
+    var yellowPixelCount: Int {
+        var count = 0
+        for row in 0 ..< height {
+            for column in 0 ..< width {
+                let pixel = pixel(column: column, row: row)
+                if pixel.red - pixel.blue > Self.yellowMargin {
+                    count += 1
+                }
+            }
+        }
+        return count
+    }
 
     /// The pixels that differ from the same pixel of another render of the same size.
     func changes(against other: RenderedPixels) -> [PixelPosition] {
