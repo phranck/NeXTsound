@@ -19,6 +19,25 @@ Build products:
 
 The complete repository gate is `bash Scripts/check.sh`. It includes shared and app package tests, formatting/lint, Release packages, all RP2350 targets and guards, and both native app configurations.
 
+## App icon
+
+`App/Application/AppIcon.icon` is the app's icon, an Icon Composer file that Xcode compiles for every size and appearance. XcodeGen adds it to the app's resources with the rest of `App/Application`, and the target's App Icon setting names it.
+
+From the back to the front, it shows the display's dot grid on dark glass, the blue phosphor EQ curve with a dim area under it, the four LAYERED stripes along the bottom, and a speaker driver rendered in Blender, which reaches into the red stripe and casts its shadow on the stripes. The grid starts two rows below the top edge, because the glass rim that macOS draws around every icon smears whatever lies there. The driver brings its own light and shadow, so the system adds neither to it.
+
+To change the icon, edit its scripts and run:
+
+```bash
+bash Scripts/app-icon.sh
+```
+
+`Scripts/app-icon-driver.py` renders the driver in Blender's Cycles, and `Scripts/app-icon-layers.py` writes the vector layers and `icon.json`. The script needs Blender. Icon Composer opens the result, and its `ictool` renders a preview:
+
+```bash
+"/Applications/Icon Composer.app/Contents/Executables/ictool" App/Application/AppIcon.icon --export-image \
+    --output-file preview.png --platform macOS --rendition Default --width 1024 --height 1024 --scale 1
+```
+
 ## Front panel
 
 The front panel is the app's main window (`Window(id: WorkbenchLayout.frontPanelWindowID)`), and closing it quits the app. Its brushed metal reaches under the hidden title bar, and the window takes the size of the panel. A drag anywhere on the panel moves the window, unless it starts on a control.
