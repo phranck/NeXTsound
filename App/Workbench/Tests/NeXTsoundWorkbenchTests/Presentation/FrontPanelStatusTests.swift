@@ -88,4 +88,26 @@ struct FrontPanelStatusTests {
         #expect(status(FrontPanelMessage(text: "Edits play live", tone: .normal)).errorText == nil)
         #expect(status(nil).errorText == nil)
     }
+
+    /// The column reads the model's board and news, so a board error reaches the message line, and a save that has
+    /// just finished outranks it.
+    @MainActor
+    @Test func theColumnReadsTheModelsBoardAndNews() {
+        let model = WorkbenchModel()
+        model.errorMessage = "The board did not reply in time."
+        let status = FrontPanelStatus(model: model, saveSucceeded: false)
+        #expect(status.connection == "SoundBox not connected")
+        #expect(status.message == FrontPanelMessage(text: "The board did not reply in time.", isError: true))
+        #expect(FrontPanelStatus(model: model, saveSucceeded: true).message == FrontPanelMessage(text: "Settings saved"))
+    }
+
+    @Test func voiceOverReadsTheColumnOnlyWhileItStandsInTheDisplay() {
+        let status = FrontPanelStatus(
+            connection: "SoundBox connected",
+            fields: [FrontPanelStatusField(label: "Name", value: "Bedroom")],
+            message: FrontPanelMessage(text: "Edits play live", tone: .normal)
+        )
+        #expect(status.spokenDescription(profileName: "Warm", showsStatus: false) == "Warm")
+        #expect(status.spokenDescription(profileName: "Warm", showsStatus: true) == "Warm. SoundBox connected. Name Bedroom. Edits play live")
+    }
 }

@@ -115,24 +115,7 @@ private extension FrontPanelView {
     }
 
     var status: FrontPanelStatus {
-        FrontPanelStatus(
-            board: model.boards.state,
-            storage: model.boards.storage,
-            runtime: model.boards.runtime,
-            message: messageSources.message
-        )
-    }
-
-    var messageSources: FrontPanelMessageSources {
-        FrontPanelMessageSources(
-            saveInProgress: model.isSavingToBoard ? model.boardStorageStatus : nil,
-            saveSucceeded: saveFeedback.showsSuccess,
-            error: model.errorMessage,
-            board: model.boards.state,
-            validationProblem: model.profile.validationProblem,
-            storageStatus: model.storageStatus,
-            storageFailed: model.storageError != nil
-        )
+        FrontPanelStatus(model: model, saveSucceeded: saveFeedback.showsSuccess)
     }
 }
 
