@@ -19,6 +19,7 @@ struct NeXTsoundApp: App {
         .windowResizability(.contentSize)
         .commandsRemoved()
         .commands {
+            AboutCommands()
             FrontPanelCommands()
             LibraryCommands()
             LibrarySheetCommands()
@@ -29,5 +30,16 @@ struct NeXTsoundApp: App {
             DriverLibraryView(model: driverLibrary)
         }
         .defaultSize(width: 640, height: 480)
+
+        // The About window opens from the app menu alone, so it has no item in the Window menu, and it opens anew
+        // rather than coming back with the app.
+        Window(WorkbenchWindows.aboutWindowTitle, id: WorkbenchWindows.aboutWindowID) {
+            AboutPanel()
+        }
+        .windowStyle(.hiddenTitleBar)
+        .windowResizability(.contentSize)
+        .restorationBehavior(.disabled)
+        .defaultPosition(.center)
+        .commandsRemoved()
     }
 }

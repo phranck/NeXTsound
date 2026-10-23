@@ -34,6 +34,7 @@ targets:
       path: Generated/Info.plist
       properties:
         CFBundleDisplayName: NeXTsound
+        NSHumanReadableCopyright: "© 2026 LAYERED.work"
         NSPrincipalClass: NSApplication
         NSHighResolutionCapable: true
         LSApplicationCategoryType: public.app-category.music

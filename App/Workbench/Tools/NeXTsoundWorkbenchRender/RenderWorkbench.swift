@@ -3,6 +3,7 @@ import Foundation
 import NeXTsoundCore
 import NeXTsoundWorkbench
 import SwiftUI
+import UniformTypeIdentifiers
 
 @main
 @MainActor
@@ -26,6 +27,7 @@ enum RenderWorkbench {
         try renderFrontPanel(connected: false, destination: destination)
         try renderFrontPanel(connected: true, destination: destination)
         try renderLibraryPanel(destination: destination)
+        try renderAboutPanel(destination: destination)
     }
 }
 
@@ -58,6 +60,15 @@ private extension RenderWorkbench {
         model.selectSpeaker(DriverRecord(name: "Dayton Audio CE41N-4"))
         RunLoop.main.run(until: Date(timeIntervalSinceNow: 0.3))
         try renderPanel(LibraryPanel(model: model, driverLibrary: DriverLibraryModel()), stem: "library-panel@2x", destination: destination)
+    }
+
+    /// Renders the About window with preview values, as the connected front panel renders a preview board. The icon
+    /// is the installed app's, and the generic app icon where NeXTsound is not installed.
+    static func renderAboutPanel(destination: URL) throws {
+        let info = AboutInfo(version: "1.2.0", build: "34", copyright: "© 2026 LAYERED.work")
+        let installedApp = NSWorkspace.shared.urlForApplication(withBundleIdentifier: "work.layered.NeXTsound")
+        let icon = installedApp.map { NSWorkspace.shared.icon(forFile: $0.path) } ?? NSWorkspace.shared.icon(for: .applicationBundle)
+        try renderPanel(AboutPanel(info: info, icon: icon), stem: "about-panel@2x", destination: destination)
     }
 
     /// Renders a panel through SwiftUI's own renderer at scale 2, the scale its dots fall on whole device pixels at.
