@@ -335,8 +335,8 @@ private struct KeyBankFrame: View {
 private enum KeyBankMetrics {
     /// The kit's key, which a key's height, corners and dish take their measure from.
     static let kitKeySize: CGFloat = 40
-    /// A key is 3 points wider than the kit's, so the six-letter captions of neighboring momentary keys stay apart.
-    static let keyWidth = kitKeySize + 3
+    /// A key is 6 points wider than the kit's, so the six-letter captions of neighboring momentary keys stay apart.
+    static let keyWidth = kitKeySize + 6
     /// The kit's keys are a hair taller than wide.
     static let keyHeight = kitKeySize * 61 / 60
     static let keyRadius = kitKeySize * 0.133
