@@ -2,8 +2,8 @@ import CoreGraphics
 import SwiftUI
 
 /// The brushed metal of the front panel and the Library panel: the mockup's metal gradient under faint, slightly
-/// slanted brush strokes and a fine grain. Its top edge catches a highlight and its bottom edge lies in shade, as the
-/// windows' edges do in the mockup.
+/// slanted brush strokes and a grain of light and dark specks. Its top edge catches a highlight and its bottom edge
+/// lies in shade, as the windows' edges do in the mockup.
 ///
 /// The metal draws as one compositing group. Without it, a window draws the gradient with its inner shadows one
 /// pixel below the metal's frame wherever the metal's height in points has an odd whole part, as the Library panel's
@@ -54,7 +54,7 @@ private struct BrushStrokes: View {
     }
 }
 
-/// A fine grain of white specks, tiled from one noise tile that every launch draws the same.
+/// A grain of light and dark specks, tiled from one noise tile that every launch draws the same.
 private struct MetalGrain: View {
     var body: some View {
         if let tile = Self.tile {
@@ -68,18 +68,25 @@ private struct MetalGrain: View {
 private extension MetalGrain {
     /// The tile's edge in pixels.
     static let tileSize = 128
-    /// The strongest speck's opacity, the strength of the mockup's fractal noise.
-    static let maximumOpacity = 0.05
+    /// The opacity of the lightest speck, white over the metal. A white speck moves the dark metal further than a
+    /// black one of the same opacity, so the light specks are the stronger ones, and the metal keeps its tone.
+    static let maximumLightOpacity = 0.16
+    /// The opacity of the darkest speck, black over the metal.
+    static let maximumDarkOpacity = 0.10
 
-    /// A tile of white specks with random opacities up to `maximumOpacity`, from a fixed seed.
+    /// A tile of specks from a fixed seed. A speck's strength is the sum of two random numbers less one, so it falls
+    /// between -1 and 1 and most often near 0. A positive strength lightens the metal and a negative one darkens it.
     @MainActor static let tile: CGImage? = {
         var generator = SplitMix64(seed: 0x4E58_5353)
         var pixels = [UInt8](repeating: 0, count: tileSize * tileSize * 4)
         for index in stride(from: 0, to: pixels.count, by: 4) {
-            let alpha = UInt8((Double.random(in: 0 ... maximumOpacity, using: &generator) * 255).rounded())
-            pixels[index] = alpha
-            pixels[index + 1] = alpha
-            pixels[index + 2] = alpha
+            let strength = Double.random(in: 0 ... 1, using: &generator) + Double.random(in: 0 ... 1, using: &generator) - 1
+            let opacity = strength > 0 ? strength * maximumLightOpacity : -strength * maximumDarkOpacity
+            let alpha = UInt8((opacity * 255).rounded())
+            let white = strength > 0 ? alpha : 0
+            pixels[index] = white
+            pixels[index + 1] = white
+            pixels[index + 2] = white
             pixels[index + 3] = alpha
         }
         guard

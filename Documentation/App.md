@@ -40,7 +40,7 @@ bash Scripts/app-icon.sh
 
 ## Front panel
 
-The front panel is the app's main window (`Window(id: WorkbenchLayout.frontPanelWindowID)`), and closing it quits the app. Its brushed metal reaches under the hidden title bar, and the window takes the size of the panel. A drag anywhere on the panel moves the window, unless it starts on a control.
+The front panel is the app's main window (`Window(id: WorkbenchLayout.frontPanelWindowID)`), and closing it quits the app. Its brushed metal reaches under the hidden title bar, and the window takes the size of the panel. The metal, which the Library sheet shares, shows faint brush strokes and a grain of light and dark specks. A drag anywhere on the panel moves the window, unless it starts on a control.
 
 The multifunction display under the header plots the selected profile's response from the five EQ bands and, while it is enabled, the high-pass. The plot uses the shared DSP coefficients. It leaves out attenuation, mute and the limiter, so it is not an acoustic measurement, and it clips the curve at its labeled range without changing the settings. The profile's name stands under the curve. The status column at the right shows the SoundBox's connection, and for a verified board its name, serial, firmware, audio format, flash size with the storage state, and live values. The latest message stands on its bottom line. The column slides out to the right and back in, in whole dot columns over the unlit dots, and while it is out the curve and the profile's name take the whole display. With Reduce Motion, it appears and disappears without sliding. A new error slides it back in, and other messages leave it where it is.
 
