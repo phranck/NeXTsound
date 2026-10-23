@@ -18,13 +18,13 @@ struct FrontPanelControlRow: View {
 
     var body: some View {
         HStack(alignment: .top, spacing: PanelRowMetrics.panelSpacing) {
-            BandPanel(editor: editor, selectedBand: $selectedBand, theme: theme)
+            BandPanel(editor: editor, selectedBand: $selectedBand)
             SharedWidthRow(spacing: PanelRowMetrics.panelSpacing) {
-                HighPassModule(editor: editor, theme: theme)
+                HighPassModule(editor: editor)
                     .rowWidthShare(PanelRowMetrics.oneSliderModuleShare)
-                OutputModule(editor: editor, theme: theme)
+                OutputModule(editor: editor)
                     .rowWidthShare(PanelRowMetrics.oneSliderModuleShare)
-                LimiterModule(editor: editor, buttons: boardButtons, theme: theme)
+                LimiterModule(editor: editor, buttons: boardButtons)
             }
             ColorAndLibraryColumn(theme: $theme, isInfoShown: $isInfoShown, isLibraryOpen: $isLibraryOpen)
         }
@@ -45,7 +45,6 @@ struct FrontPanelBoardButtons {
 private struct BandPanel: View {
     let editor: FrontPanelEditor
     @Binding var selectedBand: Int
-    let theme: PhosphorTheme
 
     var body: some View {
         VStack(spacing: PanelRowMetrics.stackSpacing) {
@@ -56,24 +55,21 @@ private struct BandPanel: View {
                     caption: "Freq",
                     parameter: .bandFrequency,
                     unit: .hertz,
-                    value: editor.binding(band: selectedBand, \.frequencyHz),
-                    theme: theme
+                    value: editor.binding(band: selectedBand, \.frequencyHz)
                 )
                 PanelFader(
                     label: "Band gain",
                     caption: "Gain",
                     parameter: .bandGain,
                     unit: .decibels,
-                    value: editor.binding(band: selectedBand, \.gainDb),
-                    theme: theme
+                    value: editor.binding(band: selectedBand, \.gainDb)
                 )
                 PanelFader(
                     label: "Band quality",
                     caption: "Quality",
                     parameter: .bandQuality,
                     unit: .quality,
-                    value: editor.binding(band: selectedBand, \.quality),
-                    theme: theme
+                    value: editor.binding(band: selectedBand, \.quality)
                 )
             }
             KeyBank("Band select", selection: $selectedBand, keys: Self.bandKeys) { band in
@@ -95,7 +91,6 @@ private extension BandPanel {
 
 private struct HighPassModule: View {
     let editor: FrontPanelEditor
-    let theme: PhosphorTheme
 
     var body: some View {
         PanelModule(title: "High-pass") {
@@ -105,8 +100,7 @@ private struct HighPassModule: View {
                     caption: "Cutoff",
                     parameter: .highPassFrequency,
                     unit: .hertz,
-                    value: editor.binding(\.highPassHz),
-                    theme: theme
+                    value: editor.binding(\.highPassHz)
                 )
             } bottom: {
                 LabeledToggle(label: "High-pass enabled", caption: "Enabled", isOn: editor.binding(\.highPassEnabled))
@@ -119,7 +113,6 @@ private struct HighPassModule: View {
 /// before the scale is learned.
 private struct OutputModule: View {
     let editor: FrontPanelEditor
-    let theme: PhosphorTheme
 
     var body: some View {
         PanelModule(title: "Output") {
@@ -130,7 +123,6 @@ private struct OutputModule: View {
                     parameter: .attenuation,
                     unit: .decibels,
                     value: editor.binding(\.attenuationDb),
-                    theme: theme,
                     spokenDetail: editor.settings.shareOfFullVolumeText
                 )
             } bottom: {
@@ -143,7 +135,6 @@ private struct OutputModule: View {
 private struct LimiterModule: View {
     let editor: FrontPanelEditor
     let buttons: FrontPanelBoardButtons
-    let theme: PhosphorTheme
 
     var body: some View {
         PanelModule(title: "Sample-peak limiter") {
@@ -153,8 +144,7 @@ private struct LimiterModule: View {
                     caption: "Ceiling",
                     parameter: .limiterThreshold,
                     unit: .decibels,
-                    value: editor.binding(\.limiterThresholdDb),
-                    theme: theme
+                    value: editor.binding(\.limiterThresholdDb)
                 )
             } bottom: {
                 VStack(spacing: FrontPanelLayout.captionSpacing) {
@@ -170,8 +160,7 @@ private struct LimiterModule: View {
                     caption: "Release",
                     parameter: .limiterRelease,
                     unit: .milliseconds,
-                    value: editor.binding(\.limiterReleaseMs),
-                    theme: theme
+                    value: editor.binding(\.limiterReleaseMs)
                 )
             } bottom: {
                 VStack(spacing: FrontPanelLayout.captionSpacing) {

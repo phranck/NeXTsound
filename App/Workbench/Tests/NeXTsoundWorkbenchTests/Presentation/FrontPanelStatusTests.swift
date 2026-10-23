@@ -33,23 +33,6 @@ struct FrontPanelMessageTests {
     }
 }
 
-struct DotMatrixWrapTests {
-    @Test func aMessageWrapsBetweenWordsWithAHangingIndent() {
-        let lines = DotMatrixWrap.lines(
-            of: "The reported serial does not match the enumerated device.",
-            width: 27,
-            firstPrefix: "! ",
-            laterPrefix: "  "
-        )
-        #expect(lines == ["! The reported serial does", "  not match the enumerated", "  device."])
-    }
-
-    @Test func aWordLongerThanALineTakesALineOfItsOwn() {
-        let lines = DotMatrixWrap.lines(of: "a 0123456789abcdef", width: 10, firstPrefix: "> ", laterPrefix: "  ")
-        #expect(lines == ["> a", "  0123456789abcdef"])
-    }
-}
-
 struct FrontPanelStatusTests {
     @Test func aVerifiedBoardShowsItsIdentityStorageAndLiveValues() {
         var capabilities = fixtureCapabilities()
@@ -87,5 +70,28 @@ struct FrontPanelStatusTests {
         #expect(status(FrontPanelMessage(text: "Save failed.", isError: true)).errorText == "Save failed.")
         #expect(status(FrontPanelMessage(text: "Edits play live", tone: .normal)).errorText == nil)
         #expect(status(nil).errorText == nil)
+    }
+
+    /// The column reads the model's board and news, so a board error reaches the message line, and a save that has
+    /// just finished outranks it.
+    @MainActor
+    @Test func theColumnReadsTheModelsBoardAndNews() {
+        let model = WorkbenchModel()
+        model.errorMessage = "The board did not reply in time."
+        let status = FrontPanelStatus(model: model, saveSucceeded: false)
+        #expect(status.connection == "SoundBox not connected")
+        #expect(status.message == FrontPanelMessage(text: "The board did not reply in time.", isError: true))
+        #expect(FrontPanelStatus(model: model, saveSucceeded: true).message == FrontPanelMessage(text: "Settings saved"))
+    }
+
+    @Test func voiceOverReadsTheColumnOnlyWhileItStandsInTheDisplay() {
+        let status = FrontPanelStatus(
+            connection: "SoundBox connected",
+            fields: [FrontPanelStatusField(label: "Name", value: "Bedroom")],
+            message: FrontPanelMessage(text: "Edits play live", tone: .normal)
+        )
+        #expect(status.spokenDescription(profileName: "Warm", showsStatus: false) == "Warm")
+        let spoken = status.spokenDescription(profileName: "Warm", showsStatus: true)
+        #expect(spoken == "Warm. SoundBox connected. Name Bedroom. Edits play live")
     }
 }

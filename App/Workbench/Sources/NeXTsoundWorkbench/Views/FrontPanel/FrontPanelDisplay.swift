@@ -15,7 +15,7 @@ struct FrontPanelDisplay: View {
     let status: FrontPanelStatus
     /// Whether the status column stands in the display.
     let showsStatus: Bool
-    let theme: PhosphorTheme
+    @Environment(\.phosphorTheme) private var theme
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
@@ -38,19 +38,7 @@ struct FrontPanelDisplay: View {
         .frame(height: FrontPanelDisplayLayout.height)
         .accessibilityElement()
         .accessibilityLabel("Analytical high-pass and equalizer response")
-        .accessibilityValue(spokenDescription)
-    }
-}
-
-private extension FrontPanelDisplay {
-    /// What the display shows, as VoiceOver reads it: the profile, and while the status column stands in the display,
-    /// the connection, every field and the message.
-    var spokenDescription: String {
-        guard showsStatus else {
-            return profileName
-        }
-        let fields = status.fields.map { "\($0.label) \($0.value)" }
-        return ([profileName, status.connection] + fields + [status.message?.text].compactMap(\.self)).joined(separator: ". ")
+        .accessibilityValue(status.spokenDescription(profileName: profileName, showsStatus: showsStatus))
     }
 }
 

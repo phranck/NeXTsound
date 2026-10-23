@@ -53,3 +53,8 @@ extension PhosphorTheme {
         }
     }
 }
+
+extension EnvironmentValues {
+    /// The phosphor color of every display, which the front panel and the Library panel set from the stored choice.
+    @Entry var phosphorTheme = PhosphorTheme.blue
+}

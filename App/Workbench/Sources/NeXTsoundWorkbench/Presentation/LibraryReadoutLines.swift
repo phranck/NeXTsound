@@ -44,6 +44,23 @@ enum ProfileListLines {
         let shown = String(text.dropFirst(firstShown).prefix(nameCells))
         return DotMatrixLine(text: marker + shown, cursorCell: showsCursor ? marker.count + caret - firstShown : nil)
     }
+
+    /// The lines in view from `firstVisible` on: each profile's line, with `renameLine` in place of the selected
+    /// profile's while a rename runs.
+    ///
+    /// - Parameters:
+    ///   - names: The profiles' names in the list's order.
+    ///   - selected: The selected profile's position in `names`.
+    ///   - firstVisible: The position of the first profile in view.
+    ///   - renameLine: The selected profile's line while it is renamed, or nil without a rename.
+    static func lines(names: [String], selected: Int, firstVisible: Int, renameLine: DotMatrixLine?) -> [DotMatrixLine] {
+        names.indices.dropFirst(firstVisible).prefix(visibleLines).map { index in
+            if index == selected, let renameLine {
+                return renameLine
+            }
+            return line(name: names[index], isSelected: index == selected)
+        }
+    }
 }
 
 /// How the Library panel's speaker and SoundBox readouts read.

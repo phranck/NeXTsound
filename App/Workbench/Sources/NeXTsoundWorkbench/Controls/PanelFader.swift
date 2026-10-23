@@ -14,13 +14,12 @@ struct PanelFader: View {
     let parameter: DSPParameter
     let unit: FaderUnit
     @Binding var value: Float
-    let theme: PhosphorTheme
     /// What VoiceOver reads after the value, such as the share of full volume.
     var spokenDetail: String?
 
     var body: some View {
         VStack(spacing: PanelFaderMetrics.wrapSpacing) {
-            PanelReadout(text: unit.readout(value), layout: PanelFaderMetrics.readoutLayout, alignment: .trailing, theme: theme)
+            PanelReadout(text: unit.readout(value), layout: PanelFaderMetrics.readoutLayout, alignment: .trailing)
                 .accessibilityHidden(true)
             FaderControl(label: label, scale: FaderScale(parameter: parameter), unit: unit, value: $value, spokenDetail: spokenDetail)
             ControlCaption(caption: Text(caption))
@@ -64,9 +63,7 @@ private struct FaderControl: View {
         .frame(width: PanelFaderMetrics.width, height: PanelFaderMetrics.height)
         .contentShape(Rectangle())
         .gesture(drag)
-        .focusable()
-        .focused($isFocused)
-        .focusEffectDisabled()
+        .panelFocus($isFocused)
         .onKeyPress(keys: PanelFaderMetrics.handledKeys) { press in
             handle(press.key)
         }

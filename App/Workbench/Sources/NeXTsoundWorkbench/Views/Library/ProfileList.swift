@@ -11,7 +11,6 @@ import SwiftUI
 /// VoiceOver reads the list as a list of the profiles.
 struct ProfileList: View {
     let editor: LibraryEditor
-    let theme: PhosphorTheme
     @State private var firstVisible = 0
     @State private var rename: ProfileRename?
     @State private var cursorIsVisible = true
@@ -19,7 +18,7 @@ struct ProfileList: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
-        PanelReadout(lines: lines, layout: Self.layout, theme: theme)
+        PanelReadout(lines: lines, layout: Self.layout)
             .background(alignment: .topLeading) {
                 ProfileRenameField(text: rename?.text) { typed in
                     rename = typed
@@ -35,9 +34,7 @@ struct ProfileList: View {
             .simultaneousGesture(TapGesture(count: 2).onEnded {
                 startRename()
             })
-            .focusable()
-            .focused($isFocused)
-            .focusEffectDisabled()
+            .panelFocus($isFocused)
             .onKeyPress(keys: Self.keys) { press in
                 handle(press.key)
             }
@@ -82,19 +79,15 @@ private extension ProfileList {
     }
 
     var lines: [DotMatrixLine] {
-        let profiles = editor.profiles
-        let selected = editor.selectedIndex
-        return profiles.indices.dropFirst(shownFirst).prefix(ProfileListLines.visibleLines).map { index in
-            if index == selected, let rename {
-                return ProfileListLines.renameLine(
-                    text: rename.text,
-                    caret: rename.caret,
-                    cells: Self.layout.cells,
-                    showsCursor: cursorIsVisible
-                )
-            }
-            return ProfileListLines.line(name: profiles[index].displayName, isSelected: index == selected)
+        let renameLine = rename.map { rename in
+            ProfileListLines.renameLine(text: rename.text, caret: rename.caret, cells: Self.layout.cells, showsCursor: cursorIsVisible)
         }
+        return ProfileListLines.lines(
+            names: editor.profiles.map(\.displayName),
+            selected: editor.selectedIndex,
+            firstVisible: shownFirst,
+            renameLine: renameLine
+        )
     }
 
     func selectLine(at location: CGPoint) {
@@ -177,7 +170,7 @@ private extension ProfileListAccessibility {
             editor.selectedID
         } set: { identifier in
             if let identifier {
-                editor.model.selectProfile(identifier)
+                editor.select(identifier)
             }
         }
     }

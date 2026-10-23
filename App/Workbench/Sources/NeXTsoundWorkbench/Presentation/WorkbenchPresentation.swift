@@ -32,6 +32,51 @@ extension SoundProfile {
     }
 }
 
+extension DriverRecord {
+    /// The name the driver model shows under, which is Untitled for one without a name.
+    var displayName: String {
+        name.isEmpty ? String(localized: "Untitled") : name
+    }
+
+    /// The driver model's datasheet, which is its first source.
+    var datasheetURL: URL? {
+        sourceURLs.first
+    }
+
+    /// The sources one per line, as the driver form shows them for editing.
+    var sourceURLText: String {
+        sourceURLs.map(\.absoluteString).joined(separator: "\n")
+    }
+
+    /// The manufacturer as the driver form edits it, where an empty text means none.
+    var manufacturerText: String {
+        get { manufacturer ?? "" }
+        set { manufacturer = newValue.isEmpty ? nil : newValue }
+    }
+
+    /// The model as the driver form edits it, where an empty text means none.
+    var modelText: String {
+        get { model ?? "" }
+        set { model = newValue.isEmpty ? nil : newValue }
+    }
+
+    /// The mounting hole count as the driver form's number field edits it, rounded to whole holes.
+    var mountingHoleCountValue: Double? {
+        get { mountingHoleCount.map(Double.init) }
+        set { mountingHoleCount = newValue.map { Int($0.rounded()) } }
+    }
+
+    /// The sources in `text`, one per line, without blank lines and the spaces around each line. A line that
+    /// `URL(string:)` cannot read is left out.
+    static func sourceURLs(fromText text: String) -> [URL] {
+        text
+            .split(separator: "\n")
+            .map { $0.trimmingCharacters(in: .whitespaces) }
+            .filter { !$0.isEmpty }
+            .compactMap { URL(string: $0) }
+    }
+}
+
 extension BoardConnectionState {
     /// The state in a few words, as the front panel's status column names it and VoiceOver reads the Library panel's
     /// CONNECTED LED.
@@ -42,5 +87,13 @@ extension BoardConnectionState {
         case .verified: String(localized: "SoundBox connected")
         case .mismatched: String(localized: "SoundBox not verified")
         }
+    }
+
+    /// The verified board's capabilities, or nil while no board is verified.
+    var verifiedCapabilities: DeviceCapabilities? {
+        guard case let .verified(capabilities) = self else {
+            return nil
+        }
+        return capabilities
     }
 }

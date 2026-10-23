@@ -12,16 +12,16 @@ struct DriverForm: View {
         _draft = draft
         self.validationError = validationError
         self.onApply = onApply
-        _sourceURLText = State(initialValue: draft.wrappedValue.sourceURLs.map(\.absoluteString).joined(separator: "\n"))
+        _sourceURLText = State(initialValue: draft.wrappedValue.sourceURLText)
     }
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 18) {
-                Text(draft.name.isEmpty ? String(localized: "Untitled") : draft.name)
+                Text(draft.displayName)
                     .font(.title2.weight(.semibold))
                     .textSelection(.enabled)
-                if let datasheetURL = draft.sourceURLs.first {
+                if let datasheetURL = draft.datasheetURL {
                     Link("Datasheet", destination: datasheetURL)
                 }
                 ExpandAllToggle(sections: sections)
@@ -56,11 +56,7 @@ struct DriverForm: View {
 
 private extension DriverForm {
     func apply() {
-        draft.sourceURLs = sourceURLText
-            .split(separator: "\n")
-            .map { $0.trimmingCharacters(in: .whitespaces) }
-            .filter { !$0.isEmpty }
-            .compactMap { URL(string: $0) }
+        draft.sourceURLs = DriverRecord.sourceURLs(fromText: sourceURLText)
         onApply()
     }
 }
@@ -73,9 +69,9 @@ private struct IdentityGroup: View {
         VStack(alignment: .leading, spacing: 12) {
             TextField("Name", text: $draft.name)
                 .textFieldStyle(.roundedBorder)
-            TextField("Manufacturer", text: manufacturerBinding)
+            TextField("Manufacturer", text: $draft.manufacturerText)
                 .textFieldStyle(.roundedBorder)
-            TextField("Model", text: modelBinding)
+            TextField("Model", text: $draft.modelText)
                 .textFieldStyle(.roundedBorder)
             Picker("Origin", selection: $draft.origin) {
                 ForEach(SpecificationOrigin.allCases, id: \.self) { origin in
@@ -90,16 +86,6 @@ private struct IdentityGroup: View {
                 .textFieldStyle(.roundedBorder)
                 .lineLimit(3 ... 6)
         }
-    }
-}
-
-private extension IdentityGroup {
-    var manufacturerBinding: Binding<String> {
-        Binding(get: { draft.manufacturer ?? "" }, set: { draft.manufacturer = $0.isEmpty ? nil : $0 })
-    }
-
-    var modelBinding: Binding<String> {
-        Binding(get: { draft.model ?? "" }, set: { draft.model = $0.isEmpty ? nil : $0 })
     }
 }
 
@@ -149,17 +135,11 @@ private struct MountingGroup: View {
         VStack(alignment: .leading, spacing: 12) {
             NumericFieldRow(title: "Frame diameter", unit: "mm", value: $draft.frameDiameterMillimeters)
             NumericFieldRow(title: "Mounting pitch circle", unit: "mm", value: $draft.mountingPitchCircleDiameterMillimeters)
-            NumericFieldRow(title: "Mounting holes", unit: "", value: mountingHoleCountBinding, fractionDigits: 0 ... 0)
+            NumericFieldRow(title: "Mounting holes", unit: "", value: $draft.mountingHoleCountValue, fractionDigits: 0 ... 0)
             NumericFieldRow(title: "Mounting hole diameter", unit: "mm", value: $draft.mountingHoleDiameterMillimeters)
             NumericFieldRow(title: "Rear depth", unit: "mm", value: $draft.rearDepthMillimeters)
             NumericFieldRow(title: "Front protrusion", unit: "mm", value: $draft.frontProtrusionMillimeters)
         }
-    }
-}
-
-private extension MountingGroup {
-    var mountingHoleCountBinding: Binding<Double?> {
-        Binding(get: { draft.mountingHoleCount.map(Double.init) }, set: { draft.mountingHoleCount = $0.map { Int($0.rounded()) } })
     }
 }
 

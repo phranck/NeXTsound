@@ -10,12 +10,11 @@ import SwiftUI
 struct SpeakerReadout: View {
     let editor: LibraryEditor
     let drivers: [DriverRecord]
-    let theme: PhosphorTheme
     @State private var menu = SpeakerMenu()
     @FocusState private var isFocused: Bool
 
     var body: some View {
-        PanelReadout(lines: lines, layout: Self.layout, theme: theme)
+        PanelReadout(lines: lines, layout: Self.layout)
             .background(alignment: .topLeading) {
                 SpeakerMenuAnchor(menu: menu)
                     .frame(width: 0, height: 0)
@@ -25,9 +24,7 @@ struct SpeakerReadout: View {
                 isFocused = true
                 openMenu()
             }
-            .focusable()
-            .focused($isFocused)
-            .focusEffectDisabled()
+            .panelFocus($isFocused)
             .onKeyPress(keys: Self.menuKeys) { _ in
                 openMenu()
                 return .handled
@@ -61,13 +58,13 @@ private extension SpeakerReadout {
         Binding {
             editor.selectedProfile.speaker?.id
         } set: { identifier in
-            editor.selectSpeaker(drivers.first { $0.id == identifier })
+            editor.selectSpeaker(id: identifier, from: drivers)
         }
     }
 
     func openMenu() {
-        menu.open(drivers: drivers, selectedID: editor.selectedProfile.speaker?.id) { driver in
-            editor.selectSpeaker(driver)
+        menu.open(drivers: drivers, selectedID: editor.selectedProfile.speaker?.id) { identifier in
+            editor.selectSpeaker(id: identifier, from: drivers)
         }
     }
 }
@@ -77,16 +74,14 @@ private extension SpeakerReadout {
 @MainActor
 final class SpeakerMenu: NSObject {
     fileprivate weak var anchor: NSView?
-    private var drivers: [DriverRecord] = []
-    private var onSelect: ((DriverRecord?) -> Void)?
+    private var onSelect: ((UUID?) -> Void)?
 
     /// Opens the menu of `drivers` with the one whose identifier is `selectedID` checked, or Not selected without
-    /// one, and reports the choice to `onSelect`.
-    func open(drivers: [DriverRecord], selectedID: UUID?, onSelect: @escaping (DriverRecord?) -> Void) {
+    /// one, and reports the chosen driver's identifier to `onSelect`, or nil for Not selected.
+    func open(drivers: [DriverRecord], selectedID: UUID?, onSelect: @escaping (UUID?) -> Void) {
         guard let anchor else {
             return
         }
-        self.drivers = drivers
         self.onSelect = onSelect
         let menu = NSMenu()
         menu.addItem(item(title: String(localized: "Not selected"), identifier: nil, selectedID: selectedID))
@@ -107,8 +102,7 @@ private extension SpeakerMenu {
     }
 
     @objc func choose(_ item: NSMenuItem) {
-        let identifier = item.representedObject as? UUID
-        onSelect?(drivers.first { $0.id == identifier })
+        onSelect?(item.representedObject as? UUID)
     }
 }
 

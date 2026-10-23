@@ -42,6 +42,28 @@ extension FrontPanelStatus {
     var errorText: String? {
         message.flatMap { $0.isError ? $0.text : nil }
     }
+
+    /// The column for the model's board, with the message that the model's state calls for. `saveSucceeded` says
+    /// whether a save to the SoundBox finished a moment ago, which the front panel's save feedback knows.
+    @MainActor
+    init(model: WorkbenchModel, saveSucceeded: Bool) {
+        self.init(
+            board: model.boards.state,
+            storage: model.boards.storage,
+            runtime: model.boards.runtime,
+            message: FrontPanelMessageSources(model: model, saveSucceeded: saveSucceeded).message
+        )
+    }
+
+    /// What VoiceOver reads for the display: the profile, and while the status column stands in the display, the
+    /// connection, every field and the message.
+    func spokenDescription(profileName: String, showsStatus: Bool) -> String {
+        guard showsStatus else {
+            return profileName
+        }
+        let fieldTexts = fields.map { "\($0.label) \($0.value)" }
+        return ([profileName, connection] + fieldTexts + [message?.text].compactMap(\.self)).joined(separator: ". ")
+    }
 }
 
 private extension FrontPanelStatus {
@@ -128,6 +150,21 @@ struct FrontPanelMessageSources: Equatable {
 }
 
 extension FrontPanelMessageSources {
+    /// The model's save, error, validation and storage news. `saveSucceeded` comes from the front panel's save
+    /// feedback, because the model keeps no record of a save once it has finished.
+    @MainActor
+    init(model: WorkbenchModel, saveSucceeded: Bool) {
+        self.init(
+            saveInProgress: model.isSavingToBoard ? model.boardStorageStatus : nil,
+            saveSucceeded: saveSucceeded,
+            error: model.errorMessage,
+            board: model.boards.state,
+            validationProblem: model.profile.validationProblem,
+            storageStatus: model.storageStatus,
+            storageFailed: model.storageError != nil
+        )
+    }
+
     var message: FrontPanelMessage? {
         if let saveInProgress {
             return FrontPanelMessage(text: saveInProgress)
