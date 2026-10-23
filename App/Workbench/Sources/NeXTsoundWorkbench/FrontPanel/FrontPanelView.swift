@@ -1,25 +1,22 @@
 import NeXTsoundCore
 import SwiftUI
-import UniformTypeIdentifiers
 
 /// The content of the app's main window.
 ///
 /// Brushed metal holds the header, the multifunction display with the selected profile's live EQ curve, and the row
 /// of controls that edits the profile. The row sets the panel's width, and the header and the display take it, so
 /// they end where the controls end. The metal reaches under the hidden title bar, so the window's buttons sit on it.
-/// The window presents the panels that import and export a profile, which the Library panel and the File menu ask
-/// for. The key at the row's right end opens and closes the Library window, which stands beside this window's right
-/// edge and moves with it.
+/// The key at the row's right end and the View menu show the Library as a sheet on this window, and the FLASH button
+/// shows the flash sheet. The window presents the panels that import and export a profile, which the Library and
+/// the File menu ask for, except while the Library sheet is shown and presents them over itself.
 public struct FrontPanelView: View {
     @Bindable private var model: WorkbenchModel
-    private let libraryWindow: LibraryWindowAttachment
+    private let driverLibrary: DriverLibraryModel
     @State private var selectedBand = 0
     @State private var saveFeedback = FrontPanelSaveFeedback()
-    @State private var isShowingFlashSheet = false
+    @State private var presentedSheet: FrontPanelSheet?
     @AppStorage(PhosphorTheme.storageKey) private var theme = PhosphorTheme.blue
     @Environment(\.undoManager) private var undoManager
-    @Environment(\.openWindow) private var openWindow
-    @Environment(\.dismissWindow) private var dismissWindow
 
     public var body: some View {
         WholePointFrame {
@@ -41,53 +38,51 @@ public struct FrontPanelView: View {
         .background {
             BrushedMetal()
         }
-        .background {
-            WindowReader { window in
-                libraryWindow.frontPanelWindowChanged(window)
-            }
-            .frame(width: 0, height: 0)
-        }
         .panelWindowContent()
         .focusedSceneValue(\.frontPanelBand, FrontPanelBand(editor: editor, index: selectedBand))
         .focusedSceneValue(\.libraryEditor, LibraryEditor(model: model, undoManager: undoManager))
-        .sheet(isPresented: $isShowingFlashSheet) {
-            FlashFirmwareSheet(connectionState: model.boards.state)
-        }
-        .fileImporter(isPresented: $model.isImporting, allowedContentTypes: [.neXTsoundProfile, .json]) { result in
-            guard case let .success(url) = result else {
-                return
+        .focusedSceneValue(\.libraryShown, libraryKey)
+        .sheet(item: $presentedSheet) { sheet in
+            switch sheet {
+            case .flash:
+                FlashFirmwareSheet(connectionState: model.boards.state)
+            case .library:
+                LibraryPanel(model: model, driverLibrary: driverLibrary)
             }
-            Task { await model.importProfile(at: url, undoManager: undoManager) }
         }
-        .fileExporter(
-            isPresented: $model.isExporting,
-            document: ProfileFile(profile: model.profile),
-            contentType: .neXTsoundProfile,
-            defaultFilename: model.profile.displayName
-        ) { _ in }
+        .profileFileDialogs(model: model, undoManager: undoManager, isActive: presentedSheet != .library)
     }
 
     /// - Parameters:
     ///   - model: The workbench's model, whose selected profile the panel shows and edits.
-    ///   - libraryWindow: The Library window's attachment to this window, which the Library key reads and which this
-    ///     window reports itself to.
-    public init(model: WorkbenchModel, libraryWindow: LibraryWindowAttachment) {
+    ///   - driverLibrary: The driver models the Library's speaker menu offers.
+    public init(model: WorkbenchModel, driverLibrary: DriverLibraryModel) {
         _ = FrontPanelFonts.registration
         self.model = model
-        self.libraryWindow = libraryWindow
+        self.driverLibrary = driverLibrary
+    }
+}
+
+/// The sheets the front panel shows, one at a time.
+private enum FrontPanelSheet: Identifiable {
+    case flash
+    case library
+
+    var id: Self {
+        self
     }
 }
 
 private extension FrontPanelView {
-    /// The Library key, which is down while the Library window is open, and which opens or closes the window.
+    /// The Library key, which is down while the Library sheet is shown, and which shows the sheet.
     var libraryKey: Binding<Bool> {
         Binding {
-            libraryWindow.isLibraryOpen
-        } set: { opens in
-            if opens {
-                openWindow(id: WorkbenchLayout.libraryWindowID)
-            } else {
-                dismissWindow(id: WorkbenchLayout.libraryWindowID)
+            presentedSheet == .library
+        } set: { isShown in
+            if isShown {
+                presentedSheet = .library
+            } else if presentedSheet == .library {
+                presentedSheet = nil
             }
         }
     }
@@ -100,7 +95,7 @@ private extension FrontPanelView {
         FrontPanelBoardButtons(
             saveLEDIsLit: saveFeedback.ledIsLit,
             save: { Task { await saveFeedback.save(with: model) } },
-            flash: { isShowingFlashSheet = true }
+            flash: { presentedSheet = .flash }
         )
     }
 

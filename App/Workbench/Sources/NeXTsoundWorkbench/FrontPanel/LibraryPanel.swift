@@ -1,56 +1,53 @@
 import NeXTsoundCore
 import SwiftUI
 
-/// The Library panel's content: the profiles with their keys, the selected profile's speaker, and the connected
-/// SoundBox's name, in one column as wide as the profile keys.
+/// The Library's content, which the front panel shows as a sheet: the profiles with their keys, the selected profile's
+/// speaker, and the connected SoundBox's name, side by side in three columns as wide as the profile keys.
 ///
-/// The panel's title bar is hidden like the front panel's, so the metal reaches under it, and the panel sets its
-/// title in the bar itself. Its readouts take the display color that the front panel's keys choose. Its window stands
-/// beside the front panel window's right edge and moves with it, and a drag on the panel moves both windows.
+/// Its readouts take the display color that the front panel's keys choose. The CLOSE key at the bottom right closes
+/// the sheet. It is a bank of one key, so its face and its caption line up with the profile keys'. Escape does not close it, because a key
+/// bound
+/// to Escape would take Escape before a rename does, and Escape during a rename restores the old name. While the sheet
+/// is shown, it presents the import and export panels over itself.
 public struct LibraryPanel: View {
     private let model: WorkbenchModel
     private let driverLibrary: DriverLibraryModel
-    private let libraryWindow: LibraryWindowAttachment
     @AppStorage(PhosphorTheme.storageKey) private var theme = PhosphorTheme.blue
     @Environment(\.undoManager) private var undoManager
+    @Environment(\.dismiss) private var dismiss
 
     public var body: some View {
         WholePointFrame {
-            VStack(alignment: .leading, spacing: LibraryPanelLayout.sectionSpacing) {
+            HStack(alignment: .top, spacing: LibraryPanelLayout.columnSpacing) {
                 ProfilesSection(editor: editor, theme: theme)
+                    .frame(width: LibraryPanelLayout.contentWidth)
                 SpeakerSection(editor: editor, drivers: driverLibrary.drivers, theme: theme)
-                SoundBoxSection(model: model, theme: theme)
+                    .frame(width: LibraryPanelLayout.contentWidth)
+                VStack(alignment: .trailing, spacing: 0) {
+                    SoundBoxSection(model: model, theme: theme)
+                    MomentaryKeyBank(keys: [closeKey])
+                        .frame(maxHeight: .infinity, alignment: .bottom)
+                }
+                .frame(width: LibraryPanelLayout.contentWidth)
             }
-            .frame(width: LibraryPanelLayout.contentWidth)
+            .fixedSize(horizontal: false, vertical: true)
             .padding(LibraryPanelLayout.padding)
             .fixedSize()
         }
         .background {
             BrushedMetal()
         }
-        .overlay(alignment: .top) {
-            PanelWindowTitle(title: WorkbenchLayout.libraryWindowTitle)
-        }
-        .background {
-            WindowReader { window in
-                libraryWindow.libraryWindowChanged(window)
-            }
-            .frame(width: 0, height: 0)
-        }
-        .panelWindowContent(drag: libraryWindow.libraryDrag)
+        .profileFileDialogs(model: model, undoManager: undoManager)
         .focusedSceneValue(\.libraryEditor, editor)
     }
 
     /// - Parameters:
     ///   - model: The workbench's model, whose library the panel shows and edits.
     ///   - driverLibrary: The driver models the speaker menu offers.
-    ///   - libraryWindow: The attachment that keeps the panel's window beside the front panel window, which this
-    ///     window reports itself to.
-    public init(model: WorkbenchModel, driverLibrary: DriverLibraryModel, libraryWindow: LibraryWindowAttachment) {
+    public init(model: WorkbenchModel, driverLibrary: DriverLibraryModel) {
         _ = FrontPanelFonts.registration
         self.model = model
         self.driverLibrary = driverLibrary
-        self.libraryWindow = libraryWindow
     }
 }
 
@@ -58,37 +55,31 @@ private extension LibraryPanel {
     var editor: LibraryEditor {
         LibraryEditor(model: model, undoManager: undoManager)
     }
+
+    /// The key that closes the sheet.
+    var closeKey: MomentaryKey {
+        MomentaryKey(id: "close", caption: Self.closeCaption, name: Text(verbatim: Self.closeCaption)) {
+            dismiss()
+        }
+    }
+
+    static var closeCaption: String {
+        String(localized: "Close", comment: "Caption under the Library sheet's key that closes the sheet.")
+    }
 }
 
 /// The Library panel's measurements, from the mockup.
 enum LibraryPanelLayout {
-    /// The panel's title bar, which the metal reaches under.
-    static let titleBarHeight: CGFloat = 24
-    static let titleSize: CGFloat = 11
     /// The width of the four profile keys, which every readout fills.
     static let contentWidth = MomentaryKeyBank.width(keyCount: 4)
-    /// The space around the column. Its sides are wider than the mockup's, as wide as the front panel row's side
-    /// margin, so the column stands with room in its window.
-    static let padding = EdgeInsets(top: titleBarHeight + 12, leading: 24, bottom: 20, trailing: 24)
-    static let sectionSpacing: CGFloat = 22
+    /// The space around the columns, as wide as the front panel row's side margin.
+    static let padding = EdgeInsets(top: 24, leading: 24, bottom: 20, trailing: 24)
+    /// The space between two sections side by side, the front panel's space between two panels.
+    static let columnSpacing: CGFloat = 24
     /// The space between a section's title and its rows, and between the rows.
     static let rowSpacing: CGFloat = 12
     /// The space between an indicator's LED and its caption.
     static let indicatorSpacing: CGFloat = 8
-}
-
-/// The panel's title, centered in its title bar in the system font, as the mockup sets it.
-private struct PanelWindowTitle: View {
-    let title: String
-
-    var body: some View {
-        Text(verbatim: title)
-            .font(.system(size: LibraryPanelLayout.titleSize))
-            .foregroundStyle(.white.opacity(0.85))
-            .frame(maxWidth: .infinity)
-            .frame(height: LibraryPanelLayout.titleBarHeight)
-            .accessibilityHidden(true)
-    }
 }
 
 /// A section of the panel: its title over its rows.

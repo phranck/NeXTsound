@@ -10,7 +10,4 @@ public enum WorkbenchLayout {
     public static let frontPanelWindowID = "front-panel"
     /// Localized here for the same reason as `driverLibraryWindowTitle`.
     public static let frontPanelWindowTitle = String(localized: "Front Panel")
-    public static let libraryWindowID = "library"
-    /// Localized here for the same reason as `driverLibraryWindowTitle`.
-    public static let libraryWindowTitle = String(localized: "Library")
 }
