@@ -49,7 +49,7 @@ The Profiles section lists the library's profiles on seven lines and marks the s
 
 The Speaker section shows the selected profile's speaker on two lines. A click, Space, Return or the down arrow opens the native menu of every driver model over the readout. The amber SAFETY UNVERIFIED LED stays lit, because the speaker's safety margins are not established (see [issue 3](https://github.com/phranck/NeXTsound/issues/3)), and the DRIVER MODELS key opens the Driver Models window.
 
-The SoundBox section shows the verified board's name, or No SoundBox and Not verified otherwise. The CONNECTED LED is lit while a board is verified, and only then does the RENAME key open the rename form.
+The SoundBox section shows the verified board's name on two lines, broken between its words as the speaker's name is, or No SoundBox and Not verified otherwise. The CONNECTED LED is lit while a board is verified, and only then does the RENAME key open the rename form.
 
 ## Localization
 
