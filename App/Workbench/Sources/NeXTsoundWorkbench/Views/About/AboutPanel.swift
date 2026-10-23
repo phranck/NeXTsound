@@ -44,6 +44,19 @@ public struct AboutPanel: View {
     public init(info: AboutInfo = .app, icon: NSImage = NSApplication.shared.applicationIconImage) {
         _ = FrontPanelFonts.registration
         self.info = info
-        self.icon = icon
+        self.icon = Self.sizedForPanel(icon)
+    }
+}
+
+private extension AboutPanel {
+    /// A copy of `icon` at the size the panel shows it at. An app's icon comes at 32 points, and drawn at that size and
+    /// scaled up to the panel's frame it blurs, while at the frame's size it draws from the representation that fills
+    /// the frame.
+    static func sizedForPanel(_ icon: NSImage) -> NSImage {
+        guard let copy = icon.copy() as? NSImage else {
+            return icon
+        }
+        copy.size = NSSize(width: AboutPanelLayout.iconSize, height: AboutPanelLayout.iconSize)
+        return copy
     }
 }

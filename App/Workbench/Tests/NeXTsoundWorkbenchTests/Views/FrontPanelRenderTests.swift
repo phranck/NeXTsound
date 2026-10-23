@@ -2,6 +2,7 @@ import AppKit
 import NeXTsoundCore
 import SwiftUI
 import Testing
+import UniformTypeIdentifiers
 @testable import NeXTsoundWorkbench
 
 struct FrontPanelRenderTests {
@@ -37,6 +38,23 @@ struct FrontPanelRenderTests {
             return try renderedWithMarker(AboutPanel(info: info, icon: NSImage()), color: PhosphorTheme.blue.ghost)
         }
         Self.expectWholePixelDots(panel.runLengths(of: ghost), ghost: ghost, minimumRuns: Self.minimumReadoutRuns)
+    }
+
+    /// The About window draws an app's icon as sharp as a bitmap of it at the frame's full resolution. An app's icon
+    /// comes from IconServices at 32 points and renders at the size it is drawn at, so drawn at 32 points and scaled
+    /// up to the frame, it would lose its fine detail.
+    @Test func theAboutWindowDrawsItsIconAtFullResolution() async throws {
+        let (drawn, reference) = try await MainActor.run {
+            let icon = NSWorkspace.shared.icon(for: .applicationBundle)
+            var frame = NSRect(x: 0, y: 0, width: AboutPanelLayout.iconSize, height: AboutPanelLayout.iconSize)
+            let bitmap = try #require(icon.cgImage(forProposedRect: &frame, context: nil, hints: nil))
+            let info = AboutInfo(version: "1.2.0", build: "34", copyright: nil)
+            let sharp = NSImage(cgImage: bitmap, size: frame.size)
+            return try (RenderedPixels(AboutPanel(info: info, icon: icon)), RenderedPixels(AboutPanel(info: info, icon: sharp)))
+        }
+        let region = Self.aboutIconRegion
+        let referenceDetail = reference.meanNeighborDifference(columns: region.columns, rows: region.rows)
+        #expect(drawn.meanNeighborDifference(columns: region.columns, rows: region.rows) >= referenceDetail * 0.97)
     }
 
     /// While the status column is out, the curve's 0 dB line runs through the gap that stands before the column while
@@ -103,6 +121,13 @@ private extension FrontPanelRenderTests {
     static let minimumLitPixels = 200
     /// The runs of the About window's one readout, whose several hundred unlit dots make six runs each.
     static let minimumReadoutRuns = 500
+    /// The pixels of the About window's icon frame at scale 2: centered in the window's width, under its top padding.
+    static var aboutIconRegion: (columns: Range<Int>, rows: Range<Int>) {
+        let edge = Int(AboutPanelLayout.iconSize * 2)
+        let left = Int(AboutPanelLayout.width - AboutPanelLayout.iconSize)
+        let top = Int(AboutPanelLayout.padding.top * 2)
+        return (left ..< left + edge, top ..< top + edge)
+    }
 
     /// Renders the display with a flat profile and returns the pixel at the middle of the dot where the 0 dB line
     /// meets the last gap column before the status column's place.
@@ -155,6 +180,22 @@ private func renderedWithMarker(_ view: some View, color: Color) throws -> (pixe
 }
 
 private extension RenderedPixels {
+    /// The mean difference between horizontally neighboring pixels of a region, summed over the three channels. It is
+    /// high where the region holds fine detail and low where that detail is blurred.
+    func meanNeighborDifference(columns: Range<Int>, rows: Range<Int>) -> Double {
+        var sum = 0
+        var count = 0
+        for row in rows {
+            for column in columns.dropFirst() {
+                let here = pixel(column: column, row: row)
+                let left = pixel(column: column - 1, row: row)
+                sum += abs(here.red - left.red) + abs(here.green - left.green) + abs(here.blue - left.blue)
+                count += 1
+            }
+        }
+        return count > 0 ? Double(sum) / Double(count) : 0
+    }
+
     /// How many pixels show `color`.
     func count(of color: RenderedPixel) -> Int {
         var count = 0
