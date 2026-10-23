@@ -43,6 +43,11 @@ extension LibraryEditor {
         model.selectProfile(profiles[index].id)
     }
 
+    /// Selects the profile with `id`.
+    func select(_ id: UUID) {
+        model.selectProfile(id)
+    }
+
     /// Selects the profile `step` places from the selected one, stopping at either end of the list.
     func moveSelection(by step: Int) {
         select(at: min(max(selectedIndex + step, 0), profiles.count - 1))
@@ -62,6 +67,12 @@ extension LibraryEditor {
     /// Sets the selected profile's speaker, or clears it.
     func selectSpeaker(_ driver: DriverRecord?) {
         model.selectSpeaker(driver, undoManager: undoManager)
+    }
+
+    /// Sets the selected profile's speaker to the driver model with `id` among `drivers`, or clears it for nil or an
+    /// identifier that none of them has.
+    func selectSpeaker(id: UUID?, from drivers: [DriverRecord]) {
+        selectSpeaker(drivers.first { $0.id == id })
     }
 
     /// Adds a new profile and selects it.

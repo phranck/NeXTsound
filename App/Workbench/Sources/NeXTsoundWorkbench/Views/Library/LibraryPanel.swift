@@ -246,11 +246,7 @@ private extension SoundBoxSection {
         }
     }
 
-    /// The verified board's capabilities, or nil while no board is verified.
     var capabilities: DeviceCapabilities? {
-        guard case let .verified(capabilities) = model.boards.state else {
-            return nil
-        }
-        return capabilities
+        model.boards.state.verifiedCapabilities
     }
 }

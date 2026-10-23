@@ -43,4 +43,12 @@ extension BoardConnectionState {
         case .mismatched: String(localized: "SoundBox not verified")
         }
     }
+
+    /// The verified board's capabilities, or nil while no board is verified.
+    var verifiedCapabilities: DeviceCapabilities? {
+        guard case let .verified(capabilities) = self else {
+            return nil
+        }
+        return capabilities
+    }
 }

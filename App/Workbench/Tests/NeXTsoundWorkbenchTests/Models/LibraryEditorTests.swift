@@ -50,6 +50,23 @@ struct LibraryEditorTests {
         #expect(model.profile.speaker == nil)
     }
 
+    @Test func anIdentifierSelectsItsProfile() throws {
+        let model = try modelWithThreeProfiles()
+        let third = model.library.profiles[2].id
+        LibraryEditor(model: model, undoManager: nil).select(third)
+        #expect(model.library.selectedID == third)
+    }
+
+    @Test func aSpeakerIdentifierSelectsItsDriver() throws {
+        let model = try modelWithThreeProfiles()
+        let drivers = [DriverRecord(name: "Visaton FR 58"), DriverRecord(name: "Dayton Audio CE41N-4")]
+        let editor = LibraryEditor(model: model, undoManager: nil)
+        editor.selectSpeaker(id: drivers[1].id, from: drivers)
+        #expect(model.profile.speaker?.name == "Dayton Audio CE41N-4")
+        editor.selectSpeaker(id: nil, from: drivers)
+        #expect(model.profile.speaker == nil)
+    }
+
     @Test func theProfileKeysAddDeleteImportAndExport() throws {
         let model = try modelWithThreeProfiles()
         let undoManager = UndoManager()

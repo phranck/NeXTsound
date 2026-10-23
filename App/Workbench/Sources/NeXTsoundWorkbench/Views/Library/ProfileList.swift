@@ -82,19 +82,15 @@ private extension ProfileList {
     }
 
     var lines: [DotMatrixLine] {
-        let profiles = editor.profiles
-        let selected = editor.selectedIndex
-        return profiles.indices.dropFirst(shownFirst).prefix(ProfileListLines.visibleLines).map { index in
-            if index == selected, let rename {
-                return ProfileListLines.renameLine(
-                    text: rename.text,
-                    caret: rename.caret,
-                    cells: Self.layout.cells,
-                    showsCursor: cursorIsVisible
-                )
-            }
-            return ProfileListLines.line(name: profiles[index].displayName, isSelected: index == selected)
+        let renameLine = rename.map { rename in
+            ProfileListLines.renameLine(text: rename.text, caret: rename.caret, cells: Self.layout.cells, showsCursor: cursorIsVisible)
         }
+        return ProfileListLines.lines(
+            names: editor.profiles.map(\.displayName),
+            selected: editor.selectedIndex,
+            firstVisible: shownFirst,
+            renameLine: renameLine
+        )
     }
 
     func selectLine(at location: CGPoint) {
@@ -177,7 +173,7 @@ private extension ProfileListAccessibility {
             editor.selectedID
         } set: { identifier in
             if let identifier {
-                editor.model.selectProfile(identifier)
+                editor.select(identifier)
             }
         }
     }

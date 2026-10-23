@@ -29,6 +29,20 @@ struct ProfileListLinesTests {
         let hidden = ProfileListLines.renameLine(text: "Desk", caret: 2, cells: 13, showsCursor: false)
         #expect(hidden.cursorCell == nil)
     }
+
+    /// While a rename runs, it takes the selected profile's line, and every other profile in view keeps its own line,
+    /// from the first one in view on.
+    @Test func theRenameTakesTheSelectedLineOnly() {
+        let names = (1 ... 9).map { "Profile \($0)" }
+        let renameLine = ProfileListLines.renameLine(text: "Desk", caret: 4, cells: 13, showsCursor: false)
+        let lines = ProfileListLines.lines(names: names, selected: 3, firstVisible: 2, renameLine: renameLine)
+        #expect(lines.count == ProfileListLines.visibleLines)
+        #expect(lines[0] == ProfileListLines.line(name: "Profile 3", isSelected: false))
+        #expect(lines[1] == renameLine)
+        #expect(lines[2] == ProfileListLines.line(name: "Profile 5", isSelected: false))
+        let plain = ProfileListLines.lines(names: names, selected: 3, firstVisible: 2, renameLine: nil)
+        #expect(plain[1] == ProfileListLines.line(name: "Profile 4", isSelected: true))
+    }
 }
 
 struct LibraryReadoutLinesTests {
