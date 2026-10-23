@@ -34,7 +34,7 @@ public struct LibraryPanel: View {
             .fixedSize()
         }
         .background {
-            BrushedMetal()
+            PanelMetal()
         }
         .profileFileDialogs(model: model, undoManager: undoManager)
         .focusedSceneValue(\.libraryEditor, editor)
