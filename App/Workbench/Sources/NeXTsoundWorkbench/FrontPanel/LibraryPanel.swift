@@ -5,10 +5,12 @@ import SwiftUI
 /// SoundBox's name, in one column as wide as the profile keys.
 ///
 /// The panel's title bar is hidden like the front panel's, so the metal reaches under it, and the panel sets its
-/// title in the bar itself. Its readouts take the display color that the front panel's keys choose.
+/// title in the bar itself. Its readouts take the display color that the front panel's keys choose. Its window stands
+/// glued to the front panel window's right edge, and a drag on the panel moves both windows.
 public struct LibraryPanel: View {
     private let model: WorkbenchModel
     private let driverLibrary: DriverLibraryModel
+    private let libraryWindow: LibraryWindowAttachment
     @AppStorage(PhosphorTheme.storageKey) private var theme = PhosphorTheme.blue
     @Environment(\.undoManager) private var undoManager
 
@@ -29,17 +31,26 @@ public struct LibraryPanel: View {
         .overlay(alignment: .top) {
             PanelWindowTitle(title: WorkbenchLayout.libraryWindowTitle)
         }
-        .panelWindowContent()
+        .background {
+            WindowReader { window in
+                libraryWindow.libraryWindowChanged(window)
+            }
+            .frame(width: 0, height: 0)
+        }
+        .panelWindowContent(drag: libraryWindow.libraryDrag)
         .focusedSceneValue(\.libraryEditor, editor)
     }
 
     /// - Parameters:
     ///   - model: The workbench's model, whose library the panel shows and edits.
     ///   - driverLibrary: The driver models the speaker menu offers.
-    public init(model: WorkbenchModel, driverLibrary: DriverLibraryModel) {
+    ///   - libraryWindow: The attachment that keeps the panel's window beside the front panel window, which this
+    ///     window reports itself to.
+    public init(model: WorkbenchModel, driverLibrary: DriverLibraryModel, libraryWindow: LibraryWindowAttachment) {
         _ = FrontPanelFonts.registration
         self.model = model
         self.driverLibrary = driverLibrary
+        self.libraryWindow = libraryWindow
     }
 }
 

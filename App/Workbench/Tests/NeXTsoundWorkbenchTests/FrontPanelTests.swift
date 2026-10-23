@@ -32,7 +32,7 @@ struct FrontPanelRenderTests {
         let (panel, ghost) = try await MainActor.run {
             let profile = FactoryPreset.warm.makeProfile()
             let model = try WorkbenchModel(library: ProfileLibrary(profiles: [profile], selectedID: profile.id))
-            return try renderedWithGhost(FrontPanelView(model: model))
+            return try renderedWithGhost(FrontPanelView(model: model, libraryWindow: LibraryWindowAttachment()))
         }
         Self.expectWholePixelDots(panel.runLengths(of: ghost), ghost: ghost)
     }
@@ -43,7 +43,11 @@ struct FrontPanelRenderTests {
         let (panel, ghost) = try await MainActor.run {
             let profiles = ["Soul Funk", "Flat", "Warm"].map { SoundProfile(name: $0) }
             let model = try WorkbenchModel(library: ProfileLibrary(profiles: profiles, selectedID: profiles[0].id))
-            return try renderedWithGhost(LibraryPanel(model: model, driverLibrary: DriverLibraryModel()))
+            return try renderedWithGhost(LibraryPanel(
+                model: model,
+                driverLibrary: DriverLibraryModel(),
+                libraryWindow: LibraryWindowAttachment()
+            ))
         }
         Self.expectWholePixelDots(panel.runLengths(of: ghost), ghost: ghost)
     }

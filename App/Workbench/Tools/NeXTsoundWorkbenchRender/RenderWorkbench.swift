@@ -41,7 +41,7 @@ private extension RenderWorkbench {
         // The preview board verifies through the main run loop, which a render that never runs it would never see.
         RunLoop.main.run(until: Date(timeIntervalSinceNow: 0.3))
         try renderPanel(
-            FrontPanelView(model: model),
+            FrontPanelView(model: model, libraryWindow: LibraryWindowAttachment()),
             stem: "front-panel" + (connected ? "-connected" : "") + "@2x",
             destination: destination
         )
@@ -57,7 +57,11 @@ private extension RenderWorkbench {
         model.boards.start()
         model.selectSpeaker(DriverRecord(name: "Dayton Audio CE41N-4"))
         RunLoop.main.run(until: Date(timeIntervalSinceNow: 0.3))
-        try renderPanel(LibraryPanel(model: model, driverLibrary: DriverLibraryModel()), stem: "library-panel@2x", destination: destination)
+        try renderPanel(
+            LibraryPanel(model: model, driverLibrary: DriverLibraryModel(), libraryWindow: LibraryWindowAttachment()),
+            stem: "library-panel@2x",
+            destination: destination
+        )
     }
 
     /// Renders a panel through SwiftUI's own renderer at scale 2, the scale its dots fall on whole device pixels at.
