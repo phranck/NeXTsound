@@ -10,7 +10,7 @@ enum FrontPanelPalette {
     /// A control's caption.
     static let captionShade: UInt32 = 0x9B968A
     static let caption = Color(hex: captionShade)
-    /// A lit LED, a lit legend and a focused control's halo.
+    /// A lit LED and a lit legend.
     static let cyan = Color(hex: 0x00FFD8)
     /// The dark ring around a track and a cap.
     static let outline = Color.black.opacity(0.6)
@@ -138,28 +138,6 @@ private extension ControlCaption {
             .tracking(tracking)
             .textCase(.uppercase)
             .foregroundStyle(FrontPanelPalette.caption)
-    }
-}
-
-/// The cyan halo around a focused control: a ring two points wide and a glow around it.
-struct FocusHalo<HaloShape: InsettableShape>: View {
-    let shape: HaloShape
-    let isVisible: Bool
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-
-    var body: some View {
-        ZStack {
-            shape
-                .inset(by: -3)
-                .fill(FrontPanelPalette.cyan.opacity(0.5))
-                .blur(radius: 5)
-            shape
-                .inset(by: -1)
-                .stroke(FrontPanelPalette.cyan, lineWidth: 2)
-        }
-        .opacity(isVisible ? 1 : 0)
-        .animation(FrontPanelMotion.state(reduceMotion: reduceMotion), value: isVisible)
-        .allowsHitTesting(false)
     }
 }
 

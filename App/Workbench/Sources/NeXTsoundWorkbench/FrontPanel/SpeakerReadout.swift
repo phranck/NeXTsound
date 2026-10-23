@@ -6,7 +6,7 @@ import SwiftUI
 /// itself, the way a pop-up button's menu opens over the button.
 ///
 /// A click opens the menu, and so do Space, Return and the down arrow while the readout has the keyboard's focus,
-/// which rings it with the focus halo. VoiceOver reads it as a pop-up button with the speaker as its value.
+/// which shows no ring. VoiceOver reads it as a pop-up button with the speaker as its value.
 struct SpeakerReadout: View {
     let editor: LibraryEditor
     let drivers: [DriverRecord]
@@ -15,7 +15,7 @@ struct SpeakerReadout: View {
     @FocusState private var isFocused: Bool
 
     var body: some View {
-        PanelReadout(lines: lines, layout: Self.layout, theme: theme, isFocused: isFocused)
+        PanelReadout(lines: lines, layout: Self.layout, theme: theme)
             .background(alignment: .topLeading) {
                 SpeakerMenuAnchor(menu: menu)
                     .frame(width: 0, height: 0)

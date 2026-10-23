@@ -3,7 +3,8 @@ import SwiftUI
 
 /// The Library's list of profiles: seven lines of a readout, with the selected profile's line marked and bright.
 ///
-/// A click selects a profile and a double click renames it, as Return does, and the arrow keys move the selection.
+/// A click selects a profile and a double click renames it, as Return does, and the arrow keys move the selection. A
+/// click also gives the list the keyboard's focus without showing a ring.
 /// While a profile is renamed, an invisible text field takes the typing, and the line shows what the field holds,
 /// with a cursor at the caret that blinks unless motion is reduced. Return or a click elsewhere keeps the new name,
 /// and Escape keeps the old one. A selection that changes from elsewhere during a rename ends it with the old name.
@@ -18,7 +19,7 @@ struct ProfileList: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
-        PanelReadout(lines: lines, layout: Self.layout, theme: theme, isFocused: isFocused || rename != nil)
+        PanelReadout(lines: lines, layout: Self.layout, theme: theme)
             .background(alignment: .topLeading) {
                 ProfileRenameField(text: rename?.text) { typed in
                     rename = typed
