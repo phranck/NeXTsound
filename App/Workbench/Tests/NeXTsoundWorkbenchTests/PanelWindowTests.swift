@@ -11,8 +11,12 @@ struct PanelWindowTests {
     @Test func eachWindowIsAsTallAsItsPanel() async throws {
         let profile = FactoryPreset.warm.makeProfile()
         let model = try WorkbenchModel(library: ProfileLibrary(profiles: [profile], selectedID: profile.id))
-        try await expectWindowFits(FrontPanelView(model: model))
-        try await expectWindowFits(LibraryPanel(model: model, driverLibrary: DriverLibraryModel()))
+        try await expectWindowFits(FrontPanelView(model: model, libraryWindow: LibraryWindowAttachment()))
+        try await expectWindowFits(LibraryPanel(
+            model: model,
+            driverLibrary: DriverLibraryModel(),
+            libraryWindow: LibraryWindowAttachment()
+        ))
     }
 }
 

@@ -49,7 +49,7 @@ private extension FrontPanelEditor {
 }
 
 /// The row of panels under the display: the band panel, the High-Pass, Output and Sample-Peak Limiter modules, and
-/// the display color keys at the right end.
+/// at the right end the display color keys over the key that opens the Library window.
 ///
 /// Every panel is as tall as the tallest, and the modules share the widest one's width, so the readouts, the slider
 /// captions and the captions along the bottom each run on one line across the row.
@@ -58,6 +58,7 @@ struct FrontPanelControlRow: View {
     let boardButtons: FrontPanelBoardButtons
     @Binding var selectedBand: Int
     @Binding var theme: PhosphorTheme
+    @Binding var isLibraryOpen: Bool
 
     var body: some View {
         HStack(alignment: .top, spacing: PanelRowMetrics.panelSpacing) {
@@ -67,7 +68,7 @@ struct FrontPanelControlRow: View {
                 OutputModule(editor: editor, theme: theme)
                 LimiterModule(editor: editor, buttons: boardButtons, theme: theme)
             }
-            DisplayColorColumn(theme: $theme)
+            ColorAndLibraryColumn(theme: $theme, isLibraryOpen: $isLibraryOpen)
         }
         .fixedSize(horizontal: false, vertical: true)
         .padding(PanelRowMetrics.margin)
@@ -225,17 +226,25 @@ private struct LimiterModule: View {
     }
 }
 
-/// The display color keys at the right end of the row. Their LEDs stand on the middle of the panel titles' line.
-private struct DisplayColorColumn: View {
+/// The column at the right end of the row: the display color keys at its top, whose LEDs stand on the middle of the
+/// panel titles' line, and the key that opens the Library window at its bottom, whose LED, face and caption line up
+/// with the band keys'.
+private struct ColorAndLibraryColumn: View {
     @Binding var theme: PhosphorTheme
+    @Binding var isLibraryOpen: Bool
 
     var body: some View {
-        KeyBank("Display color", selection: $theme, keys: Self.themeKeys)
-            .padding(PanelRowMetrics.colorColumnPadding)
+        VStack(spacing: 0) {
+            KeyBank("Display color", selection: $theme, keys: Self.themeKeys)
+            LatchingKey(caption: "Library", isOn: $isLibraryOpen)
+                .frame(maxHeight: .infinity, alignment: .bottom)
+        }
+        .padding(PanelRowMetrics.colorColumnPadding)
+        .frame(maxHeight: .infinity, alignment: .top)
     }
 }
 
-private extension DisplayColorColumn {
+private extension ColorAndLibraryColumn {
     static var themeKeys: [KeyBankKey<PhosphorTheme>] {
         PhosphorTheme.allCases.map { theme in
             KeyBankKey(value: theme, caption: Text(theme.name), name: Text(theme.name))
@@ -318,7 +327,7 @@ private enum PanelRowMetrics {
     static let stackSpacing: CGFloat = 14
     /// The least space between two controls side by side.
     static let controlSpacing: CGFloat = 6
-    /// The display color column's padding, which centers its LEDs on the titles' line.
+    /// The right end column's padding, which centers the display color keys' LEDs on the titles' line.
     static let colorColumnPadding = EdgeInsets(
         top: panelPadding.top + (FrontPanelType.lineHeight - PanelLED.size) / 2,
         leading: panelPadding.leading,

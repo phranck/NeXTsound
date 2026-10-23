@@ -8,14 +8,18 @@ import UniformTypeIdentifiers
 /// of controls that edits the profile. The row sets the panel's width, and the header and the display take it, so
 /// they end where the controls end. The metal reaches under the hidden title bar, so the window's buttons sit on it.
 /// The window presents the panels that import and export a profile, which the Library panel and the File menu ask
-/// for.
+/// for. The key at the row's right end opens and closes the Library window, which stands glued to this window's right
+/// edge.
 public struct FrontPanelView: View {
     @Bindable private var model: WorkbenchModel
+    private let libraryWindow: LibraryWindowAttachment
     @State private var selectedBand = 0
     @State private var saveFeedback = FrontPanelSaveFeedback()
     @State private var isShowingFlashSheet = false
     @AppStorage(PhosphorTheme.storageKey) private var theme = PhosphorTheme.blue
     @Environment(\.undoManager) private var undoManager
+    @Environment(\.openWindow) private var openWindow
+    @Environment(\.dismissWindow) private var dismissWindow
 
     public var body: some View {
         WholePointFrame {
@@ -23,13 +27,25 @@ public struct FrontPanelView: View {
                 FrontPanelHeader()
                 DisplayBay(settings: model.profile.settings, profileName: model.profile.displayName, status: status, theme: theme)
                     .padding(FrontPanelLayout.bayMargin)
-                FrontPanelControlRow(editor: editor, boardButtons: boardButtons, selectedBand: $selectedBand, theme: $theme)
+                FrontPanelControlRow(
+                    editor: editor,
+                    boardButtons: boardButtons,
+                    selectedBand: $selectedBand,
+                    theme: $theme,
+                    isLibraryOpen: libraryKey
+                )
             }
             .padding(FrontPanelLayout.panelPadding)
             .fixedSize()
         }
         .background {
             BrushedMetal()
+        }
+        .background {
+            WindowReader { window in
+                libraryWindow.frontPanelWindowChanged(window)
+            }
+            .frame(width: 0, height: 0)
         }
         .panelWindowContent()
         .focusedSceneValue(\.frontPanelBand, FrontPanelBand(editor: editor, index: selectedBand))
@@ -51,14 +67,31 @@ public struct FrontPanelView: View {
         ) { _ in }
     }
 
-    /// - Parameter model: The workbench's model, whose selected profile the panel shows and edits.
-    public init(model: WorkbenchModel) {
+    /// - Parameters:
+    ///   - model: The workbench's model, whose selected profile the panel shows and edits.
+    ///   - libraryWindow: The Library window's attachment to this window, which the Library key reads and which this
+    ///     window reports itself to.
+    public init(model: WorkbenchModel, libraryWindow: LibraryWindowAttachment) {
         _ = FrontPanelFonts.registration
         self.model = model
+        self.libraryWindow = libraryWindow
     }
 }
 
 private extension FrontPanelView {
+    /// The Library key, which is down while the Library window is open, and which opens or closes the window.
+    var libraryKey: Binding<Bool> {
+        Binding {
+            libraryWindow.isLibraryOpen
+        } set: { opens in
+            if opens {
+                openWindow(id: WorkbenchLayout.libraryWindowID)
+            } else {
+                dismissWindow(id: WorkbenchLayout.libraryWindowID)
+            }
+        }
+    }
+
     var editor: FrontPanelEditor {
         FrontPanelEditor(model: model, undoManager: undoManager)
     }

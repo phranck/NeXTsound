@@ -208,8 +208,48 @@ private struct BankKey: View {
         }
         .buttonStyle(BankKeyStyle(isDown: isDown))
         .focusable(false)
-        .overlay(alignment: .top) {
-            PanelLED(isLit: isDown)
+        .keyLED(isLit: isDown)
+    }
+}
+
+/// A single latching key in a key bank's frame, with its LED above the frame and its caption under it, laid out as a
+/// key bank lays out each of its keys.
+///
+/// A press latches the key down and lights its LED, and the next press releases it. The key takes the keyboard's
+/// focus without showing a ring, and VoiceOver reads it as a switch.
+struct LatchingKey: View {
+    let caption: LocalizedStringKey
+    @Binding var isOn: Bool
+
+    var body: some View {
+        VStack(spacing: KeyBankMetrics.captionSpacing) {
+            Button {
+                isOn.toggle()
+            } label: {
+                EmptyView()
+            }
+            .buttonStyle(BankKeyStyle(isDown: isOn))
+            .focusEffectDisabled()
+            .keyLED(isLit: isOn)
+            .padding(KeyBankMetrics.framePadding)
+            .background(KeyBankFrame())
+            ControlCaption(caption: Text(caption))
+                .frame(width: KeyBankMetrics.keySize)
+                .padding(.horizontal, KeyBankMetrics.framePadding)
+                .accessibilityHidden(true)
+        }
+        .padding(.top, KeyBankMetrics.ledLift + PanelLED.size)
+        .accessibilityRepresentation {
+            Toggle(caption, isOn: $isOn)
+        }
+    }
+}
+
+private extension View {
+    /// Puts the LED that sits above a key bank's frame over a key in the frame.
+    func keyLED(isLit: Bool) -> some View {
+        overlay(alignment: .top) {
+            PanelLED(isLit: isLit)
                 .offset(y: -(KeyBankMetrics.framePadding + KeyBankMetrics.ledLift + PanelLED.size))
         }
     }
