@@ -63,16 +63,18 @@ private struct FrontPanelDisplayDots: View {
             let statusShift = FrontPanelDisplayLayout.statusShift(reveal: statusReveal)
             let graphColumns = FrontPanelDisplayLayout.graphColumns(displayColumns: columns, statusShift: statusShift)
             let statusColumn = FrontPanelDisplayLayout.statusColumn(displayColumns: columns, statusShift: statusShift)
+            var fill = DotMatrixPainter()
             var dim = DotMatrixPainter()
             var normal = DotMatrixPainter()
             var bright = DotMatrixPainter()
             paintGrid(into: &dim, columns: graphColumns)
             paintScales(into: &dim, columns: graphColumns)
-            paintCurve(into: &bright, columns: graphColumns)
+            paintCurve(into: &bright, fill: &fill, columns: graphColumns)
             paintProfileName(into: &bright, columns: graphColumns)
             if statusColumn < columns {
                 paintStatus(normal: &normal, bright: &bright, column: statusColumn)
             }
+            fill.fill(context, shading: fillShading)
             dim.fill(context, color: theme.dim)
             normal.fill(context, color: theme.normal)
             bright.fill(context, color: theme.bright)
@@ -85,6 +87,11 @@ private struct FrontPanelDisplayDots: View {
 }
 
 private extension FrontPanelDisplayDots {
+    /// The fill's opacity at the graph's top.
+    static let fillTopOpacity = 0.55
+    /// The fill's opacity at the graph's bottom axis.
+    static let fillBottomOpacity = 0.05
+
     /// Draws the axes along the curve's left and bottom edges, the solid 0 dB line, and dotted lines at the gains and
     /// frequencies the scales label.
     func paintGrid(into painter: inout DotMatrixPainter, columns: Int) {
@@ -137,21 +144,33 @@ private extension FrontPanelDisplayDots {
         painter.write(layout.frequencyUnit, column: columns - unitColumns, row: layout.frequencyLabelRow)
     }
 
-    /// Lights each column's row and closes the gap to the previous column's row, so a steep slope stays one line.
-    func paintCurve(into painter: inout DotMatrixPainter, columns: Int) {
+    /// Lights the curve's dots and, under each of its columns, the dots of the fill down to the bottom axis.
+    func paintCurve(into painter: inout DotMatrixPainter, fill: inout DotMatrixPainter, columns: Int) {
         let layout = FrontPanelDisplayLayout.self
         guard let samples = try? ResponseCurve.samples(settings: settings, count: layout.curveColumns(graphColumns: columns)) else {
             return
         }
-        var previousRow: Int?
-        for (index, sample) in samples.enumerated() {
-            let row = layout.row(decibels: sample.decibels, rows: layout.graphRows)
-            let span = previousRow.map { min($0, row) ... max($0, row) } ?? row ... row
-            for filledRow in span {
-                painter.light(column: layout.gainScaleColumns + index, row: filledRow)
+        let rows = samples.map { layout.row(decibels: $0.decibels, rows: layout.graphRows) }
+        for (index, span) in layout.curveSpans(rows: rows).enumerated() {
+            let column = layout.gainScaleColumns + index
+            for row in span {
+                painter.light(column: column, row: row)
             }
-            previousRow = row
+            for row in layout.fillRows(under: span.upperBound) {
+                fill.light(column: column, row: row)
+            }
         }
+    }
+
+    /// The fill's gradient in the curve's color, strongest at the graph's top and fading out toward its bottom axis,
+    /// so the area under a raised band glows brightest.
+    var fillShading: GraphicsContext.Shading {
+        let height = DotMatrixMetrics.size(columns: 1, rows: FrontPanelDisplayLayout.graphRows).height
+        return .linearGradient(
+            Gradient(colors: [theme.bright.opacity(Self.fillTopOpacity), theme.bright.opacity(Self.fillBottomOpacity)]),
+            startPoint: .zero,
+            endPoint: CGPoint(x: 0, y: height)
+        )
     }
 
     /// Centers the profile's name under the curve on the display's bottom line.

@@ -21,6 +21,19 @@ struct FrontPanelDisplayLayoutTests {
         #expect(FrontPanelDisplayLayout.curveColumns(graphColumns: 10) == 2)
     }
 
+    /// The curve lights each column's row and closes the gap to the previous column's, so a steep slope stays one line.
+    @Test func aSteepSlopeStaysOneLine() {
+        #expect(FrontPanelDisplayLayout.curveSpans(rows: [44, 40, 40, 47]) == [44 ... 44, 40 ... 44, 40 ... 40, 40 ... 47])
+    }
+
+    /// The fill lights every row under the curve down to the bottom axis, and none where the curve lies on the axis.
+    @Test func theFillReachesDownToTheBottomAxis() {
+        let axisRow = FrontPanelDisplayLayout.graphRows - 1
+        #expect(FrontPanelDisplayLayout.fillRows(under: 44) == 45 ..< axisRow)
+        #expect(FrontPanelDisplayLayout.fillRows(under: axisRow).isEmpty)
+        #expect(FrontPanelDisplayLayout.fillRows(under: axisRow + 3).isEmpty)
+    }
+
     /// The curve's rows are odd in number, so 0 dB falls on the middle row and the gains above and below it get as
     /// many rows each.
     @Test func zeroDecibelsFallsOnTheCurvesMiddleRow() {

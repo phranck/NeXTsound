@@ -75,6 +75,25 @@ extension FrontPanelDisplayLayout {
         max(graphColumns - gainScaleColumns, 2)
     }
 
+    /// The rows the curve lights in each of its columns, from the row each column's gain falls on: that row and the
+    /// rows that close the gap to the previous column's, so a steep slope stays one line.
+    static func curveSpans(rows: [Int]) -> [ClosedRange<Int>] {
+        var spans: [ClosedRange<Int>] = []
+        var previousRow: Int?
+        for row in rows {
+            spans.append(previousRow.map { min($0, row) ... max($0, row) } ?? row ... row)
+            previousRow = row
+        }
+        return spans
+    }
+
+    /// The rows the fill lights in a curve column whose lowest lit row is `lowestRow`: every row down to the bottom
+    /// axis, which stays clear, and none where the curve already lies on the axis.
+    static func fillRows(under lowestRow: Int) -> Range<Int> {
+        let axisRow = graphRows - 1
+        return min(lowestRow + 1, axisRow) ..< axisRow
+    }
+
     /// A gain's label: the gain in whole decibels with its sign, and 0 without one.
     static func gainLabel(decibels: Double) -> String {
         decibels > 0 ? "+\(Int(decibels))" : "\(Int(decibels))"
