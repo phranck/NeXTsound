@@ -125,8 +125,10 @@ struct MomentaryKey: Identifiable {
 /// A row of momentary keys in a key bank's frame, with each key's caption under it.
 ///
 /// Each key springs back when it is let go and starts an action of its own, so the bank has no LEDs, and each is a
-/// stop of its own for the keyboard. Every key names its action in a whole word, which stays clear of its neighbor's
-/// only without the captions' usual letter spacing.
+/// stop of its own for the keyboard. Every key names its action in a whole word without the captions' usual letter
+/// spacing. In a bank of several keys, the captions rise from bottom left to top right, so a word as wide as its key
+/// stands clear of its neighbor's. A single key's caption stays level, at the top of a row as tall as that of a bank
+/// of several keys, so the key lines up with the keys of such a bank beside it.
 struct MomentaryKeyBank: View {
     let keys: [MomentaryKey]
 
@@ -136,7 +138,8 @@ struct MomentaryKeyBank: View {
             HStack(spacing: KeyBankMetrics.keyGap) {
                 ForEach(keys) { key in
                     ControlCaption(caption: Text(verbatim: key.caption), tracking: 0)
-                        .frame(width: KeyBankMetrics.keySize)
+                        .rotationEffect(captionSlant)
+                        .frame(width: KeyBankMetrics.keySize, height: KeyBankMetrics.slantedCaptionHeight, alignment: captionAlignment)
                 }
             }
             .padding(.horizontal, KeyBankMetrics.framePadding)
@@ -150,6 +153,23 @@ extension MomentaryKeyBank {
     nonisolated static func width(keyCount: Int) -> CGFloat {
         let keys = KeyBankMetrics.keySize * CGFloat(keyCount)
         return keys + KeyBankMetrics.keyGap * CGFloat(max(keyCount - 1, 0)) + 2 * KeyBankMetrics.framePadding
+    }
+}
+
+private extension MomentaryKeyBank {
+    /// Whether the captions slant, which they do where a key has a neighbor whose caption its own could run into.
+    var isSlanted: Bool {
+        keys.count > 1
+    }
+
+    var captionSlant: Angle {
+        isSlanted ? KeyBankMetrics.captionSlant : .zero
+    }
+
+    /// A slanted caption turns about the middle of its row, so every word of the bank turns about one line. A level
+    /// caption stands at the top of its row, right under its key.
+    var captionAlignment: Alignment {
+        isSlanted ? .center : .top
     }
 }
 
@@ -343,6 +363,8 @@ private enum KeyBankMetrics {
     /// The space between the frame's top and the LEDs' bottom.
     static let ledLift: CGFloat = 5
     static let captionSpacing: CGFloat = 6
+    /// How far the captions of a bank of several momentary keys turn from level, rising from bottom left to top right.
+    static let captionSlant = Angle.degrees(-20)
     static let dishDiameter = keySize * 0.87
     /// The dish's shades in steps of a tenth along its gradient.
     static let dishShades: [UInt32] = [
@@ -375,6 +397,13 @@ private enum KeyBankMetrics {
     /// left.
     static let dishStart = gradientPoint(degrees: 200, end: -1)
     static let dishEnd = gradientPoint(degrees: 200, end: 1)
+
+    /// The height of a momentary key bank's caption row, which holds a caption as wide as a key at the slant, so a
+    /// slanted caption stays clear of the keys over it.
+    static var slantedCaptionHeight: CGFloat {
+        let radians = abs(captionSlant.radians)
+        return keySize * sin(radians) + FrontPanelType.lineHeight * cos(radians)
+    }
 
     /// One end of a CSS gradient line at `degrees` across a square, where `end` is -1 for the start and 1 for the
     /// end. The line runs through the center and is long enough to reach the square's far corners.
