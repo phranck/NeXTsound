@@ -2,7 +2,7 @@ import SwiftUI
 
 /// An LED that shows a state: dark and sunk while off, cyan with a glow while lit, fading between the two.
 struct PanelLED: View {
-    nonisolated static let size: CGFloat = 6
+    nonisolated static let size: CGFloat = 8
 
     let isLit: Bool
     /// Whether the LED confirms an action, lighting at once and draining away over 900 ms, instead of fading both
