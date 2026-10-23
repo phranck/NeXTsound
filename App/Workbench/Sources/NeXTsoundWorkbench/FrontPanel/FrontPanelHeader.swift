@@ -80,7 +80,7 @@ private enum FrontPanelHeaderMetrics {
     static let fadeLength: CGFloat = 0.45
     /// The LAYERED colors, the ones Prommer's `Color.layeredStripes` holds.
     static let stripeColors: [Color] = [
-        Color(hex: 0xC64616),
+        Color(hex: FrontPanelPalette.stripeRed),
         Color(hex: FrontPanelPalette.stripeYellow),
         Color(hex: 0x758C34),
         Color(hex: 0x2B7488),
