@@ -51,8 +51,9 @@ private extension FrontPanelEditor {
 /// The row of panels under the display: the band panel, the High-Pass, Output and Sample-Peak Limiter modules, and
 /// at the right end the display color keys over the key that opens the Library window.
 ///
-/// Every panel is as tall as the tallest, and the modules share the widest one's width, so the readouts, the slider
-/// captions and the captions along the bottom each run on one line across the row.
+/// Every panel is as tall as the tallest, so the readouts, the slider captions and the captions along the bottom each
+/// run on one line across the row. The modules with one slider take two thirds of the width the limiter takes for its
+/// two.
 struct FrontPanelControlRow: View {
     let editor: FrontPanelEditor
     let boardButtons: FrontPanelBoardButtons
@@ -63,9 +64,11 @@ struct FrontPanelControlRow: View {
     var body: some View {
         HStack(alignment: .top, spacing: PanelRowMetrics.panelSpacing) {
             BandPanel(editor: editor, selectedBand: $selectedBand, theme: theme)
-            EqualWidthRow(spacing: PanelRowMetrics.panelSpacing) {
+            SharedWidthRow(spacing: PanelRowMetrics.panelSpacing) {
                 HighPassModule(editor: editor, theme: theme)
+                    .rowWidthShare(PanelRowMetrics.oneSliderModuleShare)
                 OutputModule(editor: editor, theme: theme)
+                    .rowWidthShare(PanelRowMetrics.oneSliderModuleShare)
                 LimiterModule(editor: editor, buttons: boardButtons, theme: theme)
             }
             ColorAndLibraryColumn(theme: $theme, isLibraryOpen: $isLibraryOpen)
@@ -294,7 +297,8 @@ private struct ControlColumn<Top: View, Bottom: View>: View {
     }
 }
 
-/// A slide toggle with its caption under it.
+/// A slide toggle with its caption under it. The toggle stands in a fader's column, and a caption wider than the
+/// column reaches past both of its sides without widening it.
 private struct LabeledToggle: View {
     let label: LocalizedStringKey
     let caption: LocalizedStringKey
@@ -304,6 +308,7 @@ private struct LabeledToggle: View {
         VStack(spacing: FrontPanelLayout.captionSpacing) {
             SlideToggle(label: label, isOn: $isOn)
             ControlCaption(caption: Text(caption))
+                .frame(width: PanelFader.columnWidth)
                 .accessibilityHidden(true)
         }
     }
@@ -322,6 +327,8 @@ private extension View {
 private enum PanelRowMetrics {
     static let margin = EdgeInsets(top: 0, leading: 24, bottom: 18, trailing: 24)
     static let panelSpacing: CGFloat = 24
+    /// The share a module with one slider takes of the width the limiter takes for its two.
+    static let oneSliderModuleShare: CGFloat = 2 / 3
     static let panelPadding = EdgeInsets(top: 14, leading: 18, bottom: 14, trailing: 18)
     /// The space between a panel's title, its controls and its lower controls.
     static let stackSpacing: CGFloat = 14
