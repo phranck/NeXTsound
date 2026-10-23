@@ -190,7 +190,7 @@ private struct MomentaryBankKey: View {
         Button(action: key.action) {
             EmptyView()
         }
-        .buttonStyle(BankKeyStyle(isDown: false))
+        .buttonStyle(BankKeyStyle(kind: .push, isDown: false))
         .disabled(!key.isEnabled)
         .focusEffectDisabled()
         .accessibilityLabel(key.name)
@@ -206,7 +206,7 @@ private struct BankKey: View {
         Button(action: action) {
             EmptyView()
         }
-        .buttonStyle(BankKeyStyle(isDown: isDown))
+        .buttonStyle(BankKeyStyle(kind: .radio, isDown: isDown))
         .focusable(false)
         .keyLED(isLit: isDown)
     }
@@ -228,7 +228,7 @@ struct LatchingKey: View {
             } label: {
                 EmptyView()
             }
-            .buttonStyle(BankKeyStyle(isDown: isOn))
+            .buttonStyle(BankKeyStyle(kind: .push, isDown: isOn))
             .focusEffectDisabled()
             .keyLED(isLit: isOn)
             .padding(KeyBankMetrics.framePadding)
@@ -255,31 +255,63 @@ private extension View {
     }
 }
 
-/// A key that sinks while it is down or pressed.
-private struct BankKeyStyle: ButtonStyle {
-    let isDown: Bool
+/// What a key does, which decides its color. A radio key, one of a bank of which one is down, keeps the kit's gray. A
+/// push key, which starts an action or latches, takes the yellow of the header's stripes.
+private enum KeyKind {
+    case radio
+    case push
+}
 
-    func makeBody(configuration: Configuration) -> some View {
-        KeyFace(isLowered: isDown || configuration.isPressed)
+private extension KeyKind {
+    /// A shade of the kit's gray key in this kind's color. A push key's yellow is as much darker or lighter as the gray
+    /// shade is against the face's top shade: mixed with black below it and with white above it.
+    func color(forKitShade shade: UInt32) -> Color {
+        switch self {
+        case .radio:
+            return Color(hex: shade)
+        case .push:
+            let gray = Double(shade & 0xFF)
+            let reference = Double(KeyBankMetrics.faceTop & 0xFF)
+            if gray <= reference {
+                return Color(mixing: 0x000000, FrontPanelPalette.stripeYellow, secondShare: gray / reference)
+            }
+            return Color(mixing: FrontPanelPalette.stripeYellow, 0xFFFFFF, secondShare: (gray - reference) / (0xFF - reference))
+        }
     }
 }
 
-/// The key's face, lit from above so it darkens toward the bottom, with its dish and the shade of a lowered key.
+/// A key that sinks while it is down or pressed, in its kind's color.
+private struct BankKeyStyle: ButtonStyle {
+    let kind: KeyKind
+    let isDown: Bool
+
+    func makeBody(configuration: Configuration) -> some View {
+        KeyFace(kind: kind, isLowered: isDown || configuration.isPressed)
+    }
+}
+
+/// The key's face in its kind's color, lit from above so it darkens toward the bottom, with its dish and the shade of
+/// a lowered key.
 private struct KeyFace: View {
+    let kind: KeyKind
     let isLowered: Bool
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         RoundedRectangle(cornerRadius: KeyBankMetrics.keyRadius)
             .fill(
-                LinearGradient(colors: [Color(hex: 0x9D9D9D), Color(hex: 0x909090)], startPoint: .top, endPoint: .bottom)
-                    .shadow(.inner(color: .white.opacity(0.3), radius: 0, y: 1))
-                    .shadow(.inner(color: .white.opacity(0.08), radius: 0, y: -1))
-                    .shadow(.inner(color: .white.opacity(0.06), radius: 0, x: 1))
-                    .shadow(.inner(color: .white.opacity(0.08), radius: 0, x: -1))
+                LinearGradient(
+                    colors: [kind.color(forKitShade: KeyBankMetrics.faceTop), kind.color(forKitShade: KeyBankMetrics.faceBottom)],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+                .shadow(.inner(color: .white.opacity(0.3), radius: 0, y: 1))
+                .shadow(.inner(color: .white.opacity(0.08), radius: 0, y: -1))
+                .shadow(.inner(color: .white.opacity(0.06), radius: 0, x: 1))
+                .shadow(.inner(color: .white.opacity(0.08), radius: 0, x: -1))
             )
             .overlay {
-                KeyDish()
+                KeyDish(kind: kind)
             }
             .overlay {
                 ZStack {
@@ -303,9 +335,15 @@ private struct KeyFace: View {
 /// The key's dish, lit from above and a little from the left, with a soft highlight on its lower left wall, which
 /// faces the light. Gradient and spot are the mockup's fit to the kit's dish.
 private struct KeyDish: View {
+    let kind: KeyKind
+
     var body: some View {
         Circle()
-            .fill(LinearGradient(stops: KeyBankMetrics.dishStops, startPoint: KeyBankMetrics.dishStart, endPoint: KeyBankMetrics.dishEnd))
+            .fill(LinearGradient(
+                stops: KeyBankMetrics.dishStops(for: kind),
+                startPoint: KeyBankMetrics.dishStart,
+                endPoint: KeyBankMetrics.dishEnd
+            ))
             .overlay {
                 Circle()
                     .fill(RadialGradient(
@@ -361,8 +399,15 @@ private enum KeyBankMetrics {
         0xB5B5B5,
         0xBABABA,
     ]
-    static let dishStops = dishShades.enumerated().map { index, shade in
-        Gradient.Stop(color: Color(hex: shade), location: Double(index) / Double(dishShades.count - 1))
+    /// The top and the bottom of the kit's face, which darkens toward its bottom as light from above does.
+    static let faceTop: UInt32 = 0x9D9D9D
+    static let faceBottom: UInt32 = 0x909090
+
+    /// The dish's gradient stops in a kind's color.
+    static func dishStops(for kind: KeyKind) -> [Gradient.Stop] {
+        dishShades.enumerated().map { index, shade in
+            Gradient.Stop(color: kind.color(forKitShade: shade), location: Double(index) / Double(dishShades.count - 1))
+        }
     }
 
     static let dishHighlightStops: [Gradient.Stop] = [

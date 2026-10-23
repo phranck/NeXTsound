@@ -20,6 +20,8 @@ enum FrontPanelPalette {
     static let frameTop: UInt32 = 0x16181A
     /// The bottom of a display frame's shade.
     static let frameBottom: UInt32 = 0x0C0D0E
+    /// The yellow of the header's LAYERED stripes, which the push keys take as well.
+    static let stripeYellow: UInt32 = 0xFBAC3E
 }
 
 /// The type of the panel's titles and captions: JetBrains Mono at 11 pt.
