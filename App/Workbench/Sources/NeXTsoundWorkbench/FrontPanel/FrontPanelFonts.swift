@@ -6,8 +6,8 @@ import Foundation
 /// Both ship as package resources and are registered for this process before the first text asks for them, because
 /// SwiftUI draws a face it cannot find by name in Helvetica.
 enum FrontPanelFonts {
-    /// The wordmark's face, Monoton, by the name its file's name table gives.
-    static let wordmark = "Monoton-Regular"
+    /// The wordmark's face, Bruno Ace, by the name its file's name table gives.
+    static let wordmark = "BrunoAce-Regular"
     /// The face of the panel's titles and captions, JetBrains Mono.
     static let captions = "JetBrainsMono-Regular"
 }
