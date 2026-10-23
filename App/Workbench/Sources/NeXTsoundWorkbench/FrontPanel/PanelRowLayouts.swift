@@ -91,3 +91,44 @@ extension View {
         layoutValue(key: RowWidthShare.self, value: share)
     }
 }
+
+/// Lays out an indicator at the leading edge and a key at the trailing edge, with the capitals of the indicator's
+/// caption starting level with the top of the key.
+///
+/// The row is as tall as the key, so the key stands where it would alone and lines up with the keys beside it. The
+/// space a caption keeps over its capitals reaches above the row. The row takes two views, the indicator first.
+struct IndicatorKeyRow: Layout {
+    /// The space between the indicator and the key when the row is no wider than they need.
+    var minimumSpacing: CGFloat
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache _: inout ()) -> CGSize {
+        guard subviews.count == 2 else {
+            return .zero
+        }
+        let indicator = subviews[0].sizeThatFits(.unspecified)
+        let key = subviews[1].sizeThatFits(.unspecified)
+        let width = indicator.width + minimumSpacing + key.width
+        let height = max(key.height, indicator.height - Self.capitalsTop(of: subviews[0]))
+        return CGSize(width: max(proposal.width ?? width, width), height: height)
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal _: ProposedViewSize, subviews: Subviews, cache _: inout ()) {
+        guard subviews.count == 2 else {
+            return
+        }
+        subviews[0].place(
+            at: CGPoint(x: bounds.minX, y: bounds.minY - Self.capitalsTop(of: subviews[0])),
+            anchor: .topLeading,
+            proposal: .unspecified
+        )
+        subviews[1].place(at: CGPoint(x: bounds.maxX, y: bounds.minY), anchor: .topTrailing, proposal: .unspecified)
+    }
+}
+
+private extension IndicatorKeyRow {
+    /// The distance from the indicator's top down to the top of its caption's capitals: its first text baseline less
+    /// the height of the caption face's capitals.
+    static func capitalsTop(of indicator: LayoutSubview) -> CGFloat {
+        indicator.dimensions(in: .unspecified)[.firstTextBaseline] - FrontPanelType.capHeight
+    }
+}

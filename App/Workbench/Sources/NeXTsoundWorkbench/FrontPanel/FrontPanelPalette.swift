@@ -37,6 +37,17 @@ enum FrontPanelType {
     static var font: Font {
         .custom(FrontPanelFonts.captions, size: size)
     }
+
+    /// The face as AppKit sets it, for the measures SwiftUI's font does not give. It is looked up each time, because
+    /// the face is only found once the front panel has registered it.
+    static var appKitFont: NSFont? {
+        NSFont(name: FrontPanelFonts.captions, size: size)
+    }
+
+    /// The height of the face's capitals.
+    static var capHeight: CGFloat {
+        appKitFont?.capHeight ?? 0
+    }
 }
 
 /// The front panel's motion: the mockup's 180 ms ease for a change of state, and 80 ms with reduced motion.
@@ -115,7 +126,7 @@ private extension ControlCaption {
     /// The width of the widest word of a caption in capitals with the caption's letter spacing, rounded up to whole
     /// points, because SwiftUI rounds a text's width to device pixels and would otherwise break the word itself.
     static func widestWord(of text: String) -> CGFloat {
-        guard let font = NSFont(name: FrontPanelFonts.captions, size: FrontPanelType.size) else {
+        guard let font = FrontPanelType.appKitFont else {
             return 0
         }
         let widths = text.uppercased().split(separator: " ").map { word in

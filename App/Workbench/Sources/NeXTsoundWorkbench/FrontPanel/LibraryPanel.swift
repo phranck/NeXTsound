@@ -5,10 +5,9 @@ import SwiftUI
 /// speaker, and the connected SoundBox's name, side by side in three columns as wide as the profile keys.
 ///
 /// Its readouts take the display color that the front panel's keys choose. The CLOSE key at the bottom right closes
-/// the sheet. It is a bank of one key, so its face and its caption line up with the profile keys'. Escape does not close it, because a key
-/// bound
-/// to Escape would take Escape before a rename does, and Escape during a rename restores the old name. While the sheet
-/// is shown, it presents the import and export panels over itself.
+/// the sheet. It is a bank of one key, so its face and its caption line up with the profile keys'. Escape does not
+/// close the sheet, because a key bound to Escape would take Escape before a rename does, and Escape during a rename
+/// restores the old name. While the sheet is shown, it presents the import and export panels over itself.
 public struct LibraryPanel: View {
     private let model: WorkbenchModel
     private let driverLibrary: DriverLibraryModel
@@ -82,30 +81,28 @@ enum LibraryPanelLayout {
     static let indicatorSpacing: CGFloat = 8
 }
 
-/// A section of the panel: its title over its rows.
-private struct LibrarySection<Content: View>: View {
+/// A section of the panel: its title over its rows, with an accessory such as an indicator at the right end of the
+/// title's line.
+private struct LibrarySection<Accessory: View, Content: View>: View {
     let title: LocalizedStringKey
+    @ViewBuilder let accessory: Accessory
     @ViewBuilder let content: Content
 
     var body: some View {
         VStack(alignment: .leading, spacing: LibraryPanelLayout.rowSpacing) {
             PanelTitle(title: title)
+                .overlay(alignment: Alignment(horizontal: .trailing, vertical: .firstTextBaseline)) {
+                    accessory
+                }
             content
         }
     }
 }
 
-/// A section's last row: an indicator at the left and the section's key at the right, both ending on one line.
-private struct SectionRow<Indicator: View, Key: View>: View {
-    @ViewBuilder let indicator: Indicator
-    @ViewBuilder let key: Key
-
-    var body: some View {
-        HStack(alignment: .bottom, spacing: 0) {
-            indicator
-            Spacer(minLength: LibraryPanelLayout.rowSpacing)
-            key
-        }
+extension LibrarySection where Accessory == EmptyView {
+    /// A section without an accessory on its title's line.
+    init(title: LocalizedStringKey, @ViewBuilder content: () -> Content) {
+        self.init(title: title, accessory: { EmptyView() }, content: content)
     }
 }
 
@@ -116,11 +113,18 @@ private struct PanelIndicator: View {
     let color: PanelLEDColor
     /// What VoiceOver reads for the indicator, which names the state the LED shows.
     let spokenText: String
+    /// The side of the caption the LED stands on.
+    var ledSide = HorizontalEdge.leading
 
     var body: some View {
         HStack(spacing: LibraryPanelLayout.indicatorSpacing) {
-            PanelLED(isLit: isLit, color: color)
-            ControlCaption(wrappingToWidestWord: caption, alignment: .leading)
+            if ledSide == .leading {
+                PanelLED(isLit: isLit, color: color)
+            }
+            ControlCaption(wrappingToWidestWord: caption, alignment: ledSide == .leading ? .leading : .trailing)
+            if ledSide == .trailing {
+                PanelLED(isLit: isLit, color: color)
+            }
         }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(Text(verbatim: spokenText))
@@ -180,14 +184,13 @@ private struct SpeakerSection: View {
     var body: some View {
         LibrarySection(title: "Speaker") {
             SpeakerReadout(editor: editor, drivers: drivers, theme: theme)
-            SectionRow {
+            IndicatorKeyRow(minimumSpacing: LibraryPanelLayout.rowSpacing) {
                 PanelIndicator(
                     caption: String(localized: "Safety unverified"),
                     isLit: true,
                     color: .amber,
                     spokenText: String(localized: "Speaker safety is unverified.")
                 )
-            } key: {
                 LabeledMomentaryKey(key: driverModelsKey)
             }
         }
@@ -212,8 +215,8 @@ private extension SpeakerSection {
     }
 }
 
-/// The connected SoundBox: its name, the LED that is lit while it is verified, and the key that renames it, which
-/// only a verified board takes.
+/// The connected SoundBox: its name, the CONNECTED LED at the right end of the section's title, lit while the board
+/// is verified, and the key that renames it, which only a verified board takes.
 private struct SoundBoxSection: View {
     let model: WorkbenchModel
     let theme: PhosphorTheme
@@ -221,28 +224,28 @@ private struct SoundBoxSection: View {
 
     var body: some View {
         LibrarySection(title: "SoundBox") {
+            PanelIndicator(
+                caption: String(localized: "Connected"),
+                isLit: capabilities != nil,
+                color: .cyan,
+                spokenText: model.boards.state.title,
+                ledSide: .trailing
+            )
+        } content: {
             PanelReadout(lines: lines, layout: Self.layout, theme: theme)
                 .accessibilityElement(children: .ignore)
                 .accessibilityLabel("SoundBox name")
                 .accessibilityValue(Text(verbatim: LibraryReadoutLines.soundBox(model.boards.state).text))
-            SectionRow {
-                PanelIndicator(
-                    caption: String(localized: "Connected"),
-                    isLit: capabilities != nil,
-                    color: .cyan,
-                    spokenText: model.boards.state.title
-                )
-            } key: {
-                LabeledMomentaryKey(key: renameKey)
-                    .popover(isPresented: $isRenaming) {
-                        if let capabilities {
-                            BoardRenameForm(currentName: capabilities.deviceName) { name in
-                                isRenaming = false
-                                Task { await model.renameBoard(name) }
-                            }
+            LabeledMomentaryKey(key: renameKey)
+                .popover(isPresented: $isRenaming) {
+                    if let capabilities {
+                        BoardRenameForm(currentName: capabilities.deviceName) { name in
+                            isRenaming = false
+                            Task { await model.renameBoard(name) }
                         }
                     }
-            }
+                }
+                .frame(maxWidth: .infinity, alignment: .trailing)
         }
         .onChange(of: capabilities == nil) { _, isUnverified in
             if isUnverified {
