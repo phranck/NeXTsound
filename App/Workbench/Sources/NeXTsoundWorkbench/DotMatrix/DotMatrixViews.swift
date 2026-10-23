@@ -32,6 +32,11 @@ extension DotMatrixPainter {
     func fill(_ context: GraphicsContext, color: Color) {
         context.fill(path, with: .color(color))
     }
+
+    /// Fills every collected dot with a shading, such as a gradient that runs across all of them.
+    func fill(_ context: GraphicsContext, shading: GraphicsContext.Shading) {
+        context.fill(path, with: shading)
+    }
 }
 
 /// The unlit dots of a grid.
