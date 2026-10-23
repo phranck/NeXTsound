@@ -2,8 +2,9 @@ import SwiftUI
 
 /// A phosphor color of the front panel's displays.
 ///
-/// Each one has a bright step for text and the curve, a normal step for labels and grid lines, and a ghost step for
-/// the unlit dots. The values are the mockup's `--vfd-*` colors.
+/// Each one has a bright step for text and the curve, a normal step for labels, a dim step for the multifunction
+/// display's axes, grid lines and scale labels, and a ghost step for the unlit dots. The bright, normal and ghost
+/// values are the mockup's `--vfd-*` colors, and the dim step lies between the normal step and the ghost step.
 enum PhosphorTheme: String, CaseIterable, Sendable {
     case blue
     case white
@@ -27,22 +28,19 @@ extension PhosphorTheme {
         }
     }
 
-    /// The step for labels and grid lines.
+    /// The step for labels.
     var normal: Color {
-        switch self {
-        case .blue: Color(hex: 0x5FB7C7)
-        case .white: Color(hex: 0xCDD6E6)
-        case .amber: Color(hex: 0xE0A53A)
-        }
+        Color(hex: normalShade)
+    }
+
+    /// The step for the multifunction display's axes, grid lines and scale labels, which recede behind the curve.
+    var dim: Color {
+        Color(mixing: ghostShade, normalShade, secondShare: Self.dimShare)
     }
 
     /// The step for the unlit dots.
     var ghost: Color {
-        switch self {
-        case .blue: Color(hex: 0x1B3438)
-        case .white: Color(hex: 0x2A2E38)
-        case .amber: Color(hex: 0x3A2A0E)
-        }
+        Color(hex: ghostShade)
     }
 
     /// The color of a tone in this theme.
@@ -50,6 +48,27 @@ extension PhosphorTheme {
         switch tone {
         case .bright: bright
         case .normal: normal
+        }
+    }
+}
+
+private extension PhosphorTheme {
+    /// The share of the normal step in the dim step, whose rest comes from the ghost step.
+    static let dimShare = 0.6
+
+    var normalShade: UInt32 {
+        switch self {
+        case .blue: 0x5FB7C7
+        case .white: 0xCDD6E6
+        case .amber: 0xE0A53A
+        }
+    }
+
+    var ghostShade: UInt32 {
+        switch self {
+        case .blue: 0x1B3438
+        case .white: 0x2A2E38
+        case .amber: 0x3A2A0E
         }
     }
 }
