@@ -18,9 +18,10 @@ struct FrontPanelHeader: View {
     }
 }
 
-/// The wordmark in Monoton, lettered like the mockup's, and read out as the product's name.
+/// The wordmark in Bruno Ace, read out as the product's name.
 ///
-/// Its baseline sits a fixed distance below the middle of the header's row, where the mockup's line box puts it.
+/// Its baseline sits half a capital's height below the middle of the header's row, so its capitals stand level with
+/// the stripes.
 private struct FrontPanelWordmark: View {
     var body: some View {
         Text(verbatim: "NeXTSOUND")
@@ -70,9 +71,6 @@ private enum FrontPanelHeaderMetrics {
     static let wordmarkSize: CGFloat = 34
     static let wordmarkTracking: CGFloat = 0.04
     static let wordmarkColor = Color(hex: 0xE8E4D8)
-    /// The distance from the middle of the header's row down to the wordmark's baseline, where the mockup's 34 pt
-    /// line box puts Monoton's baseline.
-    static let baselineBelowCenter: CGFloat = 13
     static let spacing: CGFloat = 22
     static let padding = EdgeInsets(top: 4, leading: 36, bottom: 18, trailing: 36)
     /// A bar is a little over three times the gap below it, as in the logo.
@@ -88,10 +86,21 @@ private enum FrontPanelHeaderMetrics {
         Color(hex: 0x2B7488),
     ]
 
+    /// The height of the wordmark's capitals, which the stripes and the wordmark's baseline both take their measure
+    /// from. It is read each time, because the face is only found once the front panel has registered it.
+    static var capHeight: CGFloat {
+        let font = NSFont(name: FrontPanelFonts.wordmark, size: wordmarkSize) ?? .systemFont(ofSize: wordmarkSize)
+        return font.capHeight
+    }
+
+    /// The distance from the middle of the header's row down to the wordmark's baseline, which centers its capitals
+    /// on the row, where the stripes stand.
+    static var baselineBelowCenter: CGFloat {
+        capHeight / 2
+    }
+
     /// The height of one bar, so that the four bars and their gaps stand as tall as the wordmark's capitals.
     static var stripeHeight: CGFloat {
-        let font = NSFont(name: FrontPanelFonts.wordmark, size: wordmarkSize) ?? .systemFont(ofSize: wordmarkSize)
-        let capHeight = font.capHeight
         let count = CGFloat(stripeColors.count)
         return capHeight / (count + (count - 1) * stripeGapRatio)
     }
