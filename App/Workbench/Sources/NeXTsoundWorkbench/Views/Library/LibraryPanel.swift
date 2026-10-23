@@ -178,7 +178,7 @@ private struct SpeakerSection: View {
 private extension SpeakerSection {
     var driverModelsKey: MomentaryKey {
         MomentaryKey(id: "driver-models", caption: Self.driverModelsCaption, name: Text("Driver models")) {
-            openWindow(id: WorkbenchLayout.driverLibraryWindowID)
+            openWindow(id: WorkbenchWindows.driverLibraryWindowID)
         }
     }
 
