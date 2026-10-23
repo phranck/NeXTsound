@@ -50,20 +50,24 @@ enum ProfileListLines {
 enum LibraryReadoutLines {
     /// The speaker readout's lines.
     static let speakerLines = 2
+    /// The SoundBox readout's lines.
+    static let soundBoxLines = 2
 
     /// The speaker's name broken between its words over the readout's lines, or Not selected a step dimmer without
     /// one. A name that needs more lines than the readout has keeps its last line, because a driver's name ends with
     /// its model.
     static func speaker(_ name: String?, cells: Int) -> [DotMatrixLine] {
-        let text = name ?? String(localized: "Not selected")
-        var lines = DotMatrixWrap.lines(of: text, width: cells, firstPrefix: "", laterPrefix: "")
-        if lines.count > speakerLines {
-            lines = Array(lines.prefix(speakerLines - 1)) + [lines[lines.count - 1]]
-        }
-        return lines.map { DotMatrixLine(text: $0, tone: name == nil ? .normal : .bright) }
+        wrapped(name ?? String(localized: "Not selected"), cells: cells, lineCount: speakerLines, tone: name == nil ? .normal : .bright)
     }
 
-    /// The SoundBox's name while the board is verified, and a step dimmer what keeps the name from showing otherwise.
+    /// The SoundBox readout's text broken between its words over the readout's lines, as the speaker's name breaks.
+    static func soundBox(_ state: BoardConnectionState, cells: Int) -> [DotMatrixLine] {
+        let line = soundBox(state)
+        return wrapped(line.text, cells: cells, lineCount: soundBoxLines, tone: line.tone)
+    }
+
+    /// The SoundBox's name while the board is verified, and a step dimmer what keeps the name from showing otherwise,
+    /// each in full on one line, as VoiceOver reads it.
     static func soundBox(_ state: BoardConnectionState) -> DotMatrixLine {
         switch state {
         case let .verified(capabilities):
@@ -73,5 +77,17 @@ enum LibraryReadoutLines {
         case .detected, .mismatched:
             DotMatrixLine(text: String(localized: "Not verified"), tone: .normal)
         }
+    }
+}
+
+private extension LibraryReadoutLines {
+    /// `text` broken between its words over at most `lineCount` lines of `cells` cells. A text that needs more lines
+    /// keeps its last line in the readout's last line.
+    static func wrapped(_ text: String, cells: Int, lineCount: Int, tone: DotMatrixTone) -> [DotMatrixLine] {
+        var lines = DotMatrixWrap.lines(of: text, width: cells, firstPrefix: "", laterPrefix: "")
+        if lines.count > lineCount {
+            lines = Array(lines.prefix(lineCount - 1)) + [lines[lines.count - 1]]
+        }
+        return lines.map { DotMatrixLine(text: $0, tone: tone) }
     }
 }

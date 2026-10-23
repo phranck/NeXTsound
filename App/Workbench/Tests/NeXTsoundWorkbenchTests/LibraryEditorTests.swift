@@ -129,6 +129,19 @@ struct LibraryReadoutLinesTests {
         #expect(LibraryReadoutLines.soundBox(.disconnected).tone == .normal)
         #expect(LibraryReadoutLines.soundBox(.mismatched("Wrong firmware")) == LibraryReadoutLines.soundBox(.detected))
     }
+
+    /// A name wider than one line breaks between its words over the readout's two lines, so all of it shows.
+    @Test func theSoundBoxNameBreaksBetweenItsWords() {
+        var capabilities = DeviceCapabilities(serial: "D4CDD489AFE28CC5", firmwareVersion: "1.2.0")
+        capabilities.deviceName = "Bedroom SoundBox"
+        #expect(LibraryReadoutLines.soundBox(.verified(capabilities), cells: 13) == [
+            DotMatrixLine(text: "Bedroom"),
+            DotMatrixLine(text: "SoundBox"),
+        ])
+        #expect(LibraryReadoutLines.soundBox(.disconnected, cells: 13) == [
+            DotMatrixLine(text: String(localized: "No SoundBox"), tone: .normal),
+        ])
+    }
 }
 
 @MainActor

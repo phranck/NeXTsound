@@ -230,10 +230,10 @@ private struct SoundBoxSection: View {
 
     var body: some View {
         LibrarySection(title: "SoundBox") {
-            PanelReadout(lines: [line], layout: Self.layout, theme: theme)
+            PanelReadout(lines: lines, layout: Self.layout, theme: theme)
                 .accessibilityElement(children: .ignore)
                 .accessibilityLabel("SoundBox name")
-                .accessibilityValue(Text(verbatim: line.text))
+                .accessibilityValue(Text(verbatim: LibraryReadoutLines.soundBox(model.boards.state).text))
             SectionRow {
                 PanelIndicator(
                     caption: String(localized: "Connected"),
@@ -262,11 +262,11 @@ private struct SoundBoxSection: View {
 }
 
 private extension SoundBoxSection {
-    /// The readout's layout, one line that fills the panel's column.
-    static let layout = PanelReadout.fillingLayout(width: LibraryPanelLayout.contentWidth)
+    /// The readout's layout, two lines that fill the panel's column, so a name wider than one line still shows.
+    static let layout = PanelReadout.fillingLayout(width: LibraryPanelLayout.contentWidth, lines: LibraryReadoutLines.soundBoxLines)
 
-    var line: DotMatrixLine {
-        LibraryReadoutLines.soundBox(model.boards.state)
+    var lines: [DotMatrixLine] {
+        LibraryReadoutLines.soundBox(model.boards.state, cells: Self.layout.cells)
     }
 
     var renameKey: MomentaryKey {
