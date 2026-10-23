@@ -30,6 +30,9 @@ enum FrontPanelDisplayLayout {
     static let infoMarker = "> "
     /// The indent of a message's later lines, as wide as its marker.
     static let messageIndent = "  "
+    /// The dot columns that the status column takes from the curve, the gap before it included. The column slides
+    /// this far to the right to leave the display.
+    static let statusReservedColumns = DotMatrixMetrics.columns(forCells: statusCells) + statusGapColumns
 }
 
 extension FrontPanelDisplayLayout {
@@ -38,15 +41,24 @@ extension FrontPanelDisplayLayout {
         DotMatrixMetrics.size(columns: 1, rows: rows).height
     }
 
-    /// The curve's dot columns on a display of `displayColumns` columns. The curve keeps at least two.
-    static func graphColumns(displayColumns: Int) -> Int {
-        max(displayColumns - DotMatrixMetrics.columns(forCells: statusCells) - statusGapColumns, 2)
+    /// The curve's dot columns on a display of `displayColumns` columns while the status column stands `statusShift`
+    /// dot columns to the right of its place, so the curve ends where the gap before the column begins. The curve keeps
+    /// at least two.
+    static func graphColumns(displayColumns: Int, statusShift: Int = 0) -> Int {
+        max(displayColumns - statusReservedColumns + statusShift, 2)
     }
 
-    /// The status column's first dot column on a display of `displayColumns` columns, so the column ends at the
-    /// display's right edge.
-    static func statusColumn(displayColumns: Int) -> Int {
-        displayColumns - DotMatrixMetrics.columns(forCells: statusCells)
+    /// The status column's first dot column on a display of `displayColumns` columns: where the column ends at the
+    /// display's right edge, and `statusShift` dot columns to the right of that.
+    static func statusColumn(displayColumns: Int, statusShift: Int = 0) -> Int {
+        displayColumns - DotMatrixMetrics.columns(forCells: statusCells) + statusShift
+    }
+
+    /// How far the status column stands to the right of its place, in whole dot columns, for a reveal from 0, out of
+    /// the display, to 1, in its place. Whole columns keep every lit dot on the grid while the column slides.
+    static func statusShift(reveal: Double) -> Int {
+        let clamped = reveal.isFinite ? min(max(reveal, 0), 1) : 1
+        return Int(((1 - clamped) * Double(statusReservedColumns)).rounded())
     }
 
     /// The dot row a gain falls on among `rows` rows, with 0 dB in the middle row and every gain beyond the range on
@@ -73,11 +85,17 @@ extension FrontPanelDisplayLayout {
 /// The live EQ curve takes its left part with the selected profile's name under it, and the status column on the
 /// right shows the SoundBox and the latest message. The grid starts at the display's leading edge, so every dot keeps
 /// its whole-pixel position.
+///
+/// The status column slides in from the right and out to the right in whole dot columns over the unlit grid, and the
+/// curve takes the columns it leaves. With reduced motion, it appears and disappears at once.
 struct FrontPanelDisplay: View {
     let settings: DSPSettings
     let profileName: String
     let status: FrontPanelStatus
+    /// Whether the status column stands in the display.
+    let showsStatus: Bool
     let theme: PhosphorTheme
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         GeometryReader { proxy in
@@ -85,7 +103,15 @@ struct FrontPanelDisplay: View {
             ZStack(alignment: .topLeading) {
                 DotMatrixGhosts(columns: columns, rows: FrontPanelDisplayLayout.rows, color: theme.ghost)
                     .equatable()
-                FrontPanelDisplayDots(settings: settings, profileName: profileName, status: status, theme: theme, columns: columns)
+                FrontPanelDisplayDots(
+                    settings: settings,
+                    profileName: profileName,
+                    status: status,
+                    theme: theme,
+                    columns: columns,
+                    statusReveal: showsStatus ? 1 : 0
+                )
+                .animation(FrontPanelMotion.slide(reduceMotion: reduceMotion), value: showsStatus)
             }
         }
         .frame(height: FrontPanelDisplayLayout.height)
@@ -96,8 +122,12 @@ struct FrontPanelDisplay: View {
 }
 
 private extension FrontPanelDisplay {
-    /// What the display shows, as VoiceOver reads it: the profile, the connection, every field and the message.
+    /// What the display shows, as VoiceOver reads it: the profile, and while the status column stands in the display,
+    /// the connection, every field and the message.
     var spokenDescription: String {
+        guard showsStatus else {
+            return profileName
+        }
         let fields = status.fields.map { "\($0.label) \($0.value)" }
         return ([profileName, status.connection] + fields + [status.message?.text].compactMap(\.self)).joined(separator: ". ")
     }
@@ -105,22 +135,33 @@ private extension FrontPanelDisplay {
 
 /// The lit dots of the multifunction display: the 0 dB line, the frequency lines, the curve, the profile's name and the
 /// status column.
+///
+/// An animation of the status column's reveal redraws the dots for every step, and the column moves in whole dot
+/// columns. Dots that slide past the display's right edge are cut off.
+@Animatable
 private struct FrontPanelDisplayDots: View {
     let settings: DSPSettings
     let profileName: String
     let status: FrontPanelStatus
     let theme: PhosphorTheme
     let columns: Int
+    /// How far the status column stands in the display, from 0, out of it, to 1, in its place.
+    var statusReveal: Double
 
     var body: some View {
-        Canvas { context, _ in
-            let graphColumns = FrontPanelDisplayLayout.graphColumns(displayColumns: columns)
+        Canvas { context, size in
+            context.clip(to: Path(CGRect(origin: .zero, size: size)))
+            let statusShift = FrontPanelDisplayLayout.statusShift(reveal: statusReveal)
+            let graphColumns = FrontPanelDisplayLayout.graphColumns(displayColumns: columns, statusShift: statusShift)
+            let statusColumn = FrontPanelDisplayLayout.statusColumn(displayColumns: columns, statusShift: statusShift)
             var normal = DotMatrixPainter()
             var bright = DotMatrixPainter()
             paintGrid(into: &normal, columns: graphColumns)
             paintCurve(into: &bright, columns: graphColumns)
             paintProfileName(into: &bright, columns: graphColumns)
-            paintStatus(normal: &normal, bright: &bright)
+            if statusColumn < columns {
+                paintStatus(normal: &normal, bright: &bright, column: statusColumn)
+            }
             normal.fill(context, color: theme.normal)
             bright.fill(context, color: theme.bright)
         }
@@ -171,12 +212,11 @@ private extension FrontPanelDisplayDots {
         painter.write(name, column: (columns - nameColumns) / 2, row: FrontPanelDisplayLayout.rows - DotMatrixFont.glyphRows)
     }
 
-    /// Draws the status column at the display's right edge: the connection on the first line, each field's label in
-    /// the normal tone with its value bright after it, and the message on the bottom line. The message wraps upward
-    /// with a hanging indent into the lines the fields leave free.
-    func paintStatus(normal: inout DotMatrixPainter, bright: inout DotMatrixPainter) {
+    /// Draws the status column from its first dot column: the connection on the first line, each field's label in the
+    /// normal tone with its value bright after it, and the message on the bottom line. The message wraps upward with a
+    /// hanging indent into the lines the fields leave free.
+    func paintStatus(normal: inout DotMatrixPainter, bright: inout DotMatrixPainter, column labelColumn: Int) {
         let layout = FrontPanelDisplayLayout.self
-        let labelColumn = layout.statusColumn(displayColumns: columns)
         let valueColumn = labelColumn + DotMatrixMetrics.columns(forCells: layout.statusLabelCells) + DotMatrixMetrics.cellSpacing
         let valueCells = layout.statusCells - layout.statusLabelCells
         bright.write(DotMatrixAlignment.leading.fit(status.connection, cells: layout.statusCells), column: labelColumn, row: 0)

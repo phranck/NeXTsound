@@ -21,6 +21,18 @@ struct FrontPanelDisplayLayoutTests {
     @Test func theCurveKeepsTwoColumnsOnANarrowDisplay() {
         #expect(FrontPanelDisplayLayout.graphColumns(displayColumns: 10) == 2)
     }
+
+    /// The status column slides out by the columns it takes from the curve, in whole dot columns, and the curve takes
+    /// the whole display once the column is out.
+    @Test func theStatusColumnSlidesOutByTheColumnsItTakesFromTheCurve() {
+        let reserved = FrontPanelDisplayLayout.statusReservedColumns
+        #expect(FrontPanelDisplayLayout.statusShift(reveal: 1) == 0)
+        #expect(FrontPanelDisplayLayout.statusShift(reveal: 0) == reserved)
+        #expect(FrontPanelDisplayLayout.statusShift(reveal: 0.5) == Int((Double(reserved) / 2).rounded()))
+        #expect(FrontPanelDisplayLayout.statusShift(reveal: .nan) == 0)
+        #expect(FrontPanelDisplayLayout.graphColumns(displayColumns: 500, statusShift: reserved) == 500)
+        #expect(FrontPanelDisplayLayout.statusColumn(displayColumns: 500, statusShift: reserved) >= 500)
+    }
 }
 
 struct FrontPanelRenderTests {
@@ -46,11 +58,47 @@ struct FrontPanelRenderTests {
         }
         Self.expectWholePixelDots(panel.runLengths(of: ghost), ghost: ghost)
     }
+
+    /// While the status column is out, the curve's 0 dB line runs through the gap that stands before the column while
+    /// it is in, because the curve takes the room the column leaves.
+    @Test func theCurveTakesTheStatusColumnsRoomWhileTheColumnIsOut() async throws {
+        let (shown, hidden) = try await MainActor.run {
+            try (Self.gapDotPixel(showsStatus: true), Self.gapDotPixel(showsStatus: false))
+        }
+        #expect(!Self.isLit(shown))
+        #expect(Self.isLit(hidden))
+    }
 }
 
 private extension FrontPanelRenderTests {
     /// The edge of one dot in device pixels at scale 2.
     static let dotPixels = 3
+    /// The dot columns of the display the gap test renders.
+    static let gapTestColumns = 400
+    /// A channel above this shows a lit dot of the blue theme, whose unlit dots stay below 60.
+    static let litThreshold = 128
+
+    /// Renders the display with a flat profile and returns the pixel at the middle of the dot where the 0 dB line
+    /// meets the last gap column before the status column's place.
+    @MainActor
+    static func gapDotPixel(showsStatus: Bool) throws -> RenderedPixel {
+        let gapColumn = FrontPanelDisplayLayout.statusColumn(displayColumns: gapTestColumns) - 1
+        let zeroRow = FrontPanelDisplayLayout.row(decibels: 0, rows: FrontPanelDisplayLayout.graphRows)
+        let dot = DotMatrixMetrics.rect(column: gapColumn, row: zeroRow)
+        let display = FrontPanelDisplay(
+            settings: SoundProfile(name: "Flat").settings,
+            profileName: "Flat",
+            status: FrontPanelStatus(connection: "SoundBox connected", fields: []),
+            showsStatus: showsStatus,
+            theme: .blue
+        )
+        .frame(width: DotMatrixMetrics.size(columns: gapTestColumns, rows: 1).width)
+        return try RenderedPixels(display).pixel(column: Int(dot.midX * 2), row: Int(dot.midY * 2))
+    }
+
+    static func isLit(_ pixel: RenderedPixel) -> Bool {
+        max(pixel.red, pixel.green, pixel.blue) > litThreshold
+    }
 
     /// Expects every run of the ghost color to be a dot's length, and many of them. A failure names the color and the
     /// runs found of each length.

@@ -7,7 +7,8 @@ import SwiftUI
 /// of controls that edits the profile. The row sets the panel's width, and the header and the display take it, so
 /// they end where the controls end. The metal reaches under the hidden title bar, so the window's buttons sit on it.
 /// The key at the row's right end and the View menu show the Library as a sheet on this window, and the FLASH button
-/// shows the flash sheet. The window presents the panels that import and export a profile, which the Library and
+/// shows the flash sheet. The INFO key and the View menu slide the display's status column in and out, and a new
+/// error brings it back in. The window presents the panels that import and export a profile, which the Library and
 /// the File menu ask for, except while the Library sheet is shown and presents them over itself.
 public struct FrontPanelView: View {
     @Bindable private var model: WorkbenchModel
@@ -16,19 +17,27 @@ public struct FrontPanelView: View {
     @State private var saveFeedback = FrontPanelSaveFeedback()
     @State private var presentedSheet: FrontPanelSheet?
     @AppStorage(PhosphorTheme.storageKey) private var theme = PhosphorTheme.blue
+    @AppStorage(FrontPanelStatus.visibilityStorageKey) private var showsStatus = true
     @Environment(\.undoManager) private var undoManager
 
     public var body: some View {
         WholePointFrame {
             VStack(spacing: 0) {
                 FrontPanelHeader()
-                DisplayBay(settings: model.profile.settings, profileName: model.profile.displayName, status: status, theme: theme)
-                    .padding(FrontPanelLayout.bayMargin)
+                DisplayBay(
+                    settings: model.profile.settings,
+                    profileName: model.profile.displayName,
+                    status: status,
+                    showsStatus: showsStatus,
+                    theme: theme
+                )
+                .padding(FrontPanelLayout.bayMargin)
                 FrontPanelControlRow(
                     editor: editor,
                     boardButtons: boardButtons,
                     selectedBand: $selectedBand,
                     theme: $theme,
+                    isInfoShown: $showsStatus,
                     isLibraryOpen: libraryKey
                 )
             }
@@ -39,9 +48,15 @@ public struct FrontPanelView: View {
             BrushedMetal()
         }
         .panelWindowContent()
+        .onChange(of: status.errorText) { _, errorText in
+            if errorText != nil {
+                showsStatus = true
+            }
+        }
         .focusedSceneValue(\.frontPanelBand, FrontPanelBand(editor: editor, index: selectedBand))
         .focusedSceneValue(\.libraryEditor, LibraryEditor(model: model, undoManager: undoManager))
         .focusedSceneValue(\.libraryShown, libraryKey)
+        .focusedSceneValue(\.statusColumnShown, $showsStatus)
         .sheet(item: $presentedSheet) { sheet in
             switch sheet {
             case .flash:
@@ -131,10 +146,11 @@ private struct DisplayBay: View {
     let settings: DSPSettings
     let profileName: String
     let status: FrontPanelStatus
+    let showsStatus: Bool
     let theme: PhosphorTheme
 
     var body: some View {
-        FrontPanelDisplay(settings: settings, profileName: profileName, status: status, theme: theme)
+        FrontPanelDisplay(settings: settings, profileName: profileName, status: status, showsStatus: showsStatus, theme: theme)
             .padding(FrontPanelLayout.screenPadding)
             .vfdGlass(cornerRadius: FrontPanelLayout.bayRadius - FrontPanelLayout.frameWidth)
             .padding(FrontPanelLayout.frameWidth)

@@ -26,11 +26,21 @@ struct FrontPanelMessage: Equatable {
 }
 
 extension FrontPanelStatus {
+    /// The defaults key of whether the status column stands in the display, which the front panel keeps across
+    /// launches.
+    static let visibilityStorageKey = "frontPanelShowsStatusColumn"
+
     /// The column for a board's connection, storage and live values, and the message to show under them.
     init(board: BoardConnectionState, storage: BoardStorageState, runtime: DeviceRuntimeStatus?, message: FrontPanelMessage?) {
         connection = board.title
         fields = Self.fields(board: board, storage: storage, runtime: runtime)
         self.message = message
+    }
+
+    /// The message's text when it reports an error, and nil otherwise. A new error brings a hidden status column back
+    /// into the display.
+    var errorText: String? {
+        message.flatMap { $0.isError ? $0.text : nil }
     }
 }
 
