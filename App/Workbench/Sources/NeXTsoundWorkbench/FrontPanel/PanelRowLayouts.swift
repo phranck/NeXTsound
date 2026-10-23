@@ -38,32 +38,56 @@ struct SpreadRow: Layout {
     }
 }
 
-/// Lays its views out side by side at one width, the widest view's, as the mockup's modules share one column width.
+/// Lays its views out side by side, each at its share of one width, as the mockup's modules share one column width.
 ///
-/// Each view gets the row's full height.
-struct EqualWidthRow: Layout {
+/// A view's share is 1 unless `rowWidthShare(_:)` sets it, and the width is the widest view's among those with a whole
+/// share. Each view gets the row's full height.
+struct SharedWidthRow: Layout {
     var spacing: CGFloat
 
     func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache _: inout ()) -> CGSize {
-        let width = columnWidth(of: subviews)
-        let height = subviews.map { $0.sizeThatFits(ProposedViewSize(width: width, height: proposal.height)).height }.max() ?? 0
-        return CGSize(width: width * CGFloat(subviews.count) + spacing * CGFloat(max(subviews.count - 1, 0)), height: height)
+        let widths = widths(of: subviews)
+        let height = zip(subviews, widths).map { subview, width in
+            subview.sizeThatFits(ProposedViewSize(width: width, height: proposal.height)).height
+        }
+        .max() ?? 0
+        return CGSize(width: widths.reduce(0, +) + spacing * CGFloat(max(subviews.count - 1, 0)), height: height)
     }
 
     func placeSubviews(in bounds: CGRect, proposal _: ProposedViewSize, subviews: Subviews, cache _: inout ()) {
-        let width = columnWidth(of: subviews)
-        for (index, subview) in subviews.enumerated() {
+        var leading = bounds.minX
+        for (subview, width) in zip(subviews, widths(of: subviews)) {
             subview.place(
-                at: CGPoint(x: bounds.minX + CGFloat(index) * (width + spacing), y: bounds.minY),
+                at: CGPoint(x: leading, y: bounds.minY),
                 anchor: .topLeading,
                 proposal: ProposedViewSize(width: width, height: bounds.height)
             )
+            leading += width + spacing
         }
     }
 }
 
-private extension EqualWidthRow {
-    func columnWidth(of subviews: Subviews) -> CGFloat {
-        subviews.map { $0.sizeThatFits(.unspecified).width }.max() ?? 0
+private extension SharedWidthRow {
+    /// Each view's width: its share of the widest width among the views with a whole share. A view with a smaller
+    /// share takes exactly that part, even where its content asks for more.
+    func widths(of subviews: Subviews) -> [CGFloat] {
+        let shares = subviews.map { $0[RowWidthShare.self] }
+        let width = zip(subviews, shares).filter { $0.1 == 1 }.map { subview, _ in
+            subview.sizeThatFits(.unspecified).width
+        }
+        .max() ?? 0
+        return shares.map { width * $0 }
+    }
+}
+
+/// A view's share of the width a `SharedWidthRow` gives its views.
+private struct RowWidthShare: LayoutValueKey {
+    static let defaultValue: CGFloat = 1
+}
+
+extension View {
+    /// Sets the view's share of the width a `SharedWidthRow` gives its views, which is 1 otherwise.
+    func rowWidthShare(_ share: CGFloat) -> some View {
+        layoutValue(key: RowWidthShare.self, value: share)
     }
 }

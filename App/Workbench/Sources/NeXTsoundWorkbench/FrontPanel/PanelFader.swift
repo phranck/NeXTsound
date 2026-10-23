@@ -4,7 +4,9 @@ import SwiftUI
 /// A front panel slider with its value in a readout above it and its caption below it.
 ///
 /// The cap is the kit's light knob stretched to a pill, riding in a dark track between two scales. Every fader has
-/// the same size, so the readouts, the faders and the captions of a row line up across its panels.
+/// the same size, so the readouts, the faders and the captions of a row line up across its panels. A caption wider
+/// than the fader's column reaches past both of its sides without widening the column, so a module with one fader
+/// keeps its share of the row.
 struct PanelFader: View {
     /// What VoiceOver calls the fader.
     let label: LocalizedStringKey
@@ -22,6 +24,7 @@ struct PanelFader: View {
                 .accessibilityHidden(true)
             FaderControl(label: label, scale: FaderScale(parameter: parameter), unit: unit, value: $value, spokenDetail: spokenDetail)
             ControlCaption(caption: Text(caption))
+                .frame(width: Self.columnWidth)
                 .accessibilityHidden(true)
         }
     }
