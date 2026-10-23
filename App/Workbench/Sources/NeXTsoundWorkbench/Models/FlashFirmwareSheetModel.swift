@@ -37,6 +37,22 @@ extension FlashFirmwareSheetModel {
         return false
     }
 
+    /// Whether the owner holds the board into BOOTSEL by hand, because no verified board names the serial that
+    /// `FlashService` reboots it by.
+    var needsBootselByHand: Bool {
+        target.applicationSerial == nil
+    }
+
+    /// Whether the sheet shows the board's restart, which it does once the firmware is written and verified.
+    var showsRestartStatus: Bool {
+        outcome == .succeeded
+    }
+
+    /// Whether Flash can start: not while a flash runs, and not again after one succeeded.
+    var canFlash: Bool {
+        !isRunning && outcome != .succeeded
+    }
+
     func flash() {
         guard
             let service,
