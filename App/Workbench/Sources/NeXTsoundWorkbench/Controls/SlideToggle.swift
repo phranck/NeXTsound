@@ -25,9 +25,7 @@ struct SlideToggle: View {
                 isOn.toggle()
                 isFocused = true
             }
-            .focusable()
-            .focused($isFocused)
-            .focusEffectDisabled()
+            .panelFocus($isFocused)
             .onKeyPress(.space) {
                 isOn.toggle()
                 return .handled

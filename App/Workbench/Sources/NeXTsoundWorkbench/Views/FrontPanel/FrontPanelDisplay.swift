@@ -15,7 +15,7 @@ struct FrontPanelDisplay: View {
     let status: FrontPanelStatus
     /// Whether the status column stands in the display.
     let showsStatus: Bool
-    let theme: PhosphorTheme
+    @Environment(\.phosphorTheme) private var theme
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {

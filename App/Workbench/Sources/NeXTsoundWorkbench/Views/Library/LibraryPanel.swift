@@ -18,12 +18,12 @@ public struct LibraryPanel: View {
     public var body: some View {
         WholePointFrame {
             HStack(alignment: .top, spacing: LibraryPanelLayout.columnSpacing) {
-                ProfilesSection(editor: editor, theme: theme)
+                ProfilesSection(editor: editor)
                     .frame(width: LibraryPanelLayout.contentWidth)
-                SpeakerSection(editor: editor, drivers: driverLibrary.drivers, theme: theme)
+                SpeakerSection(editor: editor, drivers: driverLibrary.drivers)
                     .frame(width: LibraryPanelLayout.contentWidth)
                 VStack(alignment: .trailing, spacing: 0) {
-                    SoundBoxSection(model: model, theme: theme)
+                    SoundBoxSection(model: model)
                     MomentaryKeyBank(keys: [closeKey])
                         .frame(maxHeight: .infinity, alignment: .bottom)
                 }
@@ -36,6 +36,7 @@ public struct LibraryPanel: View {
         .background {
             PanelMetal()
         }
+        .environment(\.phosphorTheme, theme)
         .profileFileDialogs(model: model, undoManager: undoManager)
         .focusedSceneValue(\.libraryEditor, editor)
     }
@@ -119,11 +120,10 @@ private struct PanelIndicator: View {
 /// The profiles: the list over the keys that add, delete, import and export one.
 private struct ProfilesSection: View {
     let editor: LibraryEditor
-    let theme: PhosphorTheme
 
     var body: some View {
         LibrarySection(title: "Profiles") {
-            ProfileList(editor: editor, theme: theme)
+            ProfileList(editor: editor)
             MomentaryKeyBank(keys: keys)
         }
     }
@@ -163,12 +163,11 @@ private extension ProfilesSection {
 private struct SpeakerSection: View {
     let editor: LibraryEditor
     let drivers: [DriverRecord]
-    let theme: PhosphorTheme
     @Environment(\.openWindow) private var openWindow
 
     var body: some View {
         LibrarySection(title: "Speaker") {
-            SpeakerReadout(editor: editor, drivers: drivers, theme: theme)
+            SpeakerReadout(editor: editor, drivers: drivers)
             LabeledMomentaryKey(key: driverModelsKey)
                 .frame(maxWidth: .infinity, alignment: .trailing)
         }
@@ -197,7 +196,6 @@ private extension SpeakerSection {
 /// is verified, and the key that renames it, which only a verified board takes.
 private struct SoundBoxSection: View {
     let model: WorkbenchModel
-    let theme: PhosphorTheme
     @State private var isRenaming = false
 
     var body: some View {
@@ -209,7 +207,7 @@ private struct SoundBoxSection: View {
                 ledSide: .trailing
             )
         } content: {
-            PanelReadout(lines: lines, layout: Self.layout, theme: theme)
+            PanelReadout(lines: lines, layout: Self.layout)
                 .accessibilityElement(children: .ignore)
                 .accessibilityLabel("SoundBox name")
                 .accessibilityValue(Text(verbatim: LibraryReadoutLines.soundBox(model.boards.state).text))

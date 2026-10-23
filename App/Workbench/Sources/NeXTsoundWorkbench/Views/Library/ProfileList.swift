@@ -11,7 +11,6 @@ import SwiftUI
 /// VoiceOver reads the list as a list of the profiles.
 struct ProfileList: View {
     let editor: LibraryEditor
-    let theme: PhosphorTheme
     @State private var firstVisible = 0
     @State private var rename: ProfileRename?
     @State private var cursorIsVisible = true
@@ -19,7 +18,7 @@ struct ProfileList: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
-        PanelReadout(lines: lines, layout: Self.layout, theme: theme)
+        PanelReadout(lines: lines, layout: Self.layout)
             .background(alignment: .topLeading) {
                 ProfileRenameField(text: rename?.text) { typed in
                     rename = typed
@@ -35,9 +34,7 @@ struct ProfileList: View {
             .simultaneousGesture(TapGesture(count: 2).onEnded {
                 startRename()
             })
-            .focusable()
-            .focused($isFocused)
-            .focusEffectDisabled()
+            .panelFocus($isFocused)
             .onKeyPress(keys: Self.keys) { press in
                 handle(press.key)
             }

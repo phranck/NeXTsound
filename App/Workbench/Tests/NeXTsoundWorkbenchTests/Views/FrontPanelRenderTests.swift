@@ -11,7 +11,8 @@ struct FrontPanelRenderTests {
         let (panel, ghost) = try await MainActor.run {
             let profile = FactoryPreset.warm.makeProfile()
             let model = try WorkbenchModel(library: ProfileLibrary(profiles: [profile], selectedID: profile.id))
-            return try renderedWithGhost(FrontPanelView(model: model, driverLibrary: DriverLibraryModel()))
+            let panel = FrontPanelView(model: model, driverLibrary: DriverLibraryModel())
+            return try renderedWithMarker(panel, color: PhosphorTheme.blue.ghost)
         }
         Self.expectWholePixelDots(panel.runLengths(of: ghost), ghost: ghost)
     }
@@ -22,7 +23,8 @@ struct FrontPanelRenderTests {
         let (panel, ghost) = try await MainActor.run {
             let profiles = ["Soul Funk", "Flat", "Warm"].map { SoundProfile(name: $0) }
             let model = try WorkbenchModel(library: ProfileLibrary(profiles: profiles, selectedID: profiles[0].id))
-            return try renderedWithGhost(LibraryPanel(model: model, driverLibrary: DriverLibraryModel()))
+            let panel = LibraryPanel(model: model, driverLibrary: DriverLibraryModel())
+            return try renderedWithMarker(panel, color: PhosphorTheme.blue.ghost)
         }
         Self.expectWholePixelDots(panel.runLengths(of: ghost), ghost: ghost)
     }
@@ -36,6 +38,47 @@ struct FrontPanelRenderTests {
         #expect(!Self.isLit(shown))
         #expect(Self.isLit(hidden))
     }
+
+    /// The dots of the readouts and of the big display take their color from the environment, so a display color set
+    /// there reaches every display.
+    @Test func theDotsTakeTheEnvironmentsDisplayColor() async throws {
+        let renders = try await MainActor.run {
+            let readout = PanelReadout(text: "88888", layout: DotMatrixLinesLayout(cells: 5))
+            let display = FrontPanelDisplay(
+                settings: FactoryPreset.warm.makeProfile().settings,
+                profileName: "Warm",
+                status: FrontPanelStatus(connection: "SoundBox connected", fields: []),
+                showsStatus: true
+            )
+            .frame(width: DotMatrixMetrics.size(columns: Self.gapTestColumns, rows: 1).width)
+            return try [AnyView(readout), AnyView(display)].map { view in
+                try renderedWithMarker(view.environment(\.phosphorTheme, .amber), color: PhosphorTheme.amber.bright)
+            }
+        }
+        for (pixels, lit) in renders {
+            #expect(pixels.count(of: lit) > Self.minimumLitPixels)
+        }
+    }
+
+    /// Each panel sets the display color it keeps over the one in the environment around it, so the color keys'
+    /// choice is what its dots show. Nothing in a test stores a choice, so both panels keep blue, and an amber around
+    /// them reaches none of their dots.
+    @Test func eachPanelSetsTheDisplayColorItKeeps() async throws {
+        let renders = try await MainActor.run {
+            let profile = FactoryPreset.warm.makeProfile()
+            let model = try WorkbenchModel(library: ProfileLibrary(profiles: [profile], selectedID: profile.id))
+            let panels = [
+                AnyView(FrontPanelView(model: model, driverLibrary: DriverLibraryModel())),
+                AnyView(LibraryPanel(model: model, driverLibrary: DriverLibraryModel())),
+            ]
+            return try panels.map { panel in
+                try renderedWithMarker(panel.environment(\.phosphorTheme, .amber), color: PhosphorTheme.amber.bright)
+            }
+        }
+        for (pixels, lit) in renders {
+            #expect(pixels.count(of: lit) < Self.minimumLitPixels)
+        }
+    }
 }
 
 private extension FrontPanelRenderTests {
@@ -45,6 +88,9 @@ private extension FrontPanelRenderTests {
     static let gapTestColumns = 400
     /// A channel above this shows a lit dot of the blue theme, whose unlit dots stay below 60.
     static let litThreshold = 128
+    /// More than twenty lit dots of 3 × 3 device pixels, which a display in amber passes many times over, while the
+    /// marker's own dot stays far below it.
+    static let minimumLitPixels = 200
 
     /// Renders the display with a flat profile and returns the pixel at the middle of the dot where the 0 dB line
     /// meets the last gap column before the status column's place.
@@ -57,8 +103,7 @@ private extension FrontPanelRenderTests {
             settings: SoundProfile(name: "Flat").settings,
             profileName: "Flat",
             status: FrontPanelStatus(connection: "SoundBox connected", fields: []),
-            showsStatus: showsStatus,
-            theme: .blue
+            showsStatus: showsStatus
         )
         .frame(width: DotMatrixMetrics.size(columns: gapTestColumns, rows: 1).width)
         return try RenderedPixels(display).pixel(column: Int(dot.midX * 2), row: Int(dot.midY * 2))
@@ -77,16 +122,15 @@ private extension FrontPanelRenderTests {
     }
 }
 
-/// A view rendered at scale 2 with one ghost dot of the blue theme over its top leading corner, and the color that dot
-/// renders in.
+/// A view rendered at scale 2 with one dot of `color` over its top leading corner, and the color that dot renders in.
 ///
 /// The dot renders in the same pass as the view, so the comparison never rests on two renders producing the same
 /// color. It is a dot's size, so its own pixels form runs of a dot's length.
 @MainActor
-private func renderedWithGhost(_ view: some View) throws -> (pixels: RenderedPixels, ghost: RenderedPixel) {
+private func renderedWithMarker(_ view: some View, color: Color) throws -> (pixels: RenderedPixels, marker: RenderedPixel) {
     let marked = ZStack(alignment: .topLeading) {
         view
-        PhosphorTheme.blue.ghost
+        color
             .frame(width: DotMatrixMetrics.dotSize, height: DotMatrixMetrics.dotSize)
     }
     let pixels = try RenderedPixels(marked)
@@ -94,6 +138,17 @@ private func renderedWithGhost(_ view: some View) throws -> (pixels: RenderedPix
 }
 
 private extension RenderedPixels {
+    /// How many pixels show `color`.
+    func count(of color: RenderedPixel) -> Int {
+        var count = 0
+        for row in 0 ..< height {
+            for column in 0 ..< width where pixel(column: column, row: row) == color {
+                count += 1
+            }
+        }
+        return count
+    }
+
     /// How often each length of an unbroken run of one color occurs, along every row and along every column.
     func runLengths(of color: RenderedPixel) -> [Int: Int] {
         var counts: [Int: Int] = [:]

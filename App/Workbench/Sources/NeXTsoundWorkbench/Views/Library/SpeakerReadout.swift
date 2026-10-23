@@ -10,12 +10,11 @@ import SwiftUI
 struct SpeakerReadout: View {
     let editor: LibraryEditor
     let drivers: [DriverRecord]
-    let theme: PhosphorTheme
     @State private var menu = SpeakerMenu()
     @FocusState private var isFocused: Bool
 
     var body: some View {
-        PanelReadout(lines: lines, layout: Self.layout, theme: theme)
+        PanelReadout(lines: lines, layout: Self.layout)
             .background(alignment: .topLeading) {
                 SpeakerMenuAnchor(menu: menu)
                     .frame(width: 0, height: 0)
@@ -25,9 +24,7 @@ struct SpeakerReadout: View {
                 isFocused = true
                 openMenu()
             }
-            .focusable()
-            .focused($isFocused)
-            .focusEffectDisabled()
+            .panelFocus($isFocused)
             .onKeyPress(keys: Self.menuKeys) { _ in
                 openMenu()
                 return .handled

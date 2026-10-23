@@ -49,9 +49,7 @@ struct KeyBank<Value: Hashable, KeyMenu: View>: View {
             .accessibilityHidden(true)
         }
         .padding(.top, KeyBankMetrics.ledLift + PanelLED.size)
-        .focusable()
-        .focused($isFocused)
-        .focusEffectDisabled()
+        .panelFocus($isFocused)
         .onKeyPress(keys: Set(KeyBankNavigation.steps.keys)) { press in
             moveSelection(by: KeyBankNavigation.steps[press.key] ?? 0)
             return .handled

@@ -28,8 +28,7 @@ public struct FrontPanelView: View {
                     settings: model.profile.settings,
                     profileName: model.profile.displayName,
                     status: status,
-                    showsStatus: showsStatus,
-                    theme: theme
+                    showsStatus: showsStatus
                 )
                 .padding(FrontPanelLayout.bayMargin)
                 FrontPanelControlRow(
@@ -47,6 +46,7 @@ public struct FrontPanelView: View {
         .background {
             PanelMetal()
         }
+        .environment(\.phosphorTheme, theme)
         .panelWindowContent()
         .onChange(of: status.errorText) { _, errorText in
             if errorText != nil {
@@ -130,10 +130,9 @@ private struct DisplayBay: View {
     let profileName: String
     let status: FrontPanelStatus
     let showsStatus: Bool
-    let theme: PhosphorTheme
 
     var body: some View {
-        FrontPanelDisplay(settings: settings, profileName: profileName, status: status, showsStatus: showsStatus, theme: theme)
+        FrontPanelDisplay(settings: settings, profileName: profileName, status: status, showsStatus: showsStatus)
             .padding(FrontPanelLayout.screenPadding)
             .vfdGlass(cornerRadius: FrontPanelLayout.bayRadius - FrontPanelLayout.frameWidth)
             .padding(FrontPanelLayout.frameWidth)

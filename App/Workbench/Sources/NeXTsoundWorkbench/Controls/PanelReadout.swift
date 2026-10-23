@@ -8,10 +8,9 @@ struct PanelReadout: View {
     let lines: [DotMatrixLine]
     let layout: DotMatrixLinesLayout
     var alignment: DotMatrixAlignment = .leading
-    let theme: PhosphorTheme
 
     var body: some View {
-        DotMatrixLinesView(lines: lines, layout: layout, alignment: alignment, theme: theme)
+        DotMatrixLinesView(lines: lines, layout: layout, alignment: alignment)
             .vfdGlass(cornerRadius: PanelReadoutMetrics.glassRadius)
             .padding(FrontPanelLayout.frameWidth)
             .background(PanelReadoutMetrics.frameColor, in: RoundedRectangle(cornerRadius: PanelReadoutMetrics.frameRadius))
@@ -21,8 +20,8 @@ struct PanelReadout: View {
 
 extension PanelReadout {
     /// A readout of one bright line.
-    init(text: String, layout: DotMatrixLinesLayout, alignment: DotMatrixAlignment = .leading, theme: PhosphorTheme) {
-        self.init(lines: [DotMatrixLine(text: text)], layout: layout, alignment: alignment, theme: theme)
+    init(text: String, layout: DotMatrixLinesLayout, alignment: DotMatrixAlignment = .leading) {
+        self.init(lines: [DotMatrixLine(text: text)], layout: layout, alignment: alignment)
     }
 
     /// The layout of a readout of `lines` lines that fills `width` points, its frame included.

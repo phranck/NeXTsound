@@ -67,7 +67,7 @@ struct DotMatrixLinesView: View {
     let lines: [DotMatrixLine]
     let layout: DotMatrixLinesLayout
     var alignment: DotMatrixAlignment = .leading
-    let theme: PhosphorTheme
+    @Environment(\.phosphorTheme) private var theme
 
     var body: some View {
         ZStack(alignment: .topLeading) {
