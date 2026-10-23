@@ -8,7 +8,6 @@ struct PanelLED: View {
     /// Whether the LED confirms an action, lighting at once and draining away over 900 ms, instead of fading both
     /// ways as a state does.
     var confirms = false
-    var color = PanelLEDColor.cyan
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
@@ -16,27 +15,14 @@ struct PanelLED: View {
             Circle()
                 .fill(Color(hex: 0x262626).shadow(.inner(color: .black.opacity(0.7), radius: 0.5, y: 1)))
             Circle()
-                .fill(color.lit)
-                .shadow(color: color.lit.opacity(0.5), radius: 2)
-                .shadow(color: color.lit.opacity(0.2), radius: 6)
+                .fill(FrontPanelPalette.cyan)
+                .shadow(color: FrontPanelPalette.cyan.opacity(0.5), radius: 2)
+                .shadow(color: FrontPanelPalette.cyan.opacity(0.2), radius: 6)
                 .opacity(isLit ? 1 : 0)
         }
         .frame(width: Self.size, height: Self.size)
         .animation(animation, value: isLit)
         .accessibilityHidden(true)
-    }
-}
-
-/// The color an LED lights in: the kit's cyan for a state, and amber for a caution that stands until it is resolved.
-enum PanelLEDColor {
-    case cyan
-    case amber
-
-    var lit: Color {
-        switch self {
-        case .cyan: FrontPanelPalette.cyan
-        case .amber: Color(hex: 0xFFB02E)
-        }
     }
 }
 

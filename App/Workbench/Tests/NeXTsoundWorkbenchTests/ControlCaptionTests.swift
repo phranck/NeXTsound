@@ -10,7 +10,6 @@ struct ControlCaptionTests {
     @Test func aCaptionAsNarrowAsItsWidestWordBreaksOnlyBetweenWords() throws {
         _ = FrontPanelFonts.registration
         #expect(try lineCount(of: "Driver models") == 2)
-        #expect(try lineCount(of: "Safety unverified") == 2)
         #expect(try lineCount(of: "Connected") == 1)
         #expect(try lineCount(of: "Treibermodelle") == 1)
     }

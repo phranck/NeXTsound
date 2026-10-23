@@ -110,7 +110,6 @@ extension LibrarySection where Accessory == EmptyView {
 private struct PanelIndicator: View {
     let caption: String
     let isLit: Bool
-    let color: PanelLEDColor
     /// What VoiceOver reads for the indicator, which names the state the LED shows.
     let spokenText: String
     /// The side of the caption the LED stands on.
@@ -119,11 +118,11 @@ private struct PanelIndicator: View {
     var body: some View {
         HStack(spacing: LibraryPanelLayout.indicatorSpacing) {
             if ledSide == .leading {
-                PanelLED(isLit: isLit, color: color)
+                PanelLED(isLit: isLit)
             }
             ControlCaption(wrappingToWidestWord: caption, alignment: ledSide == .leading ? .leading : .trailing)
             if ledSide == .trailing {
-                PanelLED(isLit: isLit, color: color)
+                PanelLED(isLit: isLit)
             }
         }
         .accessibilityElement(children: .ignore)
@@ -173,8 +172,8 @@ private extension ProfilesSection {
     }
 }
 
-/// The selected profile's speaker: the readout that opens the menu of every driver model, the caution that speaker
-/// safety is unverified, and the key to the Driver Models window.
+/// The selected profile's speaker: the readout that opens the menu of every driver model, and the key to the Driver
+/// Models window.
 private struct SpeakerSection: View {
     let editor: LibraryEditor
     let drivers: [DriverRecord]
@@ -184,15 +183,8 @@ private struct SpeakerSection: View {
     var body: some View {
         LibrarySection(title: "Speaker") {
             SpeakerReadout(editor: editor, drivers: drivers, theme: theme)
-            IndicatorKeyRow(minimumSpacing: LibraryPanelLayout.rowSpacing) {
-                PanelIndicator(
-                    caption: String(localized: "Safety unverified"),
-                    isLit: true,
-                    color: .amber,
-                    spokenText: String(localized: "Speaker safety is unverified.")
-                )
-                LabeledMomentaryKey(key: driverModelsKey)
-            }
+            LabeledMomentaryKey(key: driverModelsKey)
+                .frame(maxWidth: .infinity, alignment: .trailing)
         }
     }
 }
@@ -204,8 +196,8 @@ private extension SpeakerSection {
         }
     }
 
-    /// The Driver Models key's caption. It has a key of its own, because German names the window in one word that is
-    /// too wide for a caption beside the safety LED.
+    /// The Driver Models key's caption. It has a key of its own, because German names the window in one word,
+    /// Treibermodelle, which is too wide for the caption under a single key.
     static var driverModelsCaption: String {
         String(
             localized: "Driver models (key caption)",
@@ -227,7 +219,6 @@ private struct SoundBoxSection: View {
             PanelIndicator(
                 caption: String(localized: "Connected"),
                 isLit: capabilities != nil,
-                color: .cyan,
                 spokenText: model.boards.state.title,
                 ledSide: .trailing
             )
