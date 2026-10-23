@@ -49,7 +49,7 @@ private extension FrontPanelEditor {
 }
 
 /// The row of panels under the display: the band panel, the High-Pass, Output and Sample-Peak Limiter modules, and
-/// at the right end the display color keys over the key that opens the Library window.
+/// at the right end the display color keys over the INFO key and the key that shows the Library sheet.
 ///
 /// Every panel is as tall as the tallest, so the readouts, the slider captions and the captions along the bottom each
 /// run on one line across the row. The modules with one slider take two thirds of the width the limiter takes for its
@@ -59,6 +59,8 @@ struct FrontPanelControlRow: View {
     let boardButtons: FrontPanelBoardButtons
     @Binding var selectedBand: Int
     @Binding var theme: PhosphorTheme
+    /// Whether the display's status column stands in the display, which the INFO key switches.
+    @Binding var isInfoShown: Bool
     @Binding var isLibraryOpen: Bool
 
     var body: some View {
@@ -71,7 +73,7 @@ struct FrontPanelControlRow: View {
                     .rowWidthShare(PanelRowMetrics.oneSliderModuleShare)
                 LimiterModule(editor: editor, buttons: boardButtons, theme: theme)
             }
-            ColorAndLibraryColumn(theme: $theme, isLibraryOpen: $isLibraryOpen)
+            ColorAndLibraryColumn(theme: $theme, isInfoShown: $isInfoShown, isLibraryOpen: $isLibraryOpen)
         }
         .fixedSize(horizontal: false, vertical: true)
         .padding(PanelRowMetrics.margin)
@@ -230,15 +232,19 @@ private struct LimiterModule: View {
 }
 
 /// The column at the right end of the row: the display color keys at its top, whose LEDs stand on the middle of the
-/// panel titles' line, and the key that opens the Library window at its bottom, whose LED, face and caption line up
-/// with the band keys'.
+/// panel titles' line, the INFO key under the AMBER key, and the key that shows the Library sheet at its bottom, whose
+/// LED, face and caption line up with the band keys'.
 private struct ColorAndLibraryColumn: View {
     @Binding var theme: PhosphorTheme
+    @Binding var isInfoShown: Bool
     @Binding var isLibraryOpen: Bool
 
     var body: some View {
         VStack(spacing: 0) {
-            KeyBank("Display color", selection: $theme, keys: Self.themeKeys)
+            VStack(alignment: .trailing, spacing: PanelRowMetrics.stackSpacing) {
+                KeyBank("Display color", selection: $theme, keys: Self.themeKeys)
+                LatchingKey(caption: "Info", isOn: $isInfoShown)
+            }
             LatchingKey(caption: "Library", isOn: $isLibraryOpen)
                 .frame(maxHeight: .infinity, alignment: .bottom)
         }

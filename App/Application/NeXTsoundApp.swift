@@ -22,6 +22,7 @@ struct NeXTsoundApp: App {
             FrontPanelCommands()
             LibraryCommands()
             LibrarySheetCommands()
+            StatusColumnCommands()
         }
 
         Window(WorkbenchLayout.driverLibraryWindowTitle, id: WorkbenchLayout.driverLibraryWindowID) {

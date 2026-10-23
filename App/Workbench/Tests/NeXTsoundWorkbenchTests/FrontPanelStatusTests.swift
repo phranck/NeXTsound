@@ -77,4 +77,15 @@ struct FrontPanelStatusTests {
         #expect(FrontPanelStatus(board: .disconnected, storage: .unknown, runtime: nil, message: nil).fields.isEmpty)
         #expect(FrontPanelStatus(board: .mismatched("Reason"), storage: .unknown, runtime: nil, message: nil).fields.isEmpty)
     }
+
+    /// Only an error's text brings a hidden status column back, so a message that reports progress or a hint leaves
+    /// the column where it is.
+    @Test func onlyAnErrorBringsTheStatusColumnBack() {
+        func status(_ message: FrontPanelMessage?) -> FrontPanelStatus {
+            FrontPanelStatus(connection: "SoundBox connected", fields: [], message: message)
+        }
+        #expect(status(FrontPanelMessage(text: "Save failed.", isError: true)).errorText == "Save failed.")
+        #expect(status(FrontPanelMessage(text: "Edits play live", tone: .normal)).errorText == nil)
+        #expect(status(nil).errorText == nil)
+    }
 }
