@@ -69,11 +69,8 @@ private struct RestartStatusView: View {
     var body: some View {
         switch status {
         case let .reconnected(firmwareVersion):
-            Label(
-                String(localized: "Board reconnected, running firmware \(firmwareVersion)."),
-                systemImage: "checkmark.circle"
-            )
-            .foregroundStyle(.green)
+            Label(String(localized: "Board reconnected, running firmware \(firmwareVersion)."), systemImage: "checkmark.circle")
+                .foregroundStyle(.green)
         case .unverified:
             Label("The board reconnected but did not verify; check it manually.", systemImage: "exclamationmark.triangle")
                 .foregroundStyle(.red)

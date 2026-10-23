@@ -91,6 +91,7 @@ struct FrontPanelStatusTests {
             message: FrontPanelMessage(text: "Edits play live", tone: .normal)
         )
         #expect(status.spokenDescription(profileName: "Warm", showsStatus: false) == "Warm")
-        #expect(status.spokenDescription(profileName: "Warm", showsStatus: true) == "Warm. SoundBox connected. Name Bedroom. Edits play live")
+        let spoken = status.spokenDescription(profileName: "Warm", showsStatus: true)
+        #expect(spoken == "Warm. SoundBox connected. Name Bedroom. Edits play live")
     }
 }
