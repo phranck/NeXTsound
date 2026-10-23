@@ -3,7 +3,7 @@ import SwiftUI
 
 /// The content of the app's main window.
 ///
-/// Brushed metal holds the header, the multifunction display with the selected profile's live EQ curve, and the row
+/// Grained metal holds the header, the multifunction display with the selected profile's live EQ curve, and the row
 /// of controls that edits the profile. The row sets the panel's width, and the header and the display take it, so
 /// they end where the controls end. The metal reaches under the hidden title bar, so the window's buttons sit on it.
 /// The key at the row's right end and the View menu show the Library as a sheet on this window, and the FLASH button
@@ -45,7 +45,7 @@ public struct FrontPanelView: View {
             .fixedSize()
         }
         .background {
-            BrushedMetal()
+            PanelMetal()
         }
         .panelWindowContent()
         .onChange(of: status.errorText) { _, errorText in

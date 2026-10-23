@@ -1,14 +1,13 @@
 import CoreGraphics
 import SwiftUI
 
-/// The brushed metal of the front panel and the Library panel: the mockup's metal gradient under faint, slightly
-/// slanted brush strokes and a grain of light and dark specks. Its top edge catches a highlight and its bottom edge
-/// lies in shade, as the windows' edges do in the mockup.
+/// The metal of the front panel and the Library panel: the mockup's metal gradient under a grain of light and dark
+/// specks. Its top edge catches a highlight and its bottom edge lies in shade, as the windows' edges do in the mockup.
 ///
 /// The metal draws as one compositing group. Without it, a window draws the gradient with its inner shadows one
 /// pixel below the metal's frame wherever the metal's height in points has an odd whole part, as the Library panel's
 /// has. The window's top row of pixels then shows no gradient, and its bottom row shows gaps.
-struct BrushedMetal: View {
+struct PanelMetal: View {
     var body: some View {
         Rectangle()
             .fill(
@@ -25,32 +24,9 @@ struct BrushedMetal: View {
                 .shadow(.inner(color: .black.opacity(0.4), radius: 2, y: -2))
             )
             .overlay {
-                BrushStrokes()
-            }
-            .overlay {
                 MetalGrain()
             }
             .compositingGroup()
-    }
-}
-
-/// Strokes one point wide every three points, slanted ten degrees from the vertical, as the mockup's repeating
-/// gradient at 100 degrees draws them.
-private struct BrushStrokes: View {
-    var body: some View {
-        Canvas { context, size in
-            let reach = (size.width * size.width + size.height * size.height).squareRoot()
-            context.translateBy(x: size.width / 2, y: size.height / 2)
-            context.rotate(by: .degrees(10))
-            var strokes = Path()
-            var offset = -reach / 2
-            while offset < reach / 2 {
-                strokes.addRect(CGRect(x: offset, y: -reach / 2, width: 1, height: reach))
-                offset += 3
-            }
-            context.fill(strokes, with: .color(.white.opacity(0.025)))
-        }
-        .allowsHitTesting(false)
     }
 }
 
