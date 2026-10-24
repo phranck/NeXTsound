@@ -17,6 +17,7 @@ struct NeXTsoundApp: App {
                 .task { await model.start() }
                 .task { await driverLibrary.start() }
                 .onWindowClose { NSApplication.shared.terminate(nil) }
+                .opensInTitledWindow()
         }
         .windowStyle(.hiddenTitleBar)
         .windowResizability(.contentSize)
@@ -38,6 +39,7 @@ struct NeXTsoundApp: App {
         // rather than coming back with the app.
         Window(WorkbenchWindows.aboutWindowTitle, id: WorkbenchWindows.aboutWindowID) {
             AboutPanel()
+                .opensInTitledWindow()
         }
         .windowStyle(.hiddenTitleBar)
         .windowResizability(.contentSize)

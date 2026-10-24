@@ -14,6 +14,18 @@ struct PanelWindowTests {
         try await expectWindowFits(FrontPanelView(model: model, driverLibrary: DriverLibraryModel()))
     }
 
+    /// A panel whose scene opens it in a titled window asks for its own height less the title bar before any window
+    /// holds it, so the window opens at the panel's height and shows the panel in place from its first frame.
+    @Test func aPanelAsksForLessThanItsTitleBarBeforeItsWindowExists() {
+        let info = AboutInfo(version: "1.2.0", build: "34", copyright: nil)
+        let plain = NSHostingView(rootView: AboutPanel(info: info, icon: NSImage()))
+        let opening = NSHostingView(rootView: AboutPanel(info: info, icon: NSImage()).opensInTitledWindow())
+        let content = NSRect(x: 0, y: 0, width: 100, height: 100)
+        let titleBar = NSWindow.frameRect(forContentRect: content, styleMask: .titled).height - content.height
+        #expect(titleBar > 0)
+        #expect(plain.fittingSize.height - opening.fittingSize.height == titleBar)
+    }
+
     /// The About panel reaches under its window's hidden title bar as the front panel does.
     @Test func theWindowIsAsTallAsTheAboutPanel() async throws {
         let info = AboutInfo(version: "1.2.0", build: "34", copyright: "© 2026 LAYERED.work")
