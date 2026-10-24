@@ -30,10 +30,16 @@ extension FrontPanelStatus {
     /// launches.
     static let visibilityStorageKey = "frontPanelShowsStatusColumn"
 
-    /// The column for a board's connection, storage and live values, and the message to show under them.
-    init(board: BoardConnectionState, storage: BoardStorageState, runtime: DeviceRuntimeStatus?, message: FrontPanelMessage?) {
+    /// The column for a board's connection, storage, live values and owner metadata, and the message to show under them.
+    init(
+        board: BoardConnectionState,
+        storage: BoardStorageState,
+        runtime: DeviceRuntimeStatus?,
+        metadata: OwnerMetadata? = nil,
+        message: FrontPanelMessage?
+    ) {
         connection = board.title
-        fields = Self.fields(board: board, storage: storage, runtime: runtime)
+        fields = Self.fields(board: board, storage: storage, runtime: runtime, metadata: metadata)
         self.message = message
     }
 
@@ -51,6 +57,7 @@ extension FrontPanelStatus {
             board: model.boards.state,
             storage: model.boards.storage,
             runtime: model.boards.runtime,
+            metadata: model.boards.metadata,
             message: FrontPanelMessageSources(model: model, saveSucceeded: saveSucceeded).message
         )
     }
@@ -80,7 +87,12 @@ private extension FrontPanelStatus {
         )
     }
 
-    static func fields(board: BoardConnectionState, storage: BoardStorageState, runtime: DeviceRuntimeStatus?) -> [FrontPanelStatusField] {
+    static func fields(
+        board: BoardConnectionState,
+        storage: BoardStorageState,
+        runtime: DeviceRuntimeStatus?,
+        metadata: OwnerMetadata?
+    ) -> [FrontPanelStatusField] {
         guard case let .verified(capabilities) = board else {
             return []
         }
@@ -95,7 +107,54 @@ private extension FrontPanelStatus {
             fields.append(FrontPanelStatusField(label: String(localized: "Host"), value: host(runtime)))
             fields.append(FrontPanelStatusField(label: String(localized: "DSP"), value: processing(runtime)))
         }
+        if let metadata {
+            fields += metadataFields(metadata)
+        }
         return fields
+    }
+
+    /// A line for each owner field that is set, so the message keeps the lines that unset fields leave. The note shows
+    /// its first line.
+    static func metadataFields(_ metadata: OwnerMetadata) -> [FrontPanelStatusField] {
+        var fields: [FrontPanelStatusField] = []
+        if !metadata.owner.isEmpty {
+            let label = String(
+                localized: "Owner",
+                comment: "Label of the owner line in the front panel's status column, at most seven characters."
+            )
+            fields.append(FrontPanelStatusField(label: label, value: metadata.owner))
+        }
+        if let number = metadata.serialNumber {
+            let label = String(
+                localized: "Unit",
+                comment: "Label of the serial number line in the front panel's status column, at most seven characters."
+            )
+            fields.append(FrontPanelStatusField(label: label, value: SerialNumberFormat.text(number)))
+        }
+        if let date = metadata.date {
+            let label = String(
+                localized: "Date",
+                comment: "Label of the owner's date line in the front panel's status column, at most seven characters."
+            )
+            fields.append(FrontPanelStatusField(label: label, value: text(date)))
+        }
+        if let line = metadata.note.split(separator: "\n").first {
+            let label = String(
+                localized: "Note",
+                comment: "Label of the note line in the front panel's status column, at most seven characters."
+            )
+            fields.append(FrontPanelStatusField(label: label, value: String(line)))
+        }
+        return fields
+    }
+
+    /// The day in the numeric order of the app's language, such as 24.10.2026.
+    static func text(_ day: CalendarDay) -> String {
+        let components = DateComponents(year: day.year, month: day.month, day: day.day)
+        guard let date = Calendar(identifier: .gregorian).date(from: components) else {
+            return ""
+        }
+        return date.formatted(.dateTime.day(.twoDigits).month(.twoDigits).year())
     }
 
     static func audio(_ capabilities: DeviceCapabilities) -> String {

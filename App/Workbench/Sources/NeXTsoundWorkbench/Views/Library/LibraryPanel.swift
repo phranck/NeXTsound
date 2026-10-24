@@ -193,10 +193,11 @@ private extension SpeakerSection {
 }
 
 /// The connected SoundBox: its name, the CONNECTED LED at the right end of the section's title, lit while the board
-/// is verified, and the key that renames it, which only a verified board takes.
+/// is verified, and the key that opens the board's form, which only a verified board takes. A board whose metadata
+/// the monitor read gets EDIT and the form for its name and owner metadata; any other gets RENAME and the name alone.
 private struct SoundBoxSection: View {
     let model: WorkbenchModel
-    @State private var isRenaming = false
+    @State private var isEditing = false
 
     var body: some View {
         LibrarySection(title: "SoundBox") {
@@ -211,12 +212,11 @@ private struct SoundBoxSection: View {
                 .accessibilityElement(children: .ignore)
                 .accessibilityLabel("SoundBox name")
                 .accessibilityValue(Text(verbatim: LibraryReadoutLines.soundBox(model.boards.state).text))
-            LabeledMomentaryKey(key: renameKey)
-                .popover(isPresented: $isRenaming) {
+            LabeledMomentaryKey(key: formKey)
+                .popover(isPresented: $isEditing) {
                     if let capabilities {
-                        BoardRenameForm(currentName: capabilities.deviceName) { name in
-                            isRenaming = false
-                            Task { await model.renameBoard(name) }
+                        SoundBoxForm(model: model, capabilities: capabilities) {
+                            isEditing = false
                         }
                     }
                 }
@@ -224,7 +224,7 @@ private struct SoundBoxSection: View {
         }
         .onChange(of: capabilities == nil) { _, isUnverified in
             if isUnverified {
-                isRenaming = false
+                isEditing = false
             }
         }
     }
@@ -238,13 +238,57 @@ private extension SoundBoxSection {
         LibraryReadoutLines.soundBox(model.boards.state, cells: Self.layout.cells)
     }
 
-    var renameKey: MomentaryKey {
-        MomentaryKey(id: "rename", caption: String(localized: "Rename"), name: Text("Rename SoundBox"), isEnabled: capabilities != nil) {
-            isRenaming = true
+    var formKey: MomentaryKey {
+        if model.boards.metadata != nil {
+            return MomentaryKey(id: "edit", caption: Self.editCaption, name: Text("Edit SoundBox"), isEnabled: capabilities != nil) {
+                isEditing = true
+            }
         }
+        return MomentaryKey(
+            id: "rename",
+            caption: String(localized: "Rename"),
+            name: Text("Rename SoundBox"),
+            isEnabled: capabilities != nil
+        ) {
+            isEditing = true
+        }
+    }
+
+    static var editCaption: String {
+        String(
+            localized: "Edit",
+            comment: "Caption under the Library panel's key that edits the SoundBox and its owner details, at most six characters."
+        )
     }
 
     var capabilities: DeviceCapabilities? {
         model.boards.state.verifiedCapabilities
+    }
+}
+
+/// The popover's form for a verified board: the name and owner metadata for a board whose metadata the monitor read,
+/// and the name alone otherwise. A board without read metadata never gets the metadata form, because writing it would
+/// clear what the board carries.
+private struct SoundBoxForm: View {
+    let model: WorkbenchModel
+    let capabilities: DeviceCapabilities
+    let onClose: () -> Void
+
+    var body: some View {
+        if let metadata = model.boards.metadata {
+            BoardEditForm(
+                capabilities: capabilities,
+                metadata: metadata,
+                register: model.serialNumbersAreAvailable ? model.serialNumbers : nil
+            ) { name, metadata in
+                onClose()
+                Task { await model.editBoard(name: name, metadata: metadata) }
+            }
+        } else {
+            BoardRenameForm(currentName: capabilities.deviceName) { name in
+                onClose()
+                Task { await model.renameBoard(name) }
+            }
+        }
     }
 }

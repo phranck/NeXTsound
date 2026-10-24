@@ -14,8 +14,14 @@ public final class WorkbenchModel {
     /// True from the moment a save to the SoundBox is requested until its flash write finished or failed.
     public private(set) var isSavingToBoard = false
     public let boards: BoardMonitor
+    /// The serial numbers the app has written to boards. Empty until `start()` reads it.
+    public private(set) var serialNumbers = SerialNumberRegister()
+    /// Whether the register was read, or there is no store to read it from. While it is false, the edit form refuses
+    /// to give a board a number, because the number could already belong to another board.
+    public private(set) var serialNumbersAreAvailable: Bool
 
     @ObservationIgnored private let storage: (any ProfileLibraryStorage)?
+    @ObservationIgnored private let serialNumberStorage: (any SerialNumberRegisterStorage)?
     @ObservationIgnored private var saveTask: Task<Void, Never>?
     @ObservationIgnored private var boardApplyTask: Task<Void, Never>?
     @ObservationIgnored private var isWritingToBoard = false
@@ -73,11 +79,21 @@ public final class WorkbenchModel {
         return boards.storage != .unavailable && !isSavingToBoard
     }
 
-    public init(library: ProfileLibrary = ProfileLibrary(), storage: (any ProfileLibraryStorage)? = nil, boards: BoardMonitor? = nil) {
+    public init(
+        library: ProfileLibrary = ProfileLibrary(),
+        storage: (any ProfileLibraryStorage)? = nil,
+        boards: BoardMonitor? = nil,
+        serialNumberStorage: (any SerialNumberRegisterStorage)? = nil
+    ) {
         self.library = library
         self.storage = storage
         self.boards = boards ?? BoardMonitor(isEnabled: false)
+        self.serialNumberStorage = serialNumberStorage
         isReady = storage == nil
+        serialNumbersAreAvailable = serialNumberStorage == nil
+        self.boards.onMetadataRead = { [weak self] chip, metadata in
+            self?.adoptSerialNumber(metadata.serialNumber, from: chip)
+        }
     }
 }
 
@@ -89,6 +105,8 @@ public extension WorkbenchModel {
             return
         }
         hasStarted = true
+        // Read before the boards connect, so the number a connected board carries reaches a loaded register.
+        await loadSerialNumbers()
         boards.start()
         defer { isReady = true }
         guard let storage else {
@@ -182,6 +200,26 @@ public extension WorkbenchModel {
     func renameBoard(_ name: String) async {
         do {
             try await boards.setDeviceName(name)
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    /// Writes what the edit form changed to the connected SoundBox: the name, and the owner metadata. A written serial
+    /// number goes into the register, and a cleared one is removed from it, so the next proposal knows about both.
+    func editBoard(name: String, metadata: OwnerMetadata) async {
+        guard let capabilities = boards.state.verifiedCapabilities else {
+            return
+        }
+        do {
+            if name != capabilities.deviceName {
+                try await boards.setDeviceName(name)
+            }
+            if metadata != boards.metadata {
+                try await boards.writeMetadata(metadata)
+                serialNumbers.assign(metadata.serialNumber, to: capabilities.serial)
+                await saveSerialNumbers()
+            }
         } catch {
             errorMessage = error.localizedDescription
         }
@@ -363,6 +401,46 @@ private extension WorkbenchModel {
                 return
             }
             await self?.applyToBoard()
+        }
+    }
+
+    /// Reads the register once. A register that cannot be read stays unavailable, so no number is proposed against an
+    /// empty one and no save replaces the file.
+    func loadSerialNumbers() async {
+        guard let serialNumberStorage else {
+            return
+        }
+        do {
+            serialNumbers = try await serialNumberStorage.load() ?? SerialNumberRegister()
+            serialNumbersAreAvailable = true
+        } catch {
+            errorMessage = String(localized: "The serial-number register cannot be read. \(error.localizedDescription)")
+        }
+    }
+
+    /// Takes over the number a connected board carries, unless the register already gives it to another board.
+    func adoptSerialNumber(_ number: UInt32?, from chip: String) {
+        guard
+            let number,
+            serialNumbersAreAvailable,
+            serialNumbers.adopt(number, from: chip)
+        else {
+            return
+        }
+        Task { await saveSerialNumbers() }
+    }
+
+    func saveSerialNumbers() async {
+        guard
+            serialNumbersAreAvailable,
+            let serialNumberStorage
+        else {
+            return
+        }
+        do {
+            try await serialNumberStorage.save(serialNumbers)
+        } catch {
+            errorMessage = String(localized: "The serial-number register cannot be saved. \(error.localizedDescription)")
         }
     }
 }

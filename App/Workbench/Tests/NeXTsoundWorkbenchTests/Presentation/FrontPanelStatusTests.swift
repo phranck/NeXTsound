@@ -61,6 +61,31 @@ struct FrontPanelStatusTests {
         #expect(FrontPanelStatus(board: .mismatched("Reason"), storage: .unknown, runtime: nil, message: nil).fields.isEmpty)
     }
 
+    /// Each owner field that is set gets a line after the live values, and the note shows its first line.
+    @Test func ownerFieldsThatAreSetFollowTheLiveValues() {
+        let day = CalendarDay(year: 2026, month: 10, day: 24)
+        let metadata = OwnerMetadata(date: day, serialNumber: 1, owner: "Frank", note: "Built in Bregenz\nSecond line")
+        let status = FrontPanelStatus(
+            board: .verified(fixtureCapabilities()),
+            storage: .saved,
+            runtime: DeviceRuntimeStatus(),
+            metadata: metadata,
+            message: nil
+        )
+        #expect(status.fields.suffix(4).map(\.label) == ["Owner", "Unit", "Date", "Note"])
+        let values = status.fields.suffix(4).map(\.value)
+        #expect(values[0] == "Frank" && values[1] == "NXSB0001" && values[3] == "Built in Bregenz")
+        #expect(["2026", "10", "24"].allSatisfy { values[2].contains($0) })
+        let partial = FrontPanelStatus(
+            board: .verified(fixtureCapabilities()),
+            storage: .saved,
+            runtime: nil,
+            metadata: OwnerMetadata(serialNumber: 2),
+            message: nil
+        )
+        #expect(partial.fields.map(\.label).suffix(2) == ["Flash", "Unit"])
+    }
+
     /// Only an error's text brings a hidden status column back, so a message that reports progress or a hint leaves
     /// the column where it is.
     @Test func onlyAnErrorBringsTheStatusColumnBack() {

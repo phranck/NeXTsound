@@ -3,7 +3,7 @@ import NeXTsoundCore
 import Observation
 
 /// A read-only connection state. No case here ever applies settings or persists to a board;
-/// `BoardMonitor.apply(_:)`, `persist()` and `setDeviceName(_:)` are the explicit writes that do.
+/// `BoardMonitor.apply(_:)`, `persist()`, `setDeviceName(_:)` and `writeMetadata(_:)` are the explicit writes that do.
 public enum BoardConnectionState: Equatable, Sendable {
     case disconnected
     case detected
@@ -46,6 +46,12 @@ public final class BoardMonitor {
     public private(set) var storage: BoardStorageState = .unknown
     /// The verified board's live values, read about once every `statusInterval`. Nil while no board is verified.
     public private(set) var runtime: DeviceRuntimeStatus?
+    /// The verified board's owner metadata, read when it connects and after every metadata write. Nil while no board
+    /// is verified, and for a board whose capabilities report no metadata feature.
+    public private(set) var metadata: OwnerMetadata?
+    /// Called with the board's chip serial whenever the monitor reads its metadata, so the serial-number register can
+    /// take over a number the board already carries.
+    @ObservationIgnored public var onMetadataRead: (@MainActor (String, OwnerMetadata) -> Void)?
 
     @ObservationIgnored private let isEnabled: Bool
     @ObservationIgnored private let discovery: any BoardDiscovery
@@ -121,6 +127,25 @@ public extension BoardMonitor {
         show(status)
     }
 
+    /// Writes new owner metadata to the connected board, which saves it to flash, and reads it back. The firmware
+    /// saves the settings the board plays with it, so the storage state is read again as well.
+    func writeMetadata(_ metadata: OwnerMetadata) async throws {
+        guard let transport else {
+            throw BoardTransportError.notConnected
+        }
+        let current = generation
+        beginWrite()
+        defer { endWrite() }
+        try await transport.writeMetadata(metadata)
+        let written = try await transport.requestMetadata()
+        let status = await Self.readStatus(from: transport)
+        guard generation == current else {
+            return
+        }
+        self.metadata = written
+        show(status)
+    }
+
     /// Applies a DSP snapshot to the connected board's audio owner for the next block.
     /// Never persists to flash; a reconnect or power cycle reverts to the last persisted state.
     func apply(_ snapshot: DeviceSnapshot) async throws {
@@ -178,11 +203,16 @@ private extension BoardMonitor {
                     return
                 }
                 let status = await Self.readStatus(from: transport)
+                let metadata = await Self.readMetadata(from: transport, capabilities: capabilities)
                 guard generation == current else {
                     return
                 }
                 show(status)
+                self.metadata = metadata
                 state = .verified(capabilities)
+                if let metadata {
+                    onMetadataRead?(capabilities.serial, metadata)
+                }
                 readStatusContinually(from: transport, generation: current)
             } catch {
                 guard
@@ -206,6 +236,7 @@ private extension BoardMonitor {
         state = .disconnected
         storage = .unknown
         runtime = nil
+        metadata = nil
     }
 
     /// Reads the verified board's live values every `statusInterval` until it disconnects. A read waits while a
@@ -256,5 +287,14 @@ private extension BoardMonitor {
     /// A board whose status cannot be read still verifies; its status lines then stay empty.
     static func readStatus(from transport: any BoardTransport) async -> BoardStatusReading? {
         try? await transport.requestStatus()
+    }
+
+    /// A board without the metadata feature, or whose metadata cannot be read, still verifies; its metadata lines
+    /// then stay away.
+    static func readMetadata(from transport: any BoardTransport, capabilities: DeviceCapabilities) async -> OwnerMetadata? {
+        guard capabilities.supportsMetadata else {
+            return nil
+        }
+        return try? await transport.requestMetadata()
     }
 }
