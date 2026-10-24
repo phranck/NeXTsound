@@ -74,7 +74,7 @@ public extension SerialNumberRegister {
         let stored = try JSONDecoder().decode(StoredRegister.self, from: data)
         guard
             stored.formatVersion == formatVersion,
-            stored.numbers.values.allSatisfy({ (1 ... OwnerMetadata.maximumSerialNumber).contains($0) })
+            stored.numbers.values.allSatisfy({ (0 ... OwnerMetadata.maximumSerialNumber).contains($0) })
         else {
             throw CocoaError(.fileReadCorruptFile)
         }
@@ -92,6 +92,7 @@ private extension SerialNumberRegister {
         numbers.first { $0.key != chip && $0.value == number }?.key
     }
 
+    /// Starts at 1, because NXSB0000 is the owner's test number, given by hand rather than proposed.
     func lowestFree(excluding chip: String) -> UInt32 {
         let taken = Set(numbers.filter { $0.key != chip }.values)
         var candidate: UInt32 = 1
@@ -117,7 +118,7 @@ enum SerialNumberFormat {
         return String(repeating: "0", count: max(0, 4 - plain.count)) + plain
     }
 
-    /// The number that digits, with or without the prefix, stand for, or nil when they do not stand for one from 1 to
+    /// The number that digits, with or without the prefix, stand for, or nil when they do not stand for one from 0 to
     /// `OwnerMetadata.maximumSerialNumber`.
     static func number(in text: String) -> UInt32? {
         let trimmed = text.trimmingCharacters(in: .whitespaces)
@@ -126,7 +127,7 @@ enum SerialNumberFormat {
             !digits.isEmpty,
             digits.allSatisfy(\.isASCII),
             let number = UInt32(digits),
-            (1 ... OwnerMetadata.maximumSerialNumber).contains(number)
+            (0 ... OwnerMetadata.maximumSerialNumber).contains(number)
         else {
             return nil
         }

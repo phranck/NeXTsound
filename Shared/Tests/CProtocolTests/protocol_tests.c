@@ -1,5 +1,5 @@
 #include "nxs_protocol.h"
-#include "nxs_test.h"
+#include "nxs_protocol_test.h"
 
 #include <math.h>
 #include <stdio.h>
@@ -275,23 +275,33 @@ static void set_text(uint8_t *field, const char *text) {
 }
 
 static void test_owner_metadata(void) {
-    nxs_owner_metadata_t original = {.date = 20261024u, .serial_number = 0x0a0b0cu};
+    nxs_owner_metadata_t original = {.date = 20261024u, .has_serial_number = true, .serial_number = 0x0a0b0cu};
     set_text(original.owner, "J\xc3\xbcrgen \xe2\x82\xac \xf0\x9f\x8e\xb5");
     set_text(original.note, "Line one\nLine two");
     CHECK(nxs_owner_metadata_is_valid(&original));
     uint8_t block[NXS_METADATA_SIZE];
     CHECK(nxs_owner_metadata_encode(&original, block, sizeof(block)) == NXS_RESULT_OK);
     CHECK(block[0] == 0xa0 && block[1] == 0x28 && block[2] == 0x35 && block[3] == 0x01);
-    CHECK(block[4] == 0x0c && block[5] == 0x0b && block[6] == 0x0a && block[7] == 0);
+    CHECK(block[4] == 0x0c && block[5] == 0x0b && block[6] == 0x0a && block[7] == NXS_METADATA_FLAG_SERIAL_NUMBER);
     CHECK(memcmp(block + 8, original.owner, NXS_OWNER_NAME_LENGTH) == 0);
     CHECK(memcmp(block + 8 + NXS_OWNER_NAME_LENGTH, original.note, NXS_OWNER_NOTE_LENGTH) == 0);
     nxs_owner_metadata_t decoded;
     CHECK(nxs_owner_metadata_decode(block, sizeof(block), &decoded) == NXS_RESULT_OK);
-    CHECK(memcmp(&decoded, &original, sizeof(decoded)) == 0);
+    CHECK(nxs_test_metadata_equal(&decoded, &original));
 
     nxs_owner_metadata_t empty = {0};
     CHECK(nxs_owner_metadata_is_valid(&empty));
-    nxs_owner_metadata_t full = {.date = 99991231u, .serial_number = NXS_SERIAL_NUMBER_MAX};
+    uint8_t empty_block[NXS_METADATA_SIZE];
+    CHECK(nxs_owner_metadata_encode(&empty, empty_block, sizeof(empty_block)) == NXS_RESULT_OK && empty_block[7] == 0);
+    nxs_owner_metadata_t test_number = {.has_serial_number = true, .serial_number = 0};
+    uint8_t test_block[NXS_METADATA_SIZE];
+    CHECK(nxs_owner_metadata_encode(&test_number, test_block, sizeof(test_block)) == NXS_RESULT_OK);
+    CHECK(test_block[4] == 0 && test_block[5] == 0 && test_block[6] == 0 && test_block[7] == NXS_METADATA_FLAG_SERIAL_NUMBER);
+    CHECK(nxs_owner_metadata_decode(test_block, sizeof(test_block), &decoded) == NXS_RESULT_OK);
+    CHECK(decoded.has_serial_number && decoded.serial_number == 0);
+    nxs_owner_metadata_t unflagged = {.serial_number = 5};
+    CHECK(!nxs_owner_metadata_is_valid(&unflagged));
+    nxs_owner_metadata_t full = {.date = 99991231u, .has_serial_number = true, .serial_number = NXS_SERIAL_NUMBER_MAX};
     memset(full.owner, 'o', sizeof(full.owner));
     memset(full.note, 'n', sizeof(full.note));
     full.owner[62] = 0xc3;
@@ -308,7 +318,7 @@ static void test_owner_metadata(void) {
         nxs_owner_metadata_t dated = {.date = invalid_dates[index]};
         CHECK(!nxs_owner_metadata_is_valid(&dated));
     }
-    nxs_owner_metadata_t numbered = {.serial_number = NXS_SERIAL_NUMBER_MAX + 1u};
+    nxs_owner_metadata_t numbered = {.has_serial_number = true, .serial_number = NXS_SERIAL_NUMBER_MAX + 1u};
     CHECK(!nxs_owner_metadata_is_valid(&numbered));
 
     const char *invalid_owners[] = {"\xc0\x80", "\x80",       "\xed\xa0\x80", "\xf4\x90\x80\x80", "\xf5\x80\x80\x80",
@@ -333,9 +343,11 @@ static void test_owner_metadata(void) {
     memset(&decoded, 0xa5, sizeof(decoded));
     nxs_owner_metadata_t unchanged;
     memcpy(&unchanged, &decoded, sizeof(unchanged));
-    block[7] = 1;
+    block[7] = 2;
     CHECK(nxs_owner_metadata_decode(block, sizeof(block), &decoded) == NXS_RESULT_INVALID_REPORT);
     block[7] = 0;
+    CHECK(nxs_owner_metadata_decode(block, sizeof(block), &decoded) == NXS_RESULT_INVALID_PARAMETERS);
+    block[7] = NXS_METADATA_FLAG_SERIAL_NUMBER;
     block[8] = 0x80;
     CHECK(nxs_owner_metadata_decode(block, sizeof(block), &decoded) == NXS_RESULT_INVALID_PARAMETERS);
     CHECK(nxs_owner_metadata_decode(block, sizeof(block) - 1, &decoded) == NXS_RESULT_INVALID_REPORT);

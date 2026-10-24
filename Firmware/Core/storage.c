@@ -12,8 +12,9 @@
 #define NXS_STORAGE_DATE_OFFSET NXS_STORAGE_FORMAT_1_END
 #define NXS_STORAGE_SERIAL_OFFSET (NXS_STORAGE_DATE_OFFSET + 4u)
 #define NXS_STORAGE_SERIAL_BYTES 3u
-#define NXS_STORAGE_RESERVED_OFFSET (NXS_STORAGE_SERIAL_OFFSET + NXS_STORAGE_SERIAL_BYTES)
-#define NXS_STORAGE_OWNER_OFFSET (NXS_STORAGE_RESERVED_OFFSET + 1u)
+/** Bit 0 is NXS_METADATA_FLAG_SERIAL_NUMBER; firmware 0.2.0 wrote 0 here and refuses any other value. */
+#define NXS_STORAGE_FLAGS_OFFSET (NXS_STORAGE_SERIAL_OFFSET + NXS_STORAGE_SERIAL_BYTES)
+#define NXS_STORAGE_OWNER_OFFSET (NXS_STORAGE_FLAGS_OFFSET + 1u)
 #define NXS_STORAGE_FORMAT_2_END (NXS_STORAGE_OWNER_OFFSET + NXS_OWNER_NAME_LENGTH)
 
 _Static_assert(NXS_STORAGE_FORMAT_2_END <= NXS_STORAGE_CHECKSUM_OFFSET,
@@ -114,7 +115,7 @@ bool nxs_storage_record_encode(const nxs_stored_state_t *state, nxs_storage_reco
     }
     write_u32(bytes + NXS_STORAGE_DATE_OFFSET, state->metadata.date);
     write_unsigned(bytes + NXS_STORAGE_SERIAL_OFFSET, state->metadata.serial_number, NXS_STORAGE_SERIAL_BYTES);
-    bytes[NXS_STORAGE_RESERVED_OFFSET] = 0;
+    bytes[NXS_STORAGE_FLAGS_OFFSET] = state->metadata.has_serial_number ? NXS_METADATA_FLAG_SERIAL_NUMBER : 0u;
     memcpy(bytes + NXS_STORAGE_OWNER_OFFSET, state->metadata.owner, NXS_OWNER_NAME_LENGTH);
     memcpy(bytes + NXS_STORAGE_NOTE_PAGE * NXS_STORAGE_PAGE_BYTES, state->metadata.note, NXS_OWNER_NOTE_LENGTH);
     uint32_t digest = record_checksum(bytes, NXS_STORAGE_VERSION);
@@ -144,7 +145,8 @@ bool nxs_storage_record_decode(const nxs_storage_record_t *record, nxs_stored_st
         read_u16(bytes + 6) != NXS_STORAGE_PAGE_BYTES || generation == 0 || bytes[12] != NXS_SNAPSHOT_PROTOCOL_MAJOR ||
         bytes[13] != NXS_SNAPSHOT_PROTOCOL_MINOR || read_u16(bytes + 14) != NXS_SNAPSHOT_SIZE ||
         !all_erased(bytes + padding_start, NXS_STORAGE_CHECKSUM_OFFSET - padding_start) ||
-        (format_1 ? !all_erased(note, NXS_STORAGE_PAGE_BYTES) : bytes[NXS_STORAGE_RESERVED_OFFSET] != 0) ||
+        (format_1 ? !all_erased(note, NXS_STORAGE_PAGE_BYTES)
+                  : (bytes[NXS_STORAGE_FLAGS_OFFSET] & ~NXS_METADATA_FLAG_SERIAL_NUMBER) != 0) ||
         record_checksum(bytes, format) != digest || memcmp(commit, commit_magic, sizeof(commit_magic)) != 0 ||
         read_u32(commit + 4) != generation || read_u32(commit + 8) != digest || read_u32(commit + 12) != ~digest ||
         !all_erased(commit + NXS_STORAGE_COMMIT_HEADER_BYTES, NXS_STORAGE_PAGE_BYTES - NXS_STORAGE_COMMIT_HEADER_BYTES)) {
@@ -157,6 +159,7 @@ bool nxs_storage_record_decode(const nxs_storage_record_t *record, nxs_stored_st
     }
     if (!format_1) {
         candidate.metadata.date = read_u32(bytes + NXS_STORAGE_DATE_OFFSET);
+        candidate.metadata.has_serial_number = (bytes[NXS_STORAGE_FLAGS_OFFSET] & NXS_METADATA_FLAG_SERIAL_NUMBER) != 0;
         candidate.metadata.serial_number = read_unsigned(bytes + NXS_STORAGE_SERIAL_OFFSET, NXS_STORAGE_SERIAL_BYTES);
         memcpy(candidate.metadata.owner, bytes + NXS_STORAGE_OWNER_OFFSET, NXS_OWNER_NAME_LENGTH);
         memcpy(candidate.metadata.note, note, NXS_OWNER_NOTE_LENGTH);

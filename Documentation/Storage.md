@@ -23,7 +23,7 @@ All integers are little-endian. Every save writes storage format 2, which adds t
 | 136 | 32 | Device name, zero-padded |
 | 168 | 4 | Format 2: the owner's date as YYYYMMDD, 0 when unset |
 | 172 | 3 | Format 2: serial number, 0 when unset |
-| 175 | 1 | Format 2: reserved, 0 |
+| 175 | 1 | Format 2: flags, bit 0 `NXS_METADATA_FLAG_SERIAL_NUMBER` when a serial number is set; firmware 0.2.0 wrote 0 here and refuses any other value |
 | 176 | 64 | Format 2: owner, UTF-8 padded with zero bytes |
 | 240 | 12 | Erased padding, `0xff`; in format 1 the padding starts at 168 |
 | 252 | 4 | CRC-32/ISO-HDLC of data-page bytes 0 through 251, continued over the whole note page in format 2 |

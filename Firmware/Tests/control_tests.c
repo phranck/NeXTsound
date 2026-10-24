@@ -531,8 +531,9 @@ static void test_name_persistence_updates_product_string(void) {
 
 static void test_persistence_keeps_restored_metadata(void) {
     initialize();
-    nxs_stored_state_t restored = {
-        .snapshot = nxs_default_snapshot(), .generation = 4, .metadata = {.date = 20261024u, .serial_number = 1}};
+    nxs_stored_state_t restored = {.snapshot = nxs_default_snapshot(),
+                                   .generation = 4,
+                                   .metadata = {.date = 20261024u, .has_serial_number = true, .serial_number = 1}};
     memcpy(restored.metadata.owner, "Bench owner", strlen("Bench owner"));
     enable_storage(&restored);
     send(NXS_OPERATION_PERSIST_STATE, 1, 4, NULL);
@@ -544,7 +545,7 @@ static void test_persistence_keeps_restored_metadata(void) {
     memcpy(record.bytes, mock.storage[0], sizeof(record.bytes));
     nxs_stored_state_t stored;
     CHECK(nxs_storage_record_decode(&record, &stored));
-    CHECK(stored.generation == 4 && memcmp(&stored.metadata, &restored.metadata, sizeof(stored.metadata)) == 0);
+    CHECK(stored.generation == 4 && nxs_test_metadata_equal(&stored.metadata, &restored.metadata));
 }
 
 static void test_storage_callbacks(void) {

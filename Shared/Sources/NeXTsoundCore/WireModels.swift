@@ -224,7 +224,7 @@ public struct CalendarDay: Equatable, Hashable, Sendable {
 public struct OwnerMetadata: Equatable, Sendable {
     /// A day the owner chose, or nil when unset.
     public var date: CalendarDay?
-    /// The number the app shows after the prefix NXSB, from 1 to `NXS_SERIAL_NUMBER_MAX`, or nil when unset.
+    /// The number the app shows after the prefix NXSB, from 0 to `NXS_SERIAL_NUMBER_MAX`, or nil when unset.
     public var serialNumber: UInt32?
     /// The owner's name, at most 64 bytes of UTF-8 without control characters.
     public var owner: String

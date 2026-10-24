@@ -188,7 +188,7 @@ struct WireCodecTests {
         )
         let block = try WireCodec.encodeOwnerMetadata(metadata)
         #expect(block.count == Int(NXS_METADATA_SIZE))
-        #expect(block.prefix(8) == Data([0xA0, 0x28, 0x35, 0x01, 1, 0, 0, 0]))
+        #expect(block.prefix(8) == Data([0xA0, 0x28, 0x35, 0x01, 1, 0, 0, UInt8(NXS_METADATA_FLAG_SERIAL_NUMBER)]))
         #expect(try WireCodec.decodeOwnerMetadata(block) == metadata)
         #expect(try WireCodec.decodeOwnerMetadata(WireCodec.encodeOwnerMetadata(OwnerMetadata())) == OwnerMetadata())
     }
@@ -202,12 +202,19 @@ struct WireCodecTests {
         #expect(try WireCodec.decodeOwnerMetadata(WireCodec.encodeOwnerMetadata(metadata)) == metadata)
     }
 
+    /// 0 is a number the owner gives, NXSB0000, so it travels with the flag that tells it from no number.
+    @Test func serialNumberZeroIsANumber() throws {
+        let block = try WireCodec.encodeOwnerMetadata(OwnerMetadata(serialNumber: 0))
+        #expect(block[4 ..< 8] == Data([0, 0, 0, UInt8(NXS_METADATA_FLAG_SERIAL_NUMBER)]))
+        #expect(try WireCodec.decodeOwnerMetadata(block).serialNumber == 0)
+        #expect(try WireCodec.decodeOwnerMetadata(WireCodec.encodeOwnerMetadata(OwnerMetadata())).serialNumber == nil)
+    }
+
     @Test(arguments: [
         OwnerMetadata(owner: String(repeating: "o", count: Int(NXS_OWNER_NAME_LENGTH) + 1)),
         OwnerMetadata(owner: "Line\nfeed"),
         OwnerMetadata(note: "Tab\t"),
         OwnerMetadata(note: String(repeating: "n", count: Int(NXS_OWNER_NOTE_LENGTH) - 1) + "ä"),
-        OwnerMetadata(serialNumber: 0),
         OwnerMetadata(serialNumber: UInt32(NXS_SERIAL_NUMBER_MAX) + 1),
         OwnerMetadata(date: CalendarDay(year: 2026, month: 2, day: 30)),
         OwnerMetadata(date: CalendarDay(year: 2026, month: 13, day: 1)),

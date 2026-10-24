@@ -116,7 +116,7 @@ extension BoardEditProblem {
         case .invalidText:
             String(localized: "The owner and the note cannot contain control characters, and the owner no line breaks.")
         case .invalidNumber:
-            String(localized: "The number takes digits from 1 to \(String(OwnerMetadata.maximumSerialNumber)).")
+            String(localized: "The number takes digits from 0 to \(String(OwnerMetadata.maximumSerialNumber)).")
         case .registerUnavailable:
             String(localized: "The serial-number register cannot be read, so a number could already belong to another SoundBox.")
         case let .numberTaken(number, chip):

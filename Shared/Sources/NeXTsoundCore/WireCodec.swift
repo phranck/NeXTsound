@@ -226,7 +226,7 @@ public extension WireCodec {
     static let metadataPartCount = Int(NXS_METADATA_PART_COUNT)
 
     /// Encodes metadata into the `NXS_METADATA_SIZE` block, refusing what the C codec refuses: an impossible date, a serial
-    /// number of zero or above `NXS_SERIAL_NUMBER_MAX`, text that does not fit, and control characters.
+    /// number above `NXS_SERIAL_NUMBER_MAX`, text that does not fit, and control characters.
     static func encodeOwnerMetadata(_ metadata: OwnerMetadata) throws -> Data {
         var value = nxs_owner_metadata_t()
         if let date = metadata.date {
@@ -240,9 +240,7 @@ public extension WireCodec {
             value.date = UInt32(date.year * 10000 + date.month * 100 + date.day)
         }
         if let serialNumber = metadata.serialNumber {
-            guard serialNumber != 0 else {
-                throw WireError(result: NXS_RESULT_INVALID_PARAMETERS)
-            }
+            value.has_serial_number = true
             value.serial_number = serialNumber
         }
         try writeString(metadata.owner, to: &value.owner, reservingTerminator: false)
@@ -259,7 +257,7 @@ public extension WireCodec {
         )
         return try OwnerMetadata(
             date: date,
-            serialNumber: value.serial_number == 0 ? nil : value.serial_number,
+            serialNumber: value.has_serial_number ? value.serial_number : nil,
             owner: readString(value.owner),
             note: readString(value.note)
         )

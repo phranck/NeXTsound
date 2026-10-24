@@ -30,6 +30,13 @@ struct BoardEditDraftTests {
         #expect(draft.problems(register: nil, chip: chip, calendar: calendar).isEmpty)
     }
 
+    @Test func theTestNumberCanBeWritten() {
+        var draft = draft(OwnerMetadata(), proposedNumber: 1)
+        draft.unitDigits = "0000"
+        #expect(draft.metadata(calendar: calendar)?.serialNumber == 0)
+        #expect(draft.problems(register: SerialNumberRegister(), chip: chip, calendar: calendar).isEmpty)
+    }
+
     @Test func whatTheBoardRefusesBlocksWriting() {
         var draft = draft(OwnerMetadata(), proposedNumber: 1)
         draft.name = "Küche"
