@@ -28,7 +28,8 @@ public struct FrontPanelView: View {
                     settings: model.profile.settings,
                     profileName: model.profile.displayName,
                     status: status,
-                    showsStatus: showsStatus
+                    showsStatus: showsStatus,
+                    selectedBand: selectedBand
                 )
                 .padding(FrontPanelLayout.bayMargin)
                 FrontPanelControlRow(
@@ -130,22 +131,29 @@ private struct DisplayBay: View {
     let profileName: String
     let status: FrontPanelStatus
     let showsStatus: Bool
+    let selectedBand: Int
 
     var body: some View {
-        FrontPanelDisplay(settings: settings, profileName: profileName, status: status, showsStatus: showsStatus)
-            .padding(FrontPanelLayout.screenPadding)
-            .vfdGlass(cornerRadius: FrontPanelLayout.bayRadius - FrontPanelLayout.frameWidth)
-            .padding(FrontPanelLayout.frameWidth)
-            .background(
-                LinearGradient(
-                    colors: [Color(hex: FrontPanelPalette.frameTop), Color(hex: FrontPanelPalette.frameBottom)],
-                    startPoint: .top,
-                    endPoint: .bottom
-                )
-                .shadow(.inner(color: .black.opacity(0.7), radius: 2.5, y: 2))
-                .shadow(.inner(color: .white.opacity(0.04), radius: 0, y: -1)),
-                in: RoundedRectangle(cornerRadius: FrontPanelLayout.bayRadius)
+        FrontPanelDisplay(
+            settings: settings,
+            profileName: profileName,
+            status: status,
+            showsStatus: showsStatus,
+            selectedBand: selectedBand
+        )
+        .padding(FrontPanelLayout.screenPadding)
+        .vfdGlass(cornerRadius: FrontPanelLayout.bayRadius - FrontPanelLayout.frameWidth)
+        .padding(FrontPanelLayout.frameWidth)
+        .background(
+            LinearGradient(
+                colors: [Color(hex: FrontPanelPalette.frameTop), Color(hex: FrontPanelPalette.frameBottom)],
+                startPoint: .top,
+                endPoint: .bottom
             )
-            .frameHighlight(cornerRadius: FrontPanelLayout.bayRadius, opacity: 0.05)
+            .shadow(.inner(color: .black.opacity(0.7), radius: 2.5, y: 2))
+            .shadow(.inner(color: .white.opacity(0.04), radius: 0, y: -1)),
+            in: RoundedRectangle(cornerRadius: FrontPanelLayout.bayRadius)
+        )
+        .frameHighlight(cornerRadius: FrontPanelLayout.bayRadius, opacity: 0.05)
     }
 }

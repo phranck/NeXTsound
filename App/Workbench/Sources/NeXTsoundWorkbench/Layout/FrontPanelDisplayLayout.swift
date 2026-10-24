@@ -45,6 +45,13 @@ enum FrontPanelDisplayLayout {
     static let gainLabelCells = 3
     /// The dot columns the gain scale takes at the curve's left: its labels, an unlit column and the left axis.
     static let gainScaleColumns = DotMatrixMetrics.columns(forCells: gainLabelCells) + 2
+    /// How far a band marker reaches from the dot its band's frequency and gain fall on.
+    static let bandMarkerRadius = 2
+    /// A band marker's dots around the dot its band's frequency and gain fall on.
+    static let bandMarkerShape = roundDot(radius: bandMarkerRadius)
+    /// The dots the curve, its fill and the grid leave unlit around the dot a band's frequency and gain fall on: the
+    /// marker and an unlit edge one dot wide, so the marker stands clear of them.
+    static let bandMarkerClearance = roundDot(radius: bandMarkerRadius + 1)
     /// The marker before an error message's first line.
     static let errorMarker = "! "
     /// The marker before every other message's first line.
@@ -92,6 +99,37 @@ extension FrontPanelDisplayLayout {
     static func fillRows(under lowestRow: Int) -> Range<Int> {
         let axisRow = graphRows - 1
         return min(lowestRow + 1, axisRow) ..< axisRow
+    }
+
+    /// The offsets of a round dot of `radius` dots: a filled square as wide as twice the radius and one, without its
+    /// four corners.
+    static func roundDot(radius: Int) -> [Dot] {
+        (-radius ... radius).flatMap { row in
+            (-radius ... radius).compactMap { column in
+                abs(row) == radius && abs(column) == radius ? nil : Dot(column: column, row: row)
+            }
+        }
+    }
+
+    /// The dots of `shape` around a band at `frequencyHz` and `decibels` on a curve of `curveColumns` columns, in the
+    /// display's dot columns and rows. Dots that would fall left or right of the curve or on its bottom axis are left
+    /// out, so a band at the edge of the range shows the part of its marker that fits.
+    static func bandMarkerDots(frequencyHz: Double, decibels: Double, curveColumns: Int, shape: [Dot]) -> [Dot] {
+        guard let center = column(frequencyHz: frequencyHz, columns: curveColumns) else {
+            return []
+        }
+        let centerRow = row(decibels: decibels, rows: graphRows)
+        return shape.compactMap { offset in
+            let column = center + offset.column
+            let row = centerRow + offset.row
+            guard
+                (0 ..< curveColumns).contains(column),
+                (0 ..< graphRows - 1).contains(row)
+            else {
+                return nil
+            }
+            return Dot(column: gainScaleColumns + column, row: row)
+        }
     }
 
     /// A gain's label: the gain in whole decibels with its sign, and 0 without one.
@@ -143,5 +181,13 @@ extension FrontPanelDisplayLayout {
             return nil
         }
         return Int((scale.position(for: Float(frequencyHz)) * Double(columns - 1)).rounded())
+    }
+}
+
+extension FrontPanelDisplayLayout {
+    /// A dot of the display, by its dot column and dot row, or an offset from another dot.
+    struct Dot: Hashable {
+        let column: Int
+        let row: Int
     }
 }
