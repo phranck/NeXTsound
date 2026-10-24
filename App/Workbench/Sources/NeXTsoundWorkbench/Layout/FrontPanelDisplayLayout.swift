@@ -245,9 +245,16 @@ extension FrontPanelDisplayLayout.MessageCard {
         columns.lowerBound + 1 + FrontPanelDisplayLayout.messageCardPadding
     }
 
-    /// The dot columns the card keeps unlit beneath it: its frame and one unlit column on either side.
-    var clearedColumns: ClosedRange<Int> {
-        columns.lowerBound - 1 ... columns.upperBound + 1
+    /// The dot columns the card keeps unlit beneath it on `row`, one of `clearedRows`: the frame, what it holds, and
+    /// every dot beside it, above, below, left or right. The ring around the frame follows its rounded corners, so the
+    /// dots beyond each corner keep showing what lies beneath the card.
+    func clearedColumns(row: Int) -> ClosedRange<Int> {
+        // The row's distance from the nearer of the top and bottom edges, -1 on the unlit rows outside them. The frame
+        // stands in `cornerInset` dots on an edge row and one dot less on each row toward the middle, and its ring
+        // reaches one dot further out than that.
+        let edgeDistance = min(row - rows.lowerBound, rows.upperBound - row)
+        let inset = max(Self.cornerInset - 1 - edgeDistance, -1)
+        return columns.lowerBound + inset ... columns.upperBound - inset
     }
 
     /// The dot rows the card keeps unlit beneath it: its frame and one unlit row above and below it.

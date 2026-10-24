@@ -91,7 +91,7 @@ private struct FrontPanelDisplayDots: View {
             var underlay = context
             let card = overlayMessage.map { FrontPanelDisplayLayout.messageCard($0, displayColumns: columns) }
             if let card {
-                underlay.clip(to: Path(cardArea(card)), options: .inverse)
+                underlay.clip(to: cardArea(card), options: .inverse)
             }
             fill.fill(underlay, shading: fillShading)
             dim.fill(underlay, color: theme.dim)
@@ -278,12 +278,18 @@ private extension FrontPanelDisplayDots {
         }
     }
 
-    /// The part of the display the card keeps to itself: its frame and the ring of unlit dots around it. The area's
-    /// edges run between dots, so no dot of the curve or the status column is cut in half.
-    func cardArea(_ card: FrontPanelDisplayLayout.MessageCard) -> CGRect {
-        let first = DotMatrixMetrics.rect(column: card.clearedColumns.lowerBound, row: card.clearedRows.lowerBound)
-        let last = DotMatrixMetrics.rect(column: card.clearedColumns.upperBound, row: card.clearedRows.upperBound)
-        return first.union(last)
+    /// The part of the display the card keeps to itself: its frame, what it holds, and the ring of unlit dots around
+    /// it, one band per dot row. Each band's edges run between dots, so no dot of the curve or the status column is cut
+    /// in half.
+    func cardArea(_ card: FrontPanelDisplayLayout.MessageCard) -> Path {
+        Path { path in
+            for row in card.clearedRows {
+                let span = card.clearedColumns(row: row)
+                let first = DotMatrixMetrics.rect(column: span.lowerBound, row: row)
+                let last = DotMatrixMetrics.rect(column: span.upperBound, row: row)
+                path.addRect(first.union(last))
+            }
+        }
     }
 
     /// Draws the message card: its frame with rounded corners in the dim step, and the message's lines inside it in the

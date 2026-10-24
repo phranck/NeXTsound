@@ -142,7 +142,8 @@ struct FrontPanelDisplayLayoutTests {
             #expect(card.columns.upperBound - lastTextColumn == layout.messageCardPadding + 1)
             #expect(card.textRow(index: 0) - card.rows.lowerBound == layout.messageCardPadding + 1)
             #expect(card.rows.upperBound - lastTextRow == layout.messageCardPadding + 1)
-            #expect(card.clearedColumns.lowerBound >= 0 && card.clearedColumns.upperBound < columns)
+            #expect(card.clearedRows
+                .allSatisfy { card.clearedColumns(row: $0).lowerBound >= 0 && card.clearedColumns(row: $0).upperBound < columns })
         }
     }
 
@@ -163,6 +164,36 @@ struct FrontPanelDisplayLayoutTests {
             .contains(where: frame.contains))
         #expect([Dot(column: left + 1, row: bottom - 1), Dot(column: left + 2, row: bottom), Dot(column: left, row: bottom - 2)]
             .allSatisfy(frame.contains))
+    }
+
+    /// The unlit ring around the card follows its rounded frame: every dot beside a frame dot, above, below, left or
+    /// right of it, stays unlit, and the dots beyond each rounded corner keep showing what lies beneath the card.
+    @Test func theMessageCardsUnlitRingFollowsItsRoundedCorners() {
+        typealias Dot = FrontPanelDisplayLayout.Dot
+        let card = FrontPanelDisplayLayout.messageCard(
+            FrontPanelMessage(text: "Settings saved"),
+            displayColumns: Self.frontPanelDisplayColumns
+        )
+        func isCleared(_ dot: Dot) -> Bool {
+            card.clearedRows.contains(dot.row) && card.clearedColumns(row: dot.row).contains(dot.column)
+        }
+        let neighbors = card.frameDots.flatMap { dot in
+            [(0, -1), (0, 1), (-1, 0), (1, 0)].map { step in Dot(column: dot.column + step.0, row: dot.row + step.1) }
+        }
+        #expect((card.frameDots + neighbors).allSatisfy(isCleared))
+        let left = card.columns.lowerBound
+        let right = card.columns.upperBound
+        let top = card.rows.lowerBound
+        let bottom = card.rows.upperBound
+        let beyondCorners = [
+            Dot(column: left, row: top),
+            Dot(column: left - 1, row: top - 1),
+            Dot(column: left + 1, row: top - 1),
+            Dot(column: left - 1, row: top + 1),
+            Dot(column: right, row: bottom),
+            Dot(column: right + 1, row: bottom + 1),
+        ]
+        #expect(!beyondCorners.contains(where: isCleared))
     }
 }
 
