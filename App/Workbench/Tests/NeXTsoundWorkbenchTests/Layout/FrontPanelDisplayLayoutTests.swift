@@ -34,6 +34,35 @@ struct FrontPanelDisplayLayoutTests {
         #expect(FrontPanelDisplayLayout.fillRows(under: axisRow + 3).isEmpty)
     }
 
+    /// A band's marker is a round dot centered on the dot of the band's frequency and gain, inside its clearance, and
+    /// as many dots wide as tall.
+    @Test func aBandsMarkerCentersOnItsFrequencyAndGain() throws {
+        let layout = FrontPanelDisplayLayout.self
+        let curveColumns = 343
+        let center = try FrontPanelDisplayLayout.Dot(
+            column: layout.gainScaleColumns + #require(layout.column(frequencyHz: 1000, columns: curveColumns)),
+            row: layout.row(decibels: 6, rows: layout.graphRows)
+        )
+        let dots = layout.bandMarkerDots(frequencyHz: 1000, decibels: 6, curveColumns: curveColumns, shape: layout.bandMarkerShape)
+        let clearance = layout.bandMarkerDots(frequencyHz: 1000, decibels: 6, curveColumns: curveColumns, shape: layout.bandMarkerClearance)
+        let radius = layout.bandMarkerRadius
+        #expect(dots.contains(center))
+        #expect(dots.count == layout.bandMarkerShape.count)
+        #expect(Set(dots).isSubset(of: Set(clearance)))
+        #expect(dots.map(\.column).min() == center.column - radius && dots.map(\.column).max() == center.column + radius)
+        #expect(dots.map(\.row).min() == center.row - radius && dots.map(\.row).max() == center.row + radius)
+        #expect(!dots.contains(FrontPanelDisplayLayout.Dot(column: center.column - radius, row: center.row - radius)))
+    }
+
+    /// A band at the edge of the range keeps only the part of its marker that falls on the curve, clear of the left
+    /// axis and the bottom axis.
+    @Test func aBandsMarkerStaysOnTheCurve() {
+        let layout = FrontPanelDisplayLayout.self
+        let dots = layout.bandMarkerDots(frequencyHz: 20, decibels: -100, curveColumns: 343, shape: layout.bandMarkerClearance)
+        #expect(!dots.isEmpty)
+        #expect(dots.allSatisfy { $0.column >= layout.gainScaleColumns && $0.row < layout.graphRows - 1 })
+    }
+
     /// The curve's rows are odd in number, so 0 dB falls on the middle row and the gains above and below it get as
     /// many rows each.
     @Test func zeroDecibelsFallsOnTheCurvesMiddleRow() {

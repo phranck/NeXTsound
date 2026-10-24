@@ -15,6 +15,8 @@ struct FrontPanelDisplay: View {
     let status: FrontPanelStatus
     /// Whether the status column stands in the display.
     let showsStatus: Bool
+    /// The band the band keys select, whose marker lights in the peak step.
+    var selectedBand: Int?
     @Environment(\.phosphorTheme) private var theme
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
@@ -29,6 +31,7 @@ struct FrontPanelDisplay: View {
                     profileName: profileName,
                     status: status,
                     theme: theme,
+                    selectedBand: selectedBand,
                     columns: columns,
                     statusReveal: showsStatus ? 1 : 0
                 )
@@ -42,8 +45,8 @@ struct FrontPanelDisplay: View {
     }
 }
 
-/// The lit dots of the multifunction display: the axes, the grid lines and their labels, the curve, the profile's name
-/// and the status column.
+/// The lit dots of the multifunction display: the axes, the grid lines and their labels, the curve with its fill, the
+/// band markers, the profile's name and the status column.
 ///
 /// An animation of the status column's reveal redraws the dots for every step, and the column moves in whole dot
 /// columns. Dots that slide past the display's right edge are cut off.
@@ -53,6 +56,7 @@ private struct FrontPanelDisplayDots: View {
     let profileName: String
     let status: FrontPanelStatus
     let theme: PhosphorTheme
+    let selectedBand: Int?
     let columns: Int
     /// How far the status column stands in the display, from 0, out of it, to 1, in its place.
     var statusReveal: Double
@@ -67,9 +71,13 @@ private struct FrontPanelDisplayDots: View {
             var dim = DotMatrixPainter()
             var normal = DotMatrixPainter()
             var bright = DotMatrixPainter()
-            paintGrid(into: &dim, columns: graphColumns)
+            var peak = DotMatrixPainter()
+            let markers = bandMarkers(columns: graphColumns)
+            let cleared = Set(markers.flatMap(\.clearance))
+            paintGrid(into: &dim, columns: graphColumns, sparing: cleared)
             paintScales(into: &dim, columns: graphColumns)
-            paintCurve(into: &bright, fill: &fill, columns: graphColumns)
+            paintCurve(into: &bright, fill: &fill, columns: graphColumns, sparing: cleared)
+            paintBandMarkers(markers, dim: &dim, peak: &peak)
             paintProfileName(into: &bright, columns: graphColumns)
             if statusColumn < columns {
                 paintStatus(normal: &normal, bright: &bright, column: statusColumn)
@@ -78,12 +86,21 @@ private struct FrontPanelDisplayDots: View {
             dim.fill(context, color: theme.dim)
             normal.fill(context, color: theme.normal)
             bright.fill(context, color: theme.bright)
+            peak.fill(context, color: theme.peak)
         }
         .frame(
             width: DotMatrixMetrics.size(columns: columns, rows: FrontPanelDisplayLayout.rows).width,
             height: FrontPanelDisplayLayout.height
         )
     }
+}
+
+/// A band's marker on the curve: its dots, the dots it keeps clear of the curve, its fill and the grid, and whether the
+/// band keys select its band.
+private struct BandMarker {
+    let dots: [FrontPanelDisplayLayout.Dot]
+    let clearance: [FrontPanelDisplayLayout.Dot]
+    let isSelected: Bool
 }
 
 private extension FrontPanelDisplayDots {
@@ -93,24 +110,29 @@ private extension FrontPanelDisplayDots {
     static let fillBottomOpacity = 0.05
 
     /// Draws the axes along the curve's left and bottom edges, the solid 0 dB line, and dotted lines at the gains and
-    /// frequencies the scales label.
-    func paintGrid(into painter: inout DotMatrixPainter, columns: Int) {
+    /// frequencies the scales label. The lines leave out the dots in `sparing`, which the band markers clear.
+    func paintGrid(into painter: inout DotMatrixPainter, columns: Int, sparing: Set<FrontPanelDisplayLayout.Dot>) {
         let layout = FrontPanelDisplayLayout.self
         let first = layout.gainScaleColumns
         let curveColumns = layout.curveColumns(graphColumns: columns)
         let bottomRow = layout.graphRows - 1
         let zeroRow = layout.row(decibels: 0, rows: layout.graphRows)
+        func light(column: Int, row: Int) {
+            if !sparing.contains(FrontPanelDisplayLayout.Dot(column: column, row: row)) {
+                painter.light(column: column, row: row)
+            }
+        }
         for row in 0 ... bottomRow {
-            painter.light(column: first - 1, row: row)
+            light(column: first - 1, row: row)
         }
         for column in first ..< first + curveColumns {
-            painter.light(column: column, row: bottomRow)
-            painter.light(column: column, row: zeroRow)
+            light(column: column, row: bottomRow)
+            light(column: column, row: zeroRow)
         }
         for decibels in layout.gridDecibels {
             let row = layout.row(decibels: decibels, rows: layout.graphRows)
             for column in stride(from: first, to: first + curveColumns, by: 2) {
-                painter.light(column: column, row: row)
+                light(column: column, row: row)
             }
         }
         for frequency in layout.gridFrequenciesHz {
@@ -118,7 +140,7 @@ private extension FrontPanelDisplayDots {
                 continue
             }
             for row in stride(from: 0, to: bottomRow, by: 2) {
-                painter.light(column: first + column, row: row)
+                light(column: first + column, row: row)
             }
         }
     }
@@ -144,8 +166,14 @@ private extension FrontPanelDisplayDots {
         painter.write(layout.frequencyUnit, column: columns - unitColumns, row: layout.frequencyLabelRow)
     }
 
-    /// Lights the curve's dots and, under each of its columns, the dots of the fill down to the bottom axis.
-    func paintCurve(into painter: inout DotMatrixPainter, fill: inout DotMatrixPainter, columns: Int) {
+    /// Lights the curve's dots and, under each of its columns, the dots of the fill down to the bottom axis. Both leave
+    /// out the dots in `sparing`, which the band markers clear, so each marker stands on its own unlit edge.
+    func paintCurve(
+        into painter: inout DotMatrixPainter,
+        fill: inout DotMatrixPainter,
+        columns: Int,
+        sparing: Set<FrontPanelDisplayLayout.Dot>
+    ) {
         let layout = FrontPanelDisplayLayout.self
         guard let samples = try? ResponseCurve.samples(settings: settings, count: layout.curveColumns(graphColumns: columns)) else {
             return
@@ -153,11 +181,53 @@ private extension FrontPanelDisplayDots {
         let rows = samples.map { layout.row(decibels: $0.decibels, rows: layout.graphRows) }
         for (index, span) in layout.curveSpans(rows: rows).enumerated() {
             let column = layout.gainScaleColumns + index
-            for row in span {
+            for row in span where !sparing.contains(FrontPanelDisplayLayout.Dot(column: column, row: row)) {
                 painter.light(column: column, row: row)
             }
-            for row in layout.fillRows(under: span.upperBound) {
+            for row in layout.fillRows(under: span.upperBound) where !sparing.contains(FrontPanelDisplayLayout.Dot(
+                column: column,
+                row: row
+            )) {
                 fill.light(column: column, row: row)
+            }
+        }
+    }
+
+    /// The marker of each enabled band at its frequency and gain. A disabled band shapes no part of the curve, so it
+    /// has no marker.
+    func bandMarkers(columns: Int) -> [BandMarker] {
+        let layout = FrontPanelDisplayLayout.self
+        let curveColumns = layout.curveColumns(graphColumns: columns)
+        return settings.bands.enumerated().compactMap { index, band in
+            guard band.isEnabled else {
+                return nil
+            }
+            let frequency = Double(band.frequencyHz)
+            let gain = Double(band.gainDb)
+            return BandMarker(
+                dots: layout
+                    .bandMarkerDots(frequencyHz: frequency, decibels: gain, curveColumns: curveColumns, shape: layout.bandMarkerShape),
+                clearance: layout.bandMarkerDots(
+                    frequencyHz: frequency,
+                    decibels: gain,
+                    curveColumns: curveColumns,
+                    shape: layout.bandMarkerClearance
+                ),
+                isSelected: index == selectedBand
+            )
+        }
+    }
+
+    /// Lights the band markers: the selected band's in the peak step, above the curve's bright step, and the others in
+    /// the dim step, so the selected one stands out in every display color.
+    func paintBandMarkers(_ markers: [BandMarker], dim: inout DotMatrixPainter, peak: inout DotMatrixPainter) {
+        for marker in markers {
+            for dot in marker.dots {
+                if marker.isSelected {
+                    peak.light(column: dot.column, row: dot.row)
+                } else {
+                    dim.light(column: dot.column, row: dot.row)
+                }
             }
         }
     }

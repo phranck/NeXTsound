@@ -2,9 +2,10 @@ import SwiftUI
 
 /// A phosphor color of the front panel's displays.
 ///
-/// Each one has a bright step for text and the curve, a normal step for labels, a dim step for the multifunction
-/// display's axes, grid lines and scale labels, and a ghost step for the unlit dots. The bright, normal and ghost
-/// values are the mockup's `--vfd-*` colors, and the dim step lies between the normal step and the ghost step.
+/// Each one has a peak step for what stands out from the curve, a bright step for text and the curve, a normal step for
+/// labels, a dim step for the multifunction display's axes, grid lines and scale labels, and a ghost step for the unlit
+/// dots. The bright, normal and ghost values are the mockup's `--vfd-*` colors. The peak step lies between the bright
+/// step and white, and the dim step between the normal step and the ghost step.
 enum PhosphorTheme: String, CaseIterable, Sendable {
     case blue
     case white
@@ -19,13 +20,14 @@ extension PhosphorTheme {
     /// The glass every display's dots sit behind.
     static let glass = Color(red: 5 / 255, green: 8 / 255, blue: 10 / 255).opacity(0.92)
 
+    /// The step for what stands out from the curve, such as the selected band's marker.
+    var peak: Color {
+        Color(mixing: brightShade, Self.whiteShade, secondShare: Self.peakShare)
+    }
+
     /// The step for text and the curve.
     var bright: Color {
-        switch self {
-        case .blue: Color(hex: 0x7AEBFF)
-        case .white: Color(hex: 0xF4F8FF)
-        case .amber: Color(hex: 0xFFCF6B)
-        }
+        Color(hex: brightShade)
     }
 
     /// The step for labels.
@@ -55,6 +57,18 @@ extension PhosphorTheme {
 private extension PhosphorTheme {
     /// The share of the normal step in the dim step, whose rest comes from the ghost step.
     static let dimShare = 0.6
+    /// The share of white in the peak step, whose rest comes from the bright step.
+    static let peakShare = 0.6
+    /// White, which the peak step mixes into the bright step.
+    static let whiteShade: UInt32 = 0xFFFFFF
+
+    var brightShade: UInt32 {
+        switch self {
+        case .blue: 0x7AEBFF
+        case .white: 0xF4F8FF
+        case .amber: 0xFFCF6B
+        }
+    }
 
     var normalShade: UInt32 {
         switch self {
