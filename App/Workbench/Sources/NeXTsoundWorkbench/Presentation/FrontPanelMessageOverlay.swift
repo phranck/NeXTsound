@@ -5,8 +5,8 @@ import Foundation
 /// An error shows at once and stays while it is current. Any other message shows once it has stayed current for
 /// `settleDelay`, so a state that passes in a moment, such as a profile save after every edit, never flashes up. It
 /// leaves after `showDuration`, unless it lasts while current, as a save to the SoundBox does. A message that was the
-/// last one shown does not show again until another one has, so the hint that edits play live appears once rather
-/// than after every save.
+/// last one shown does not show again until another one has, so the hint that edits play live does not come back
+/// after the profile save that every edit starts.
 struct FrontPanelMessageOverlay: Equatable {
     /// How long a message that is not an error has to stay current before it shows.
     static let settleDelay = Duration.milliseconds(500)
