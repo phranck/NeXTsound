@@ -85,7 +85,7 @@ private struct PanelPushButtonCap: View {
     }
 }
 
-/// The mockup's glyphs on a 24-point grid: an arrow down into a tray for saving, a lightning bolt for flashing.
+/// The glyphs on a 24-point grid: an arrow down into a tray for saving, a lightning bolt for flashing.
 private struct PanelPushButtonGlyph: View {
     let kind: PanelPushButtonKind
 
@@ -131,7 +131,7 @@ private struct FlashGlyph: Shape {
     }
 }
 
-/// A push button's measurements and shades, from the mockup.
+/// A push button's measurements and shades.
 private enum PanelPushButtonMetrics {
     static let size: CGFloat = 52
     /// The recess around the ring.
@@ -143,8 +143,8 @@ private enum PanelPushButtonMetrics {
     /// The glyph's size against the 24-point grid it is drawn on.
     static let glyphScale = glyphSize / 24
 
-    /// The mockup's brightest red, the flash cap's bottom, which becomes the stripes' red.
-    static let mockupFlashBottom: UInt32 = 0xDE0C2C
+    /// The flash cap's brightest red, at its bottom, which `flashShade(_:)` turns into the stripes' red.
+    static let flashCapBottom: UInt32 = 0xDE0C2C
 
     struct Shades {
         let top: Color
@@ -169,7 +169,7 @@ private enum PanelPushButtonMetrics {
         case .flash:
             Shades(
                 top: flashShade(0x74030B),
-                bottom: flashShade(mockupFlashBottom),
+                bottom: flashShade(flashCapBottom),
                 rimLight: flashShade(0xE00A25),
                 rimDark: flashShade(0x820106),
                 engraving: flashShade(0x3A0919),
@@ -178,11 +178,11 @@ private enum PanelPushButtonMetrics {
         }
     }
 
-    /// A shade of the mockup's red cap in the red of the header's stripes. It takes the stripes' hue, and its
-    /// saturation and brightness are scaled as much as the mockup's bottom red needs to become the stripes' red.
-    static func flashShade(_ mockupShade: UInt32) -> Color {
-        let shade = HSBComponents(mockupShade)
-        let reference = HSBComponents(mockupFlashBottom)
+    /// A shade of the red cap in the red of the header's stripes. It takes the stripes' hue, and its saturation and
+    /// brightness are scaled as much as `flashCapBottom` needs to become the stripes' red.
+    static func flashShade(_ capShade: UInt32) -> Color {
+        let shade = HSBComponents(capShade)
+        let reference = HSBComponents(flashCapBottom)
         let stripes = HSBComponents(FrontPanelPalette.stripeRed)
         return Color(
             hue: stripes.hue,

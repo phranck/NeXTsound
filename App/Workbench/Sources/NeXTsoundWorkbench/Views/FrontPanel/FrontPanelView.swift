@@ -145,7 +145,7 @@ private extension FrontPanelView {
 /// The multifunction display's housing: a dark frame around the glass.
 ///
 /// The glass's corners run parallel to the frame's, so its radius is the frame's less the frame's width. The light
-/// falls from above as in the mockup: the frame is shaded along its top and catches a faint line along its bottom,
+/// falls from above: the frame is shaded along its top and catches a faint line along its bottom,
 /// the glass has a light edge at the top left and a dark one at the bottom right, and a highlight runs under the
 /// frame.
 private struct DisplayBay: View {

@@ -16,7 +16,7 @@ struct ControlCaptionTests {
 }
 
 /// The lines a caption as narrow as its widest word takes, from the height it renders at, which is a line's height for
-/// every line, as in the mockup.
+/// every line.
 @MainActor
 private func lineCount(of caption: String) throws -> Int {
     let image = try #require(ImageRenderer(content: ControlCaption(wrappingToWidestWord: caption)).cgImage)

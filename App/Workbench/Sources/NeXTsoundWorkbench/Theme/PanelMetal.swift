@@ -1,8 +1,8 @@
 import CoreGraphics
 import SwiftUI
 
-/// The metal of the front panel and the Library panel: the mockup's metal gradient under a grain of light and dark
-/// specks. Its top edge catches a highlight and its bottom edge lies in shade, as the windows' edges do in the mockup.
+/// The metal of the front panel and the Library panel: a metal gradient under a grain of light and dark specks. Its
+/// top edge catches a highlight and its bottom edge lies in shade.
 ///
 /// The metal draws as one compositing group. Without it, a window draws the gradient with its inner shadows one
 /// pixel below the metal's frame wherever the metal's height in points has an odd whole part, as the Library panel's

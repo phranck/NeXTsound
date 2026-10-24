@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// The front panel's measurements, from the approved mockup.
+/// The front panel's measurements.
 enum FrontPanelLayout {
     static let panelPadding = EdgeInsets(top: 26, leading: 30, bottom: 22, trailing: 30)
     static let bayMargin = EdgeInsets(top: 2, leading: 36, bottom: 20, trailing: 36)

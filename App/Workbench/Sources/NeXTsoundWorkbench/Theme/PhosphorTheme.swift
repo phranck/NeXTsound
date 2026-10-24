@@ -4,8 +4,8 @@ import SwiftUI
 ///
 /// Each one has a peak step for what stands out from the curve, a bright step for text and the curve, a normal step for
 /// labels, a dim step for the multifunction display's axes, grid lines and scale labels, and a ghost step for the unlit
-/// dots. The bright, normal and ghost values are the mockup's `--vfd-*` colors. The peak step lies between the bright
-/// step and white, and the dim step between the normal step and the ghost step.
+/// dots. The peak step lies between the bright step and white, and the dim step between the normal step and the ghost
+/// step.
 enum PhosphorTheme: String, CaseIterable, Sendable {
     case blue
     case white

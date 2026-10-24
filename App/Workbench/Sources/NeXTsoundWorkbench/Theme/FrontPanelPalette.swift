@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// The colors the front panel's controls share, from the mockup's tokens.
+/// The colors the front panel's controls share.
 ///
 /// A shade that only one control uses stays with that control.
 enum FrontPanelPalette {

@@ -331,7 +331,7 @@ private struct KeyFace: View {
 }
 
 /// The key's dish, lit from above and a little from the left, with a soft highlight on its lower left wall, which
-/// faces the light. Gradient and spot are the mockup's fit to the kit's dish.
+/// faces the light. Gradient and spot are fitted to the kit's dish.
 private struct KeyDish: View {
     let kind: KeyKind
 
@@ -367,7 +367,7 @@ private struct KeyBankFrame: View {
     }
 }
 
-/// A key bank's measurements, from the mockup.
+/// A key bank's measurements.
 private enum KeyBankMetrics {
     /// The kit's key, which a key's height, corners and dish take their measure from.
     static let kitKeySize: CGFloat = 40
@@ -417,8 +417,7 @@ private enum KeyBankMetrics {
         .init(color: .white.opacity(0), location: 1),
     ]
 
-    /// The ends of the mockup's 200 degree gradient across the dish, which runs from its upper right to its lower
-    /// left.
+    /// The ends of the 200 degree gradient across the dish, which runs from its upper right to its lower left.
     static let dishStart = gradientPoint(degrees: 200, end: -1)
     static let dishEnd = gradientPoint(degrees: 200, end: 1)
 
