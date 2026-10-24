@@ -6,10 +6,12 @@ import SwiftUI
 ///
 /// The readout takes the display color that the front panel's keys choose. The icon casts its shadow onto the metal.
 /// The metal reaches under the hidden title bar, and a drag anywhere on it moves the window, as on the front panel.
+/// Escape closes the window.
 public struct AboutPanel: View {
     private let info: AboutInfo
     private let icon: NSImage
     @AppStorage(PhosphorTheme.storageKey) private var theme = PhosphorTheme.blue
+    @Environment(\.dismiss) private var dismiss
 
     public var body: some View {
         WholePointFrame {
@@ -40,6 +42,7 @@ public struct AboutPanel: View {
         }
         .environment(\.phosphorTheme, theme)
         .panelWindowContent()
+        .onEscapeKey { dismiss() }
         .windowMinimizeBehavior(.disabled)
     }
 

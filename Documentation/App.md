@@ -78,7 +78,7 @@ The SoundBox section shows the verified board's name on two lines, broken betwee
 
 ## About window
 
-About NeXTsound in the app menu opens the app's own About window in place of the standard panel. It stands on the panels' metal and shows the app's icon, which casts a shadow onto the metal, the front panel's header with its pressed stripes and wordmark, the version with its build in a readout in the display color, and the copyright as a caption. Version, build and copyright come from the app's Info.plist. Its metal reaches under the hidden title bar, as the front panel's does, and a drag anywhere on it moves the window. The window opens from the app menu alone, so it has no item in the Window menu, and it does not come back when the app starts again.
+About NeXTsound in the app menu opens the app's own About window in place of the standard panel. It stands on the panels' metal and shows the app's icon, which casts a shadow onto the metal, the front panel's header with its pressed stripes and wordmark, the version with its build in a readout in the display color, and the copyright as a caption. Version, build and copyright come from the app's Info.plist. Its metal reaches under the hidden title bar, as the front panel's does, and a drag anywhere on it moves the window. Escape closes it. The window opens from the app menu alone, so it has no item in the Window menu, and it does not come back when the app starts again.
 
 ## Localization
 
