@@ -72,11 +72,12 @@ private struct FrontPanelDisplayDots: View {
             var normal = DotMatrixPainter()
             var bright = DotMatrixPainter()
             var peak = DotMatrixPainter()
-            let markers = bandMarkers(columns: graphColumns)
+            let curveRows = curveRows(columns: graphColumns)
+            let markers = bandMarkers(curveRows: curveRows)
             let cleared = Set(markers.flatMap(\.clearance))
             paintGrid(into: &dim, columns: graphColumns, sparing: cleared)
             paintScales(into: &dim, columns: graphColumns)
-            paintCurve(into: &bright, fill: &fill, columns: graphColumns, sparing: cleared)
+            paintCurve(into: &bright, fill: &fill, rows: curveRows, sparing: cleared)
             paintBandMarkers(markers, dim: &dim, peak: &peak)
             paintProfileName(into: &bright, columns: graphColumns)
             if statusColumn < columns {
@@ -171,14 +172,10 @@ private extension FrontPanelDisplayDots {
     func paintCurve(
         into painter: inout DotMatrixPainter,
         fill: inout DotMatrixPainter,
-        columns: Int,
+        rows: [Int],
         sparing: Set<FrontPanelDisplayLayout.Dot>
     ) {
         let layout = FrontPanelDisplayLayout.self
-        guard let samples = try? ResponseCurve.samples(settings: settings, count: layout.curveColumns(graphColumns: columns)) else {
-            return
-        }
-        let rows = samples.map { layout.row(decibels: $0.decibels, rows: layout.graphRows) }
         for (index, span) in layout.curveSpans(rows: rows).enumerated() {
             let column = layout.gainScaleColumns + index
             for row in span where !sparing.contains(FrontPanelDisplayLayout.Dot(column: column, row: row)) {
@@ -193,29 +190,31 @@ private extension FrontPanelDisplayDots {
         }
     }
 
-    /// The marker of each enabled band at its frequency and gain. A disabled band shapes no part of the curve, so it
-    /// has no marker.
-    func bandMarkers(columns: Int) -> [BandMarker] {
+    /// The marker of each enabled band, on the curve at the band's frequency. A disabled band shapes no part of the
+    /// curve, so it has no marker.
+    func bandMarkers(curveRows: [Int]) -> [BandMarker] {
         let layout = FrontPanelDisplayLayout.self
-        let curveColumns = layout.curveColumns(graphColumns: columns)
         return settings.bands.enumerated().compactMap { index, band in
             guard band.isEnabled else {
                 return nil
             }
             let frequency = Double(band.frequencyHz)
-            let gain = Double(band.gainDb)
             return BandMarker(
-                dots: layout
-                    .bandMarkerDots(frequencyHz: frequency, decibels: gain, curveColumns: curveColumns, shape: layout.bandMarkerShape),
-                clearance: layout.bandMarkerDots(
-                    frequencyHz: frequency,
-                    decibels: gain,
-                    curveColumns: curveColumns,
-                    shape: layout.bandMarkerClearance
-                ),
+                dots: layout.bandMarkerDots(frequencyHz: frequency, curveRows: curveRows, shape: layout.bandMarkerShape),
+                clearance: layout.bandMarkerDots(frequencyHz: frequency, curveRows: curveRows, shape: layout.bandMarkerClearance),
                 isSelected: index == selectedBand
             )
         }
+    }
+
+    /// The row the curve lights in each of its columns on a graph of `columns` columns, which is empty where the
+    /// response cannot be computed.
+    func curveRows(columns: Int) -> [Int] {
+        let layout = FrontPanelDisplayLayout.self
+        guard let samples = try? ResponseCurve.samples(settings: settings, count: layout.curveColumns(graphColumns: columns)) else {
+            return []
+        }
+        return samples.map { layout.row(decibels: $0.decibels, rows: layout.graphRows) }
     }
 
     /// Lights the band markers: the selected band's in the peak step, above the curve's bright step, and the others in

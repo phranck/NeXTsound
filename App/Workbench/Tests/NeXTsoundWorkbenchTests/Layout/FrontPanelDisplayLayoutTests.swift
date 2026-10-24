@@ -34,17 +34,17 @@ struct FrontPanelDisplayLayoutTests {
         #expect(FrontPanelDisplayLayout.fillRows(under: axisRow + 3).isEmpty)
     }
 
-    /// A band's marker is a round dot centered on the dot of the band's frequency and gain, inside its clearance, and
-    /// as many dots wide as tall.
-    @Test func aBandsMarkerCentersOnItsFrequencyAndGain() throws {
+    /// A band's marker is a round dot centered on the curve at the band's frequency, wherever the curve stands there,
+    /// inside its clearance, and as many dots wide as tall.
+    @Test func aBandsMarkerCentersOnTheCurveAtItsFrequency() throws {
         let layout = FrontPanelDisplayLayout.self
         let curveColumns = 343
-        let center = try FrontPanelDisplayLayout.Dot(
-            column: layout.gainScaleColumns + #require(layout.column(frequencyHz: 1000, columns: curveColumns)),
-            row: layout.row(decibels: 6, rows: layout.graphRows)
-        )
-        let dots = layout.bandMarkerDots(frequencyHz: 1000, decibels: 6, curveColumns: curveColumns, shape: layout.bandMarkerShape)
-        let clearance = layout.bandMarkerDots(frequencyHz: 1000, decibels: 6, curveColumns: curveColumns, shape: layout.bandMarkerClearance)
+        let bandColumn = try #require(layout.column(frequencyHz: 1000, columns: curveColumns))
+        var curveRows = Array(repeating: 20, count: curveColumns)
+        curveRows[bandColumn] = 50
+        let center = FrontPanelDisplayLayout.Dot(column: layout.gainScaleColumns + bandColumn, row: 50)
+        let dots = layout.bandMarkerDots(frequencyHz: 1000, curveRows: curveRows, shape: layout.bandMarkerShape)
+        let clearance = layout.bandMarkerDots(frequencyHz: 1000, curveRows: curveRows, shape: layout.bandMarkerClearance)
         let radius = layout.bandMarkerRadius
         #expect(dots.contains(center))
         #expect(dots.count == layout.bandMarkerShape.count)
@@ -54,11 +54,12 @@ struct FrontPanelDisplayLayoutTests {
         #expect(!dots.contains(FrontPanelDisplayLayout.Dot(column: center.column - radius, row: center.row - radius)))
     }
 
-    /// A band at the edge of the range keeps only the part of its marker that falls on the curve, clear of the left
-    /// axis and the bottom axis.
-    @Test func aBandsMarkerStaysOnTheCurve() {
+    /// A band at the edge of the range keeps only the part of its marker that falls on the curve's area, clear of the
+    /// left axis and the bottom axis.
+    @Test func aBandsMarkerStaysOnTheCurvesArea() {
         let layout = FrontPanelDisplayLayout.self
-        let dots = layout.bandMarkerDots(frequencyHz: 20, decibels: -100, curveColumns: 343, shape: layout.bandMarkerClearance)
+        let curveRows = Array(repeating: layout.graphRows - 2, count: 343)
+        let dots = layout.bandMarkerDots(frequencyHz: 20, curveRows: curveRows, shape: layout.bandMarkerClearance)
         #expect(!dots.isEmpty)
         #expect(dots.allSatisfy { $0.column >= layout.gainScaleColumns && $0.row < layout.graphRows - 1 })
     }
