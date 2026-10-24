@@ -1,7 +1,7 @@
 import Foundation
 
 /// Bounded, atomic local JSON file access shared by every actor-based library store
-/// (`ProfileLibraryStore`, `DriverLibraryStore`). Not device storage.
+/// (`ProfileLibraryStore`, `DriverLibraryStore`, `SerialNumberRegisterStore`). Not device storage.
 enum AtomicJSONFile {
     static func read(_ url: URL, maximumBytes: Int) throws -> Data {
         let properties = try url.resourceValues(forKeys: [.isRegularFileKey, .fileSizeKey])

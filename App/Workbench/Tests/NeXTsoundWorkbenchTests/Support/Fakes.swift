@@ -131,6 +131,34 @@ final class FakeBoardStorage: @unchecked Sendable {
     }
 }
 
+/// The fake board's owner metadata, shared between the copies of one `FakeBoardTransport` value.
+final class FakeBoardMetadata: @unchecked Sendable {
+    var value: OwnerMetadata
+    /// How many metadata writes the fake board received.
+    var writes = 0
+
+    init(_ value: OwnerMetadata = OwnerMetadata()) {
+        self.value = value
+    }
+}
+
+final class FakeSerialNumberStorage: SerialNumberRegisterStorage, @unchecked Sendable {
+    var loadResult: Result<SerialNumberRegister?, FakeStorageError>
+    private(set) var savedRegisters: [SerialNumberRegister] = []
+
+    init(loadResult: Result<SerialNumberRegister?, FakeStorageError> = .success(nil)) {
+        self.loadResult = loadResult
+    }
+
+    func load() async throws -> SerialNumberRegister? {
+        try loadResult.get()
+    }
+
+    func save(_ register: SerialNumberRegister) async throws {
+        savedRegisters.append(register)
+    }
+}
+
 final class FlashPhaseRecorder: @unchecked Sendable {
     private(set) var phases: [FlashPhase] = []
     func record(_ phase: FlashPhase) {
@@ -161,8 +189,9 @@ struct FakeBoardTransport: BoardTransport {
     /// The live values every status request reports.
     var runtime = DeviceRuntimeStatus()
     var statusCalls: CallCounter?
-    /// The owner metadata every metadata request reports.
-    var metadata = OwnerMetadata()
+    /// The owner metadata the fake board carries, which metadata requests report and metadata writes replace.
+    var metadata = FakeBoardMetadata()
+    var metadataError: BoardTransportError?
 
     func requestCapabilities() async throws -> DeviceCapabilities {
         switch behavior {
@@ -217,10 +246,19 @@ struct FakeBoardTransport: BoardTransport {
     }
 
     func requestMetadata() async throws -> OwnerMetadata {
-        metadata
+        if let metadataError {
+            throw metadataError
+        }
+        return metadata.value
     }
 
-    func writeMetadata(_: OwnerMetadata) async throws {}
+    func writeMetadata(_ written: OwnerMetadata) async throws {
+        if let metadataError {
+            throw metadataError
+        }
+        metadata.value = written
+        metadata.writes += 1
+    }
 }
 
 func fixtureCapabilities(serial: String = "D4CDD489AFE28CC5") -> DeviceCapabilities {

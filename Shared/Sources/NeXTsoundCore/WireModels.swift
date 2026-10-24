@@ -231,6 +231,13 @@ public struct OwnerMetadata: Equatable, Sendable {
     /// A free-text note, at most 256 bytes of UTF-8; line feeds are its only control characters.
     public var note: String
 
+    /// The largest serial number the board stores.
+    public static let maximumSerialNumber = UInt32(NXS_SERIAL_NUMBER_MAX)
+    /// The owner's room in UTF-8 bytes.
+    public static let ownerByteLimit = Int(NXS_OWNER_NAME_LENGTH)
+    /// The note's room in UTF-8 bytes.
+    public static let noteByteLimit = Int(NXS_OWNER_NOTE_LENGTH)
+
     public init(date: CalendarDay? = nil, serialNumber: UInt32? = nil, owner: String = "", note: String = "") {
         self.date = date
         self.serialNumber = serialNumber
