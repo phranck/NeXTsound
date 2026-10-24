@@ -1,0 +1,411 @@
+{
+  "observed_at": "2026-10-18T12:13:19.947057+02:00",
+  "specimen_serial": "D4CDD489AFE28CC5",
+  "firmware_candidate": {
+    "recorded_at": "2026-10-18T12:09:31.215443+02:00",
+    "base_commit": "74c1c8ab0ed8d86407f88905c46083f347e33565",
+    "working_tree_build": true,
+    "firmware_version": "74c1c8ab-dirty",
+    "uf2_bytes": 123392,
+    "uf2_sha256": "b0edcfbe16b35db1c20132451306d64a4eb4edd59a70b9f320fdc7ed6daacacb",
+    "program_blocks": 240,
+    "program_end_exclusive": "0x1000f000",
+    "rp2_driver_sha256": "7bfdb2ae829d81371146511f205f1674c16428f7b9934a16152c9a6c06e86a75",
+    "tracked_diff_sha256": "bac23709bafdf0a6ebabf7aecc9b24064cc1c724f412a6ae01e2ddc1d0573f7c",
+    "installed": true,
+    "native_format_sequence_passed": [
+      16,
+      24,
+      16
+    ],
+    "software_bootsel_return_after_formats_passed": true
+  },
+  "upstream_fix": "https://github.com/hathach/tinyusb/commit/102c1991d0abcfba9275830c48706ac34d7734d5",
+  "software_verification": {
+    "ctest_cases": 20,
+    "positive_cases": 19,
+    "expected_failure_controls": 1,
+    "successful_assertions": 316321,
+    "swift_tests": 29,
+    "full_gate_passed": true
+  },
+  "native_audio_uid": "AppleUSBAudioEngine:Layered:NeXTsound development:D4CDD489AFE28CC5:1",
+  "format_runs": [
+    {
+      "sequence": 1,
+      "format_bits": 16,
+      "complete": {
+        "kind": "audio_run_complete",
+        "bits": 16,
+        "frames": 242176,
+        "default_uids_unchanged": true
+      },
+      "statuses": [
+        {
+          "kind": "status",
+          "persisted_generation": 3,
+          "storage_available": 1,
+          "streaming": 0,
+          "input_peak": 0,
+          "output_peak": 0,
+          "underruns": 0,
+          "overruns": 0,
+          "max_processing_us": 904,
+          "deadline_us": 1000
+        },
+        {
+          "kind": "status",
+          "persisted_generation": 3,
+          "storage_available": 1,
+          "streaming": 1,
+          "input_peak": 0.125,
+          "output_peak": 0,
+          "underruns": 0,
+          "overruns": 0,
+          "max_processing_us": 904,
+          "deadline_us": 1000
+        },
+        {
+          "kind": "status",
+          "persisted_generation": 3,
+          "storage_available": 1,
+          "streaming": 1,
+          "input_peak": 0.125,
+          "output_peak": 0,
+          "underruns": 0,
+          "overruns": 0,
+          "max_processing_us": 904,
+          "deadline_us": 1000
+        },
+        {
+          "kind": "status",
+          "persisted_generation": 3,
+          "storage_available": 1,
+          "streaming": 1,
+          "input_peak": 0.125,
+          "output_peak": 0,
+          "underruns": 0,
+          "overruns": 0,
+          "max_processing_us": 904,
+          "deadline_us": 1000
+        },
+        {
+          "kind": "status",
+          "persisted_generation": 3,
+          "storage_available": 1,
+          "streaming": 1,
+          "input_peak": 0.125,
+          "output_peak": 0,
+          "underruns": 0,
+          "overruns": 0,
+          "max_processing_us": 904,
+          "deadline_us": 1000
+        },
+        {
+          "kind": "status",
+          "persisted_generation": 3,
+          "storage_available": 1,
+          "streaming": 1,
+          "input_peak": 0.125,
+          "output_peak": 0,
+          "underruns": 0,
+          "overruns": 0,
+          "max_processing_us": 904,
+          "deadline_us": 1000
+        }
+      ]
+    },
+    {
+      "sequence": 2,
+      "format_bits": 24,
+      "complete": {
+        "kind": "audio_run_complete",
+        "bits": 24,
+        "frames": 242176,
+        "default_uids_unchanged": true
+      },
+      "statuses": [
+        {
+          "kind": "status",
+          "persisted_generation": 3,
+          "storage_available": 1,
+          "streaming": 0,
+          "input_peak": 0,
+          "output_peak": 0,
+          "underruns": 1,
+          "overruns": 0,
+          "max_processing_us": 904,
+          "deadline_us": 1000
+        },
+        {
+          "kind": "status",
+          "persisted_generation": 3,
+          "storage_available": 1,
+          "streaming": 1,
+          "input_peak": 0.125,
+          "output_peak": 0,
+          "underruns": 1,
+          "overruns": 0,
+          "max_processing_us": 904,
+          "deadline_us": 1000
+        },
+        {
+          "kind": "status",
+          "persisted_generation": 3,
+          "storage_available": 1,
+          "streaming": 1,
+          "input_peak": 0.125,
+          "output_peak": 0,
+          "underruns": 1,
+          "overruns": 0,
+          "max_processing_us": 904,
+          "deadline_us": 1000
+        },
+        {
+          "kind": "status",
+          "persisted_generation": 3,
+          "storage_available": 1,
+          "streaming": 1,
+          "input_peak": 0.125,
+          "output_peak": 0,
+          "underruns": 1,
+          "overruns": 0,
+          "max_processing_us": 904,
+          "deadline_us": 1000
+        },
+        {
+          "kind": "status",
+          "persisted_generation": 3,
+          "storage_available": 1,
+          "streaming": 1,
+          "input_peak": 0.125,
+          "output_peak": 0,
+          "underruns": 1,
+          "overruns": 0,
+          "max_processing_us": 904,
+          "deadline_us": 1000
+        },
+        {
+          "kind": "status",
+          "persisted_generation": 3,
+          "storage_available": 1,
+          "streaming": 1,
+          "input_peak": 0.125,
+          "output_peak": 0,
+          "underruns": 1,
+          "overruns": 0,
+          "max_processing_us": 904,
+          "deadline_us": 1000
+        }
+      ]
+    },
+    {
+      "sequence": 3,
+      "format_bits": 16,
+      "complete": {
+        "kind": "audio_run_complete",
+        "bits": 16,
+        "frames": 242176,
+        "default_uids_unchanged": true
+      },
+      "statuses": [
+        {
+          "kind": "status",
+          "persisted_generation": 3,
+          "storage_available": 1,
+          "streaming": 0,
+          "input_peak": 0,
+          "output_peak": 0,
+          "underruns": 2,
+          "overruns": 0,
+          "max_processing_us": 904,
+          "deadline_us": 1000
+        },
+        {
+          "kind": "status",
+          "persisted_generation": 3,
+          "storage_available": 1,
+          "streaming": 1,
+          "input_peak": 0.125,
+          "output_peak": 0,
+          "underruns": 2,
+          "overruns": 0,
+          "max_processing_us": 904,
+          "deadline_us": 1000
+        },
+        {
+          "kind": "status",
+          "persisted_generation": 3,
+          "storage_available": 1,
+          "streaming": 1,
+          "input_peak": 0.125,
+          "output_peak": 0,
+          "underruns": 2,
+          "overruns": 0,
+          "max_processing_us": 904,
+          "deadline_us": 1000
+        },
+        {
+          "kind": "status",
+          "persisted_generation": 3,
+          "storage_available": 1,
+          "streaming": 1,
+          "input_peak": 0.125,
+          "output_peak": 0,
+          "underruns": 2,
+          "overruns": 0,
+          "max_processing_us": 904,
+          "deadline_us": 1000
+        },
+        {
+          "kind": "status",
+          "persisted_generation": 3,
+          "storage_available": 1,
+          "streaming": 1,
+          "input_peak": 0.125,
+          "output_peak": 0,
+          "underruns": 2,
+          "overruns": 0,
+          "max_processing_us": 904,
+          "deadline_us": 1000
+        },
+        {
+          "kind": "status",
+          "persisted_generation": 3,
+          "storage_available": 1,
+          "streaming": 1,
+          "input_peak": 0.125,
+          "output_peak": 0,
+          "underruns": 2,
+          "overruns": 0,
+          "max_processing_us": 904,
+          "deadline_us": 1000
+        }
+      ]
+    }
+  ],
+  "post_stop_reads": [
+    [
+      {
+        "kind": "capabilities",
+        "serial": "D4CDD489AFE28CC5",
+        "firmware": "74c1c8ab-dirty",
+        "clock_hz": 150000000,
+        "flash_bytes": 4194304,
+        "features": 3
+      },
+      {
+        "kind": "state",
+        "generation": 3,
+        "muted": 1,
+        "attenuation_db": -24
+      },
+      {
+        "kind": "status",
+        "persisted_generation": 3,
+        "storage_available": 1,
+        "streaming": 0,
+        "input_peak": 0,
+        "output_peak": 0,
+        "underruns": 1,
+        "overruns": 0,
+        "max_processing_us": 904,
+        "deadline_us": 1000
+      }
+    ],
+    [
+      {
+        "kind": "capabilities",
+        "serial": "D4CDD489AFE28CC5",
+        "firmware": "74c1c8ab-dirty",
+        "clock_hz": 150000000,
+        "flash_bytes": 4194304,
+        "features": 3
+      },
+      {
+        "kind": "state",
+        "generation": 3,
+        "muted": 1,
+        "attenuation_db": -24
+      },
+      {
+        "kind": "status",
+        "persisted_generation": 3,
+        "storage_available": 1,
+        "streaming": 0,
+        "input_peak": 0,
+        "output_peak": 0,
+        "underruns": 2,
+        "overruns": 0,
+        "max_processing_us": 904,
+        "deadline_us": 1000
+      }
+    ],
+    [
+      {
+        "kind": "capabilities",
+        "serial": "D4CDD489AFE28CC5",
+        "firmware": "74c1c8ab-dirty",
+        "clock_hz": 150000000,
+        "flash_bytes": 4194304,
+        "features": 3
+      },
+      {
+        "kind": "state",
+        "generation": 3,
+        "muted": 1,
+        "attenuation_db": -24
+      },
+      {
+        "kind": "status",
+        "persisted_generation": 3,
+        "storage_available": 1,
+        "streaming": 0,
+        "input_peak": 0,
+        "output_peak": 0,
+        "underruns": 3,
+        "overruns": 0,
+        "max_processing_us": 904,
+        "deadline_us": 1000
+      }
+    ]
+  ],
+  "final_runtime_after_bootsel_roundtrip": [
+    {
+      "kind": "capabilities",
+      "serial": "D4CDD489AFE28CC5",
+      "firmware": "74c1c8ab-dirty",
+      "clock_hz": 150000000,
+      "flash_bytes": 4194304,
+      "features": 3
+    },
+    {
+      "kind": "state",
+      "generation": 3,
+      "muted": 1,
+      "attenuation_db": -24
+    },
+    {
+      "kind": "status",
+      "persisted_generation": 3,
+      "storage_available": 1,
+      "streaming": 0,
+      "input_peak": 0,
+      "output_peak": 0,
+      "underruns": 0,
+      "overruns": 0,
+      "max_processing_us": 919,
+      "deadline_us": 1000
+    }
+  ],
+  "audio_bench_sha256": "a70cad423ca03f281c590c7b0a62f20d90fccd7d3c8f316db52110ee71428a81",
+  "limits": {
+    "profile_mute_remained_enabled": true,
+    "electrical_or_audible_verification": false,
+    "maximum_nonflat_dsp_configuration_tested": false,
+    "persistence_during_audio_tested": false,
+    "suspend_resume_tested": false,
+    "runtime_stack_high_water_measured": false,
+    "post_stop_underruns_require_lifecycle_review": true
+  }
+}

@@ -18,17 +18,53 @@ The canonical declarations are in [`nxs_protocol.h`](../Shared/Sources/NeXTsound
 
 `NXS_REPORT_SIZE` includes the HID report-ID byte. The envelope identifies the protocol version, operation, request, result, and state generation. Request IDs are nonzero. Requests cannot contain a response result. Unused bytes are zero, and a decoder rejects nonzero padding, unsupported versions, invalid lengths, and unknown operations.
 
-DSP values use IEEE-754 binary32 in physical units. All settings, including disabled filters, must contain finite values inside the canonical bounds returned by `nxs_parameter_range`. Snapshot, capability, and runtime-status payloads have dedicated codecs and exported size constants. A failed C decode leaves its destination unchanged.
+The operation numbers are wire values that installed firmware and apps exchange, so they never change.
+
+| Value | Operation | Request payload | Reply payload |
+| --- | --- | --- | --- |
+| 1 | `NXS_OPERATION_CAPABILITIES` | none | 136-byte capabilities |
+| 2 | `NXS_OPERATION_READ_STATE` | none | 120-byte active snapshot |
+| 3 | `NXS_OPERATION_APPLY_STATE` | 120-byte snapshot | none, after the audio owner accepts it |
+| 4 | `NXS_OPERATION_PERSIST_STATE` | none | none, after the active snapshot is saved |
+| 5 | `NXS_OPERATION_STATUS` | none | 40-byte runtime status |
+| 6 | `NXS_OPERATION_SET_NAME` | 32-byte device name | none, after the name is saved |
+| 7 | `NXS_OPERATION_DIAGNOSTICS` | none | 32-byte diagnostics, protocol minor 1 only |
+
+DSP values use IEEE-754 binary32 in physical units. All settings, including disabled filters, must contain finite values inside the canonical bounds returned by `nxs_parameter_range`. Snapshot, capability, runtime-status, and diagnostic payloads have dedicated codecs and exported size constants. A failed C decode leaves its destination unchanged.
 
 The [golden capability-request fixture](../Shared/Tests/NeXTsoundCoreTests/Fixtures/capabilities-request.hex) is consumed by both the C and Swift test suites. It fixes byte order independently of the encoder implementation. Fixture identifiers and capability values are test data, not readings from a board.
 
-Capability text is bounded ASCII. Populate the device serial and firmware version before encoding a default capability object. Persistence requires the verified-flash feature flag and a nonzero reported capacity. Validating those fields does not establish a physical flash measurement.
+Capability text is bounded ASCII. Populate the device serial and firmware version before encoding a default capability object. The device name is printable ASCII, spaces included, with at most 31 characters. It is empty while no custom name is stored, and the USB product string then keeps its default. Setting a name requires storage and advances the generation once it is saved. Persistence requires the verified-flash feature flag and a nonzero reported capacity. Validating those fields does not establish a physical flash measurement.
+
+## Runtime diagnostics and compatible revisions
+
+Protocol 1.1 adds the read-only `NXS_OPERATION_DIAGNOSTICS` operation. The message's `protocol_minor` selects its envelope revision. The firmware accepts minor 0 or 1 and echoes the request revision in every reply, including deferred replies. Diagnostics require minor 1. For minor-0 capability requests, the firmware omits `NXS_FEATURE_DIAGNOSTICS` so existing 1.0 clients retain their known capability flags. Minor-1 clients discover support through that flag. A client communicating with older 1.0 firmware can explicitly select minor 0.
+
+The 120-byte active snapshot and 40-byte runtime status keep their existing layouts. Persistent records use `NXS_SNAPSHOT_PROTOCOL_MAJOR` and `NXS_SNAPSHOT_PROTOCOL_MINOR`, which remain 1.0 independently of the envelope revision.
+
+The diagnostic payload is 32 bytes. All integers are little-endian.
+
+| Offset | Bytes | Meaning |
+| --- | --- | --- |
+| 0 | 2 | Diagnostic schema version, 1 |
+| 2 | 2 | Payload size, 32 |
+| 4 | 4 | Post-prime audio-ring underruns |
+| 8 | 4 | Detected I2S PIO TX stalls |
+| 12 | 4 | Rejected audio packets, including maintenance drops |
+| 16 | 4 | DSP processing failures |
+| 20 | 4 | Instrumented processing-deadline misses |
+| 24 | 4 | TinyUSB suspend callback notifications |
+| 28 | 4 | TinyUSB resume callback notifications |
+
+Counters are boot-session unsigned values and wrap modulo 2^32. Ring underruns plus I2S stalls produce the existing aggregate underrun count. Rejected packets, DSP failures, and deadline misses produce its aggregate overrun count. The audio owner samples these counters and status in one queue item; the USB owner adds its callback counts. Separate requests can observe different blocks. An exact duplicate request replays its original sample, so use a new request ID for fresh counters.
+
+The operation accepts no request payload and changes no snapshot, generation, or stored record. The callback counts record firmware notifications, not an electrical measurement of USB suspend current.
 
 ## Swift API
 
-[`WireCodec`](../Shared/Sources/NeXTsoundCore/WireCodec.swift) bridges messages, DSP snapshots, capabilities, and runtime status to the C implementation. `WireMessage.validateResponse(to:)` checks response direction, request identity, operation identity, and the result code. USB transport completion alone is not an acknowledgement.
+[`WireCodec`](../Shared/Sources/NeXTsoundCore/WireCodec.swift) bridges messages, DSP snapshots, capabilities, runtime status, and diagnostics to the C implementation. New Swift messages default to minor 1; their `protocolMinor` can select minor 0. `WireMessage.validateResponse(to:)` checks response direction, request identity, operation identity, envelope revision, and the result code. USB transport completion alone is not an acknowledgement.
 
-The library encodes and validates data. [`Firmware/Core/device.c`](../Firmware/Core/device.c) implements capabilities, state, apply, and status execution. [`Firmware/USB/control.c`](../Firmware/USB/control.c) bridges TinyUSB to the codec. Apply succeeds only after audio-owner acceptance; transport completion does not advance the state generation. Persistent storage remains unavailable.
+The library encodes and validates data. [`Firmware/Core/device.c`](../Firmware/Core/device.c) implements capabilities, state, apply, persistence, status, naming, and diagnostics execution. [`Firmware/USB/control.c`](../Firmware/USB/control.c) bridges TinyUSB to the codec. Apply succeeds only after audio-owner acceptance; transport completion does not advance the state generation. [Persistent storage](Storage.md) is available only after its geometry and execution gates pass.
 
 TinyUSB removes the matching report-ID byte before the SET_REPORT callback and prefixes it around GET_REPORT. These callbacks handle 255 data bytes; the canonical codec and host transport handle all 256 bytes. A client must match the response operation and request ID rather than interpreting the previous reply as acknowledgement of a pending apply. Requests should be serialized.
 

@@ -156,10 +156,33 @@ static void test_underrun_drains_and_reprimes(void) {
     CHECK(fixture.renderer.status.underrun_count == 1);
 }
 
+static void test_observation_separates_counter_sources(void) {
+    nxs_renderer_t renderer = {0};
+    renderer.status.underrun_count = 3;
+    renderer.status.overrun_count = 5;
+    renderer.status.input_peak = 0.25f;
+    renderer.status.block_deadline_us = 1000;
+    nxs_audio_observation_t observation = nxs_renderer_observe(&renderer, 99, 7, 11, 13);
+    CHECK(observation.status.underrun_count == 10 && observation.status.overrun_count == 29);
+    CHECK(observation.status.input_peak == 0.25f && observation.status.max_processing_us == 99 &&
+          observation.status.block_deadline_us == 1000);
+    CHECK(observation.diagnostics.ring_underrun_count == 3 && observation.diagnostics.i2s_stall_count == 7);
+    CHECK(observation.diagnostics.rejected_packet_count == 11 && observation.diagnostics.dsp_failure_count == 5);
+    CHECK(observation.diagnostics.deadline_miss_count == 13);
+    CHECK(observation.diagnostics.usb_suspend_count == 0 && observation.diagnostics.usb_resume_count == 0);
+    CHECK(renderer.status.underrun_count == 3 && renderer.status.overrun_count == 5);
+    renderer.status.underrun_count = UINT32_MAX;
+    renderer.status.overrun_count = UINT32_MAX;
+    observation = nxs_renderer_observe(&renderer, 0, 1, 1, 0);
+    CHECK(observation.status.underrun_count == 0 && observation.status.overrun_count == 0);
+    CHECK(observation.diagnostics.ring_underrun_count == UINT32_MAX && observation.diagnostics.dsp_failure_count == UINT32_MAX);
+}
+
 int main(void) {
     test_boot_and_invalid_control();
     test_mute_and_volume_without_profile_changes();
     test_stop_suspend_resume_and_epoch();
     test_underrun_drains_and_reprimes();
+    test_observation_separates_counter_sources();
     return nxs_test_finish("Audio renderer");
 }

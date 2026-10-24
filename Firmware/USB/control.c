@@ -10,6 +10,8 @@ static bool job_in_flight;
 static bool suspended;
 static uint8_t alternate;
 static uint32_t stream_epoch;
+static uint32_t usb_suspend_count;
+static uint32_t usb_resume_count;
 static int16_t host_volume;
 static bool host_muted;
 static const nxs_storage_io_t *storage_io;
@@ -26,9 +28,12 @@ static void synchronize_audio_owner(void) {
     if (!job_in_flight && configuration && nxs_audio_engine_submit(configuration)) {
         job_in_flight = true;
     }
-    nxs_runtime_status_t audio_status;
-    nxs_audio_engine_status(&audio_status);
-    (void)nxs_device_update_audio_status(&device, &audio_status);
+    nxs_audio_observation_t observation;
+    nxs_audio_engine_status(&observation);
+    observation.diagnostics.usb_suspend_count = usb_suspend_count;
+    observation.diagnostics.usb_resume_count = usb_resume_count;
+    (void)nxs_device_update_audio_status(&device, &observation.status);
+    (void)nxs_device_update_diagnostics(&device, &observation.diagnostics);
 }
 
 static void update_transport(void) {
@@ -46,6 +51,8 @@ bool nxs_usb_init(const char *serial, const char *version) {
     suspended = false;
     alternate = 0;
     stream_epoch = 0;
+    usb_suspend_count = 0;
+    usb_resume_count = 0;
     host_volume = 0;
     host_muted = false;
     nxs_usb_set_serial(serial);
@@ -286,12 +293,14 @@ void tud_umount_cb(void) {
 
 void tud_suspend_cb(bool remote_wakeup_enabled) {
     (void)remote_wakeup_enabled;
+    ++usb_suspend_count;
     suspended = true;
     ++stream_epoch;
     update_transport();
 }
 
 void tud_resume_cb(void) {
+    ++usb_resume_count;
     suspended = false;
     ++stream_epoch;
     update_transport();

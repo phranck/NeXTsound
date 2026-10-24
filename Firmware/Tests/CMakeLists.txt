@@ -40,3 +40,19 @@ foreach(case mount packet short-read inflight storage-status storage-flow reset-
     add_test(NAME "control_${case}" COMMAND nxs_control_tests "${case}")
     set_tests_properties("control_${case}" PROPERTIES TIMEOUT 30)
 endforeach()
+
+# The pinned TinyUSB's own RP2 device port, which aborts a pending transfer before it reactivates an ISO
+# endpoint. These tests are what catch a TinyUSB bump that loses that. Like the audio driver above, the
+# port is not held to the firmware's pedantic flags.
+set(NXS_RP2_PORT_SOURCES "${NXS_TINYUSB_SOURCE}/portable/raspberrypi/rp2040/dcd_rp2040.c"
+    "${NXS_TINYUSB_SOURCE}/portable/raspberrypi/rp2040/rp2040_usb.c")
+nxs_add_host_test(rp2_iso usb_iso_tests.c nxs_device)
+target_sources(nxs_rp2_iso_tests PRIVATE ${NXS_RP2_PORT_SOURCES})
+set_source_files_properties(${NXS_RP2_PORT_SOURCES} TARGET_DIRECTORY nxs_rp2_iso_tests PROPERTIES COMPILE_OPTIONS "-Wno-error")
+target_include_directories(nxs_rp2_iso_tests PRIVATE Support/Pico ../USB)
+target_include_directories(nxs_rp2_iso_tests SYSTEM PRIVATE "${NXS_TINYUSB_SOURCE}"
+    "${NXS_TINYUSB_SOURCE}/portable/raspberrypi/rp2040"
+    "${NXS_REPOSITORY_ROOT}/.tools/pico-sdk/src/rp2350/hardware_regs/include"
+    "${NXS_REPOSITORY_ROOT}/.tools/pico-sdk/src/rp2350/hardware_structs/include")
+target_compile_definitions(nxs_rp2_iso_tests PRIVATE CFG_TUSB_MCU=OPT_MCU_RP2040 CFG_TUSB_OS=OPT_OS_NONE
+    PICO_RP2040_USB_DEVICE_UFRAME_FIX=0 PICO_RP2040_USB_DEVICE_ENUMERATION_FIX=0)

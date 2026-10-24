@@ -183,7 +183,7 @@ static void test_storage_boot_and_audio_status(void) {
 
     init(&device);
     CHECK(nxs_device_configure_storage(&device, NXS_FLASH_SUPPORTED_BYTES, false, &restored));
-    CHECK(device.capabilities.feature_flags == NXS_FEATURE_FLASH_VERIFIED && !device.status.storage_available);
+    CHECK(device.capabilities.feature_flags == (NXS_FEATURE_FLASH_VERIFIED | NXS_FEATURE_DIAGNOSTICS) && !device.status.storage_available);
     CHECK(device.generation == 19 && device.status.persisted_generation == 19);
     send(&device, NXS_OPERATION_PERSIST_STATE, 1, 19, NULL);
     response(&device, 1, NXS_RESULT_STORAGE_UNAVAILABLE);
@@ -263,6 +263,87 @@ static void test_persistence_session_reset(void) {
     CHECK(status.persisted_generation == 1 && status.storage_available && reply.generation == 1);
 }
 
+static void test_diagnostics_are_read_only_and_versioned(void) {
+    nxs_device_t device;
+    init(&device);
+    nxs_runtime_diagnostics_t diagnostics = {.ring_underrun_count = 2, .usb_suspend_count = 3};
+    CHECK(nxs_device_update_diagnostics(&device, &diagnostics));
+    CHECK(!nxs_device_update_diagnostics(NULL, &diagnostics));
+    CHECK(!nxs_device_update_diagnostics(&device, NULL));
+    nxs_message_t request = {.operation = NXS_OPERATION_DIAGNOSTICS, .protocol_minor = 1, .request_id = 100};
+    uint8_t report[NXS_REPORT_SIZE], first_reply[NXS_REPORT_SIZE];
+    CHECK(nxs_message_encode(&request, report, sizeof(report)) == NXS_RESULT_OK);
+    CHECK(nxs_device_receive(&device, report, sizeof(report)));
+    nxs_message_t reply = response(&device, 100, NXS_RESULT_OK);
+    CHECK(reply.protocol_minor == 1 && reply.generation == 1);
+    nxs_runtime_diagnostics_t decoded;
+    CHECK(nxs_runtime_diagnostics_decode(reply.payload, reply.payload_length, &decoded) == NXS_RESULT_OK);
+    CHECK(decoded.ring_underrun_count == 2 && decoded.usb_suspend_count == 3);
+    CHECK(nxs_device_response(&device, first_reply, sizeof(first_reply)));
+    diagnostics.ring_underrun_count = 9;
+    CHECK(nxs_device_update_diagnostics(&device, &diagnostics));
+    CHECK(nxs_device_receive(&device, report, sizeof(report)));
+    uint8_t replay[NXS_REPORT_SIZE];
+    CHECK(nxs_device_response(&device, replay, sizeof(replay)));
+    CHECK(memcmp(replay, first_reply, sizeof(replay)) == 0);
+    request.request_id = 101;
+    CHECK(nxs_message_encode(&request, report, sizeof(report)) == NXS_RESULT_OK);
+    CHECK(nxs_device_receive(&device, report, sizeof(report)));
+    reply = response(&device, 101, NXS_RESULT_OK);
+    CHECK(nxs_runtime_diagnostics_decode(reply.payload, reply.payload_length, &decoded) == NXS_RESULT_OK &&
+          decoded.ring_underrun_count == 9);
+    request.request_id = 102;
+    request.payload_length = 1;
+    CHECK(nxs_message_encode(&request, report, sizeof(report)) == NXS_RESULT_OK);
+    CHECK(nxs_device_receive(&device, report, sizeof(report)));
+    response(&device, 102, NXS_RESULT_INVALID_PARAMETERS);
+    CHECK(device.active.muted == 1 && device.active.attenuation_db == -24 && device.generation == 1);
+    CHECK(!device.apply_pending && !device.persistence_pending && device.status.persisted_generation == 0);
+    request.operation = NXS_OPERATION_CAPABILITIES;
+    request.payload_length = 0;
+    request.request_id = 103;
+    CHECK(nxs_message_encode(&request, report, sizeof(report)) == NXS_RESULT_OK);
+    CHECK(nxs_device_receive(&device, report, sizeof(report)));
+    reply = response(&device, 103, NXS_RESULT_OK);
+    nxs_capabilities_t capabilities;
+    CHECK(nxs_capabilities_decode(reply.payload, reply.payload_length, &capabilities) == NXS_RESULT_OK);
+    CHECK(capabilities.feature_flags == NXS_FEATURE_DIAGNOSTICS);
+    request.protocol_minor = 0;
+    request.request_id = 104;
+    CHECK(nxs_message_encode(&request, report, sizeof(report)) == NXS_RESULT_OK);
+    CHECK(nxs_device_receive(&device, report, sizeof(report)));
+    reply = response(&device, 104, NXS_RESULT_OK);
+    CHECK(reply.protocol_minor == 0);
+    CHECK(nxs_capabilities_decode(reply.payload, reply.payload_length, &capabilities) == NXS_RESULT_OK && capabilities.feature_flags == 0);
+}
+
+static void test_deferred_replies_echo_protocol_revision(void) {
+    nxs_device_t device;
+    init(&device);
+    CHECK(nxs_device_configure_storage(&device, NXS_FLASH_SUPPORTED_BYTES, true, NULL));
+    nxs_message_t request = {.operation = NXS_OPERATION_APPLY_STATE,
+                             .protocol_minor = 1,
+                             .request_id = 201,
+                             .generation = 1,
+                             .payload_length = NXS_SNAPSHOT_SIZE};
+    CHECK(nxs_snapshot_encode(&device.active, request.payload, request.payload_length) == NXS_RESULT_OK);
+    uint8_t report[NXS_REPORT_SIZE];
+    CHECK(nxs_message_encode(&request, report, sizeof(report)) == NXS_RESULT_OK);
+    CHECK(nxs_device_receive(&device, report, sizeof(report)) && device.apply_pending);
+    CHECK(nxs_device_complete_apply(&device, NXS_RESULT_OK));
+    nxs_message_t reply = response(&device, 201, NXS_RESULT_OK);
+    CHECK(reply.protocol_minor == 1 && reply.generation == 2);
+    request.operation = NXS_OPERATION_PERSIST_STATE;
+    request.request_id = 202;
+    request.generation = 2;
+    request.payload_length = 0;
+    CHECK(nxs_message_encode(&request, report, sizeof(report)) == NXS_RESULT_OK);
+    CHECK(nxs_device_receive(&device, report, sizeof(report)) && device.persistence_pending);
+    CHECK(nxs_device_complete_persistence(&device, NXS_RESULT_OK));
+    reply = response(&device, 202, NXS_RESULT_OK);
+    CHECK(reply.protocol_minor == 1 && reply.generation == 2 && device.status.persisted_generation == 2);
+}
+
 static void test_set_name(void) {
     nxs_device_t device;
     init(&device);
@@ -326,6 +407,8 @@ int main(void) {
     test_storage_boot_and_audio_status();
     test_persistence_acknowledgement();
     test_persistence_session_reset();
+    test_diagnostics_are_read_only_and_versioned();
+    test_deferred_replies_echo_protocol_revision();
     test_set_name();
     return nxs_test_finish("Device control");
 }

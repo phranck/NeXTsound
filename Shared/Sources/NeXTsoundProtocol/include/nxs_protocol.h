@@ -10,7 +10,12 @@ extern "C" {
 #endif
 
 #define NXS_PROTOCOL_MAJOR 1u
-#define NXS_PROTOCOL_MINOR 0u
+#define NXS_PROTOCOL_MINOR 1u
+#define NXS_PROTOCOL_LEGACY_MINOR 0u
+#define NXS_DIAGNOSTICS_PROTOCOL_MINOR 1u
+#define NXS_SNAPSHOT_PROTOCOL_MAJOR 1u
+#define NXS_SNAPSHOT_PROTOCOL_MINOR 0u
+#define NXS_DIAGNOSTICS_VERSION 1u
 /** TinyUSB example identity for private bench builds, not an allocated release VID/PID. */
 #define NXS_USB_VENDOR_ID 0xcafeu
 #define NXS_USB_PRODUCT_ID 0x4014u
@@ -27,6 +32,7 @@ extern "C" {
 #define NXS_DEVICE_NAME_LENGTH 32u
 #define NXS_CAPABILITIES_SIZE 136u
 #define NXS_RUNTIME_STATUS_SIZE 40u
+#define NXS_RUNTIME_DIAGNOSTICS_SIZE 32u
 #define NXS_EQ_BAND_COUNT 5u
 #define NXS_SAMPLE_RATE_HZ 48000u
 #define NXS_SYSTEM_CLOCK_HZ 150000000u
@@ -37,6 +43,7 @@ extern "C" {
 #define NXS_FORMAT_PCM24 2u
 #define NXS_FEATURE_PERSISTENCE 1u
 #define NXS_FEATURE_FLASH_VERIFIED 2u
+#define NXS_FEATURE_DIAGNOSTICS 4u
 
 /** Native structs are never wire images. Use the explicit codecs below. */
 typedef enum {
@@ -45,7 +52,8 @@ typedef enum {
     NXS_OPERATION_APPLY_STATE = 3,
     NXS_OPERATION_PERSIST_STATE = 4,
     NXS_OPERATION_STATUS = 5,
-    NXS_OPERATION_SET_NAME = 6
+    NXS_OPERATION_SET_NAME = 6,
+    NXS_OPERATION_DIAGNOSTICS = 7
 } nxs_operation_t;
 
 typedef enum {
@@ -123,8 +131,20 @@ typedef struct {
     uint8_t storage_available;
 } nxs_runtime_status_t;
 
+/** Boot-session counters wrap modulo 2^32. USB fields count callback notifications. */
+typedef struct {
+    uint32_t ring_underrun_count;
+    uint32_t i2s_stall_count;
+    uint32_t rejected_packet_count;
+    uint32_t dsp_failure_count;
+    uint32_t deadline_miss_count;
+    uint32_t usb_suspend_count;
+    uint32_t usb_resume_count;
+} nxs_runtime_diagnostics_t;
+
 typedef struct {
     nxs_operation_t operation;
+    uint8_t protocol_minor;
     uint8_t flags;
     nxs_result_t result;
     uint32_t request_id;
@@ -151,6 +171,8 @@ nxs_result_t nxs_capabilities_encode(const nxs_capabilities_t *capabilities, uin
 nxs_result_t nxs_capabilities_decode(const uint8_t *payload, size_t length, nxs_capabilities_t *capabilities);
 nxs_result_t nxs_runtime_status_encode(const nxs_runtime_status_t *status, uint8_t *payload, size_t length);
 nxs_result_t nxs_runtime_status_decode(const uint8_t *payload, size_t length, nxs_runtime_status_t *status);
+nxs_result_t nxs_runtime_diagnostics_encode(const nxs_runtime_diagnostics_t *diagnostics, uint8_t *payload, size_t length);
+nxs_result_t nxs_runtime_diagnostics_decode(const uint8_t *payload, size_t length, nxs_runtime_diagnostics_t *diagnostics);
 nxs_result_t nxs_device_name_encode(const char name[NXS_DEVICE_NAME_LENGTH], uint8_t *payload, size_t length);
 nxs_result_t nxs_device_name_decode(const uint8_t *payload, size_t length, char name[NXS_DEVICE_NAME_LENGTH]);
 

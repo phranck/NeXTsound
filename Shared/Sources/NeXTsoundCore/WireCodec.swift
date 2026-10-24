@@ -13,6 +13,7 @@ public extension WireCodec {
         }
         var value = nxs_message_t()
         value.operation = message.operation.protocolValue
+        value.protocol_minor = message.protocolMinor
         value.request_id = message.requestID
         value.generation = message.generation
         value.flags = message.isResponse ? UInt8(NXS_FLAG_RESPONSE) : 0
@@ -33,7 +34,8 @@ public extension WireCodec {
             operation: WireOperation(protocolValue: value.operation),
             requestID: value.request_id,
             generation: value.generation,
-            payload: payload
+            payload: payload,
+            protocolMinor: value.protocol_minor
         )
         message.isResponse = value.flags & UInt8(NXS_FLAG_RESPONSE) != 0
         message.resultCode = value.result.rawValue
@@ -145,6 +147,37 @@ public extension WireCodec {
         status.hostIsMuted = value.host_muted != 0
         status.storageIsAvailable = value.storage_available != 0
         return status
+    }
+
+    static func encodeRuntimeDiagnostics(_ diagnostics: DeviceRuntimeDiagnostics) throws -> Data {
+        let value = nxs_runtime_diagnostics_t(
+            ring_underrun_count: diagnostics.ringUnderrunCount,
+            i2s_stall_count: diagnostics.i2sStallCount,
+            rejected_packet_count: diagnostics.rejectedPacketCount,
+            dsp_failure_count: diagnostics.dspFailureCount,
+            deadline_miss_count: diagnostics.deadlineMissCount,
+            usb_suspend_count: diagnostics.usbSuspendCount,
+            usb_resume_count: diagnostics.usbResumeCount
+        )
+        return try encoded(value, size: Int(NXS_RUNTIME_DIAGNOSTICS_SIZE), using: nxs_runtime_diagnostics_encode)
+    }
+
+    static func decodeRuntimeDiagnostics(_ payload: Data) throws -> DeviceRuntimeDiagnostics {
+        let value = try decoded(
+            payload,
+            size: Int(NXS_RUNTIME_DIAGNOSTICS_SIZE),
+            initial: nxs_runtime_diagnostics_t(),
+            using: nxs_runtime_diagnostics_decode
+        )
+        var diagnostics = DeviceRuntimeDiagnostics()
+        diagnostics.ringUnderrunCount = value.ring_underrun_count
+        diagnostics.i2sStallCount = value.i2s_stall_count
+        diagnostics.rejectedPacketCount = value.rejected_packet_count
+        diagnostics.dspFailureCount = value.dsp_failure_count
+        diagnostics.deadlineMissCount = value.deadline_miss_count
+        diagnostics.usbSuspendCount = value.usb_suspend_count
+        diagnostics.usbResumeCount = value.usb_resume_count
+        return diagnostics
     }
 
     static func encodeDeviceName(_ name: String) throws -> Data {

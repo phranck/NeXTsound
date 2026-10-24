@@ -1,0 +1,67 @@
+{
+  "schema_version": 1,
+  "date": "2026-10-18",
+  "specimen_serial": "D4CDD489AFE28CC5",
+  "firmware_evidence": "AudioFormats-2026-10-18.json",
+  "preceding_streaming_evidence": "AudioStorageStress-2026-10-18.json",
+  "ram_counter_attempt": {
+    "method": "Read SRAM after targeted, audio-quiescent BOOTSEL entry; validate retained telemetry before interpreting counters.",
+    "latest_status_address": "0x20003f68",
+    "latest_status_first_five_u32": [
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "latest_status_bytes_read": 40,
+    "receive_rejections": 0,
+    "i2s_stalls": 0,
+    "retained_telemetry_matches_preflight": false
+  },
+  "interpretation": "The sampled SRAM does not retain the known live telemetry. These zero words cannot classify the preceding underrun or overrun events. No live-counter-zero or memory-clearing cause is established.",
+  "reboot_observation": {
+    "software_bootsel_and_application_reboot_completed": true,
+    "initial_hid_discovery_after_500_ms_failed": true,
+    "hid_succeeded_after_runtime_registry_enumeration": true,
+    "baseline_snapshot_restored_byte_identically": true,
+    "observed": [
+      {
+        "kind": "capabilities",
+        "serial": "D4CDD489AFE28CC5",
+        "firmware": "74c1c8ab-dirty",
+        "clock_hz": 150000000,
+        "flash_bytes": 4194304,
+        "features": 3
+      },
+      {
+        "kind": "state",
+        "generation": 5,
+        "muted": 1,
+        "attenuation_db": -24
+      },
+      {
+        "kind": "status",
+        "persisted_generation": 5,
+        "storage_available": 1,
+        "streaming": 0,
+        "input_peak": 0,
+        "output_peak": 0,
+        "underruns": 0,
+        "overruns": 0,
+        "max_processing_us": 933,
+        "deadline_us": 1000
+      }
+    ],
+    "default_output_uids_unchanged": true
+  },
+  "unchanged_scope": [
+    "No firmware replacement during this follow-up.",
+    "No original-flash image, OTP/security setting, unrelated USB device, default output, driver attachment, or parent hub changed."
+  ],
+  "open_runtime_cases": [
+    "Classify the single post-stop underrun using live diagnostics.",
+    "Confirm actual USB suspend/resume rather than an API success return.",
+    "Exercise malformed HID reports on the specimen."
+  ]
+}

@@ -1,0 +1,83 @@
+{
+  "schema_version": 1,
+  "date": "2026-10-24",
+  "specimen_serial": "D4CDD489AFE28CC5",
+  "host": "macOS 27.2",
+  "image": {
+    "source_commit": "953d75d480a61575c8fe0633c9fe91540e956cd6",
+    "firmware_version": "953d75d4",
+    "uf2_bytes": 124928,
+    "uf2_sha256": "338b85e6cad9a6b81d6737c4f9c3a860162cca76a9a5d82a317f2cb7abf773b5",
+    "pico_sdk": "2.2.0 a1438dff1d38bd9c65dbd693f0e5db4b9ae91779",
+    "tinyusb": "0.21.0 dae3f9a366bfcddbf9dcf1b48d7500286a849539 with Firmware/ThirdParty/TinyUSB-0.21.0-feedback.patch",
+    "rp2_port": "TinyUSB 0.21.0's own dcd_rp2040.c, whose dcd_edpt_iso_activate aborts a pending transfer before reactivation"
+  },
+  "software_gate": {
+    "command": "bash Scripts/check.sh",
+    "ctest_cases": 20,
+    "shared_swift_tests": 72,
+    "workbench_swift_tests": 196,
+    "result": "passed",
+    "rp2_iso_negative_control": "Removing the abort from the pinned dcd_rp2040.c makes rp2_iso fail; the file was restored byte-identically."
+  },
+  "previous_state": {
+    "firmware_version": "065e49b7-dirty",
+    "device_name": "NeXT SoundBox mini",
+    "feature_flags": 3,
+    "active_generation": 97,
+    "persisted_generation": 97,
+    "profile_muted": false,
+    "attenuation_db": -6.269943,
+    "boot_session_max_processing_us": 1261,
+    "boot_session_underruns": 5,
+    "boot_session_overruns": 1
+  },
+  "installation": {
+    "method": "picotool 2.3.1 reboot -u -f filtered by VID 0xcafe, PID 0x4014 and the serial, then load -v of the UF2 filtered by VID 0x2e8a, PID 0x000f and the serial, then reboot",
+    "bootsel_identity": "RP2350, chip ID 0xd4cdd489afe28cc5, flash size estimate 4096K",
+    "verify": "OK",
+    "after_installation": "firmware 953d75d4, same device name, active and persisted generation 97, active snapshot byte-identical to the previous state"
+  },
+  "protocol_revisions": {
+    "minor_0_capabilities": "feature flags 3 without NXS_FEATURE_DIAGNOSTICS, reply minor 0",
+    "minor_1_capabilities": "feature flags 7 with NXS_FEATURE_DIAGNOSTICS, reply minor 1",
+    "diagnostics_operation": 7
+  },
+  "malformed_requests": {
+    "cases": [
+      "wrong report ID", "wrong magic", "major 2", "minor 2", "unknown operation 99", "diagnostics at minor 0",
+      "response flag set", "nonzero padding", "apply with a stale generation", "apply with a NaN high-pass frequency"
+    ],
+    "observed": "The eight envelope violations got no reply of their own. The stale apply replied 5 (stale generation) and the invalid snapshot 4 (invalid parameters).",
+    "state_after": "snapshot byte-identical, generation 97 unchanged, counters unchanged"
+  },
+  "format_runs": {
+    "profile": "the previous active snapshot with profile mute set, applied as generation 98",
+    "client": "sox 48 kHz stereo 440 Hz sine at volume 0.05 to the device by name, with the physical format set per run",
+    "runs": ["PCM16 8 s", "PCM24 12 s with two saves", "PCM16 8 s"],
+    "status_polling": "status and diagnostics every 100 ms from a separate client, 376 samples",
+    "stable_streaming": "no counter changed while a stream ran",
+    "saves": "both saves during PCM24 replied ok at generation 98; they rejected 11 and 8 packets, which the aggregate overrun count follows",
+    "stream_ends": "each of the three stream ends added one ring underrun",
+    "boot_counters_unchanged": "I2S stalls 2, DSP failures 0, deadline misses 1 and max processing 1183 us stayed at their boot values",
+    "host_defaults": "default output External Headphones and system output NeXT SoundBox mini unchanged; physical format restored to 16 bit"
+  },
+  "reboot": {
+    "method": "picotool reboot -f through the reset interface, filtered by the serial",
+    "observed": "booted with the saved muted snapshot of generation 98, the same device name and the counters reset"
+  },
+  "boot_timing": {
+    "observed": "Every boot in this session reported, before any stream, a processing high-water value above the 1000 us block deadline, one deadline miss and two I2S stalls: 1183 us with the unmuted previous profile and 1162 us with its muted copy. The boot on 2026-10-18 with the default profile reported 931 us without a miss.",
+    "open": "Which part of the first blocks exceeds the deadline, and whether the stalls are audible, is not established."
+  },
+  "restoration": {
+    "method": "apply the previous active snapshot's 120 payload bytes, then persist",
+    "observed": "active and persisted generation 99, active snapshot byte-identical to the state before installation, profile unmuted as before"
+  },
+  "limits": [
+    "Physical USB suspend and resume were not exercised; issue 166 tracks them.",
+    "Digital profile mute does not power down the amplifier, and no speaker was qualified.",
+    "Unmuted streaming timing, I2S signals and runtime stack high-water use remain unmeasured.",
+    "The saves are not physical power-loss tests."
+  ]
+}

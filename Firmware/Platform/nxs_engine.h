@@ -10,7 +10,7 @@ bool nxs_audio_engine_maintenance_ready(void);
 bool nxs_audio_engine_flash_ready(void);
 bool nxs_audio_engine_submit(const nxs_dsp_configuration_t *configuration);
 bool nxs_audio_engine_take_result(bool *accepted);
-void nxs_audio_engine_status(nxs_runtime_status_t *status);
+void nxs_audio_engine_status(nxs_audio_observation_t *observation);
 void nxs_audio_engine_transport(bool streaming, bool suspended, uint32_t epoch);
 bool nxs_audio_engine_host_controls(int16_t volume_q8_db, bool muted);
 bool nxs_audio_engine_receive(const uint8_t *packet, size_t length, uint8_t sample_bytes);

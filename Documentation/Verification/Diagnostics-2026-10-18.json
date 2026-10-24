@@ -1,0 +1,622 @@
+{
+  "schema_version": 1,
+  "date": "2026-10-18",
+  "specimen_serial": "D4CDD489AFE28CC5",
+  "image": {
+    "source_commit": "e59f08cf8f7a386264e2631e9ac0abdfed06b761",
+    "serial": "D4CDD489AFE28CC5",
+    "program_end_exclusive": "0x1000f1c0",
+    "storage_start": "0x103fe000",
+    "files": {
+      "nxs_firmware.uf2": {
+        "bytes": 124416,
+        "sha256": "614800a25d292eebbfafbca3eac798897cf84004768b034075658bd6998c4fd8"
+      },
+      "nxs_firmware.elf": {
+        "bytes": 1087172,
+        "sha256": "832f602dd8b94cad8b5f650a7be1c4123fe48d80b695790d06bafe63ab575cad"
+      }
+    }
+  },
+  "software_gate": {
+    "positive_cases": 19,
+    "expected_failure_controls": 1,
+    "successful_assertions": 316500,
+    "swift_tests": 31,
+    "completed_local": "2026-10-18 14:01"
+  },
+  "ci": "https://github.com/phranck/NeXTsound/actions/runs/39125728825",
+  "installation": {
+    "verified_load": true,
+    "storage_sectors_unchanged": true,
+    "storage_bytes_compared": 8192,
+    "storage_sha256": "e5d86056d95f9935284e702f7cd357bc8f40249aeac26bef2d30f33a27435246",
+    "muted_generation_before_and_after_install": 5,
+    "original_minor_zero_client_still_works": true,
+    "minor_one_capabilities_flags": 7,
+    "baseline_snapshot_preserved_byte_identically": true
+  },
+  "format_runs": [
+    {
+      "bits": 16,
+      "completion": {
+        "kind": "audio_run_complete",
+        "bits": 16,
+        "frames": 243200,
+        "default_uids_unchanged": true
+      },
+      "sampled_counters_constant_during_stream": true,
+      "after_stop": {
+        "kind": "diagnostics",
+        "ring_underruns": 1,
+        "i2s_stalls": 0,
+        "rejected_packets": 0,
+        "dsp_failures": 0,
+        "deadline_misses": 0,
+        "usb_suspends": 0,
+        "usb_resumes": 0
+      }
+    },
+    {
+      "bits": 24,
+      "completion": {
+        "kind": "audio_run_complete",
+        "bits": 24,
+        "frames": 243200,
+        "default_uids_unchanged": true
+      },
+      "sampled_counters_constant_during_stream": true,
+      "after_stop": {
+        "kind": "diagnostics",
+        "ring_underruns": 2,
+        "i2s_stalls": 0,
+        "rejected_packets": 0,
+        "dsp_failures": 0,
+        "deadline_misses": 0,
+        "usb_suspends": 0,
+        "usb_resumes": 0
+      }
+    },
+    {
+      "bits": 16,
+      "completion": {
+        "kind": "audio_run_complete",
+        "bits": 16,
+        "frames": 243200,
+        "default_uids_unchanged": true
+      },
+      "sampled_counters_constant_during_stream": true,
+      "after_stop": {
+        "kind": "diagnostics",
+        "ring_underruns": 3,
+        "i2s_stalls": 0,
+        "rejected_packets": 0,
+        "dsp_failures": 0,
+        "deadline_misses": 0,
+        "usb_suspends": 0,
+        "usb_resumes": 0
+      }
+    }
+  ],
+  "lifecycle_comparison": {
+    "method": "Immediate AudioUnit uninitialization/disposal before default-output queries, using the same native client.",
+    "after_each_stop": [
+      {
+        "kind": "diagnostics",
+        "ring_underruns": 4,
+        "i2s_stalls": 0,
+        "rejected_packets": 0,
+        "dsp_failures": 0,
+        "deadline_misses": 0,
+        "usb_suspends": 0,
+        "usb_resumes": 0
+      },
+      {
+        "kind": "diagnostics",
+        "ring_underruns": 5,
+        "i2s_stalls": 0,
+        "rejected_packets": 0,
+        "dsp_failures": 0,
+        "deadline_misses": 0,
+        "usb_suspends": 0,
+        "usb_resumes": 0
+      },
+      {
+        "kind": "diagnostics",
+        "ring_underruns": 6,
+        "i2s_stalls": 0,
+        "rejected_packets": 0,
+        "dsp_failures": 0,
+        "deadline_misses": 0,
+        "usb_suspends": 0,
+        "usb_resumes": 0
+      }
+    ],
+    "interpretation": "Both client lifecycles record one post-prime ring starvation at each stop. Stable sampled streaming counters do not increase. No I2S stall, DSP failure, or instrumented deadline miss is observed. The renderer retains the starvation counter."
+  },
+  "malformed_requests": {
+    "cases": [
+      {
+        "kind": "malformed_verified",
+        "case": "diagnostic_payload",
+        "result": 4
+      },
+      {
+        "kind": "malformed_verified",
+        "case": "snapshot_padding",
+        "result": 4
+      },
+      {
+        "kind": "malformed_verified",
+        "case": "snapshot_nan",
+        "result": 4
+      },
+      {
+        "kind": "malformed_verified",
+        "case": "unsupported_minor",
+        "previous_reply_retained": true
+      },
+      {
+        "kind": "malformed_verified",
+        "case": "unknown_operation",
+        "previous_reply_retained": true
+      },
+      {
+        "kind": "malformed_verified",
+        "case": "dirty_padding",
+        "previous_reply_retained": true
+      },
+      {
+        "kind": "malformed_verified",
+        "case": "response_direction",
+        "previous_reply_retained": true
+      },
+      {
+        "kind": "malformed_verified",
+        "case": "bad_magic",
+        "previous_reply_retained": true
+      },
+      {
+        "kind": "malformed_verified",
+        "case": "zero_request_id",
+        "previous_reply_retained": true
+      },
+      {
+        "kind": "malformed_verified",
+        "case": "oversized_payload",
+        "previous_reply_retained": true
+      }
+    ],
+    "result": {
+      "kind": "malformed_suite_complete",
+      "cases": 10,
+      "state_and_generation_unchanged": true
+    }
+  },
+  "pcm24_maximum_filter_and_persistence": {
+    "configuration_reference": "AudioStorageStress-2026-10-18.json",
+    "completion": {
+      "kind": "audio_run_complete",
+      "bits": 24,
+      "frames": 587776,
+      "default_uids_unchanged": true
+    },
+    "status_samples": [
+      {
+        "kind": "status",
+        "persisted_generation": 5,
+        "storage_available": 1,
+        "streaming": 0,
+        "input_peak": 0,
+        "output_peak": 0,
+        "underruns": 6,
+        "overruns": 0,
+        "max_processing_us": 931,
+        "deadline_us": 1000
+      },
+      {
+        "kind": "status",
+        "persisted_generation": 5,
+        "storage_available": 1,
+        "streaming": 1,
+        "input_peak": 0.125,
+        "output_peak": 0,
+        "underruns": 6,
+        "overruns": 0,
+        "max_processing_us": 931,
+        "deadline_us": 1000
+      },
+      {
+        "kind": "status",
+        "persisted_generation": 5,
+        "storage_available": 1,
+        "streaming": 1,
+        "input_peak": 0.125,
+        "output_peak": 0,
+        "underruns": 6,
+        "overruns": 0,
+        "max_processing_us": 931,
+        "deadline_us": 1000
+      },
+      {
+        "kind": "status",
+        "persisted_generation": 6,
+        "storage_available": 1,
+        "streaming": 1,
+        "input_peak": 0,
+        "output_peak": 0,
+        "underruns": 6,
+        "overruns": 9,
+        "max_processing_us": 931,
+        "deadline_us": 1000
+      },
+      {
+        "kind": "status",
+        "persisted_generation": 6,
+        "storage_available": 1,
+        "streaming": 1,
+        "input_peak": 0.125,
+        "output_peak": 0,
+        "underruns": 6,
+        "overruns": 9,
+        "max_processing_us": 931,
+        "deadline_us": 1000
+      },
+      {
+        "kind": "status",
+        "persisted_generation": 6,
+        "storage_available": 1,
+        "streaming": 1,
+        "input_peak": 0.125,
+        "output_peak": 0,
+        "underruns": 6,
+        "overruns": 9,
+        "max_processing_us": 931,
+        "deadline_us": 1000
+      },
+      {
+        "kind": "status",
+        "persisted_generation": 6,
+        "storage_available": 1,
+        "streaming": 1,
+        "input_peak": 0.125,
+        "output_peak": 0,
+        "underruns": 6,
+        "overruns": 9,
+        "max_processing_us": 931,
+        "deadline_us": 1000
+      },
+      {
+        "kind": "status",
+        "persisted_generation": 6,
+        "storage_available": 1,
+        "streaming": 1,
+        "input_peak": 0.125,
+        "output_peak": 0,
+        "underruns": 6,
+        "overruns": 9,
+        "max_processing_us": 931,
+        "deadline_us": 1000
+      },
+      {
+        "kind": "status",
+        "persisted_generation": 6,
+        "storage_available": 1,
+        "streaming": 1,
+        "input_peak": 0.125,
+        "output_peak": 0,
+        "underruns": 6,
+        "overruns": 9,
+        "max_processing_us": 931,
+        "deadline_us": 1000
+      },
+      {
+        "kind": "status",
+        "persisted_generation": 6,
+        "storage_available": 1,
+        "streaming": 1,
+        "input_peak": 0.125,
+        "output_peak": 0,
+        "underruns": 6,
+        "overruns": 9,
+        "max_processing_us": 931,
+        "deadline_us": 1000
+      },
+      {
+        "kind": "status",
+        "persisted_generation": 6,
+        "storage_available": 1,
+        "streaming": 1,
+        "input_peak": 0.125,
+        "output_peak": 0,
+        "underruns": 6,
+        "overruns": 9,
+        "max_processing_us": 931,
+        "deadline_us": 1000
+      },
+      {
+        "kind": "status",
+        "persisted_generation": 6,
+        "storage_available": 1,
+        "streaming": 1,
+        "input_peak": 0.125,
+        "output_peak": 0,
+        "underruns": 6,
+        "overruns": 9,
+        "max_processing_us": 931,
+        "deadline_us": 1000
+      },
+      {
+        "kind": "status",
+        "persisted_generation": 6,
+        "storage_available": 1,
+        "streaming": 1,
+        "input_peak": 0.125,
+        "output_peak": 0,
+        "underruns": 6,
+        "overruns": 9,
+        "max_processing_us": 931,
+        "deadline_us": 1000
+      },
+      {
+        "kind": "status",
+        "persisted_generation": 6,
+        "storage_available": 1,
+        "streaming": 1,
+        "input_peak": 0.125,
+        "output_peak": 0,
+        "underruns": 6,
+        "overruns": 9,
+        "max_processing_us": 931,
+        "deadline_us": 1000
+      },
+      {
+        "kind": "status",
+        "persisted_generation": 7,
+        "storage_available": 1,
+        "streaming": 1,
+        "input_peak": 0,
+        "output_peak": 0,
+        "underruns": 6,
+        "overruns": 18,
+        "max_processing_us": 931,
+        "deadline_us": 1000
+      },
+      {
+        "kind": "status",
+        "persisted_generation": 7,
+        "storage_available": 1,
+        "streaming": 1,
+        "input_peak": 0.125,
+        "output_peak": 0,
+        "underruns": 6,
+        "overruns": 18,
+        "max_processing_us": 931,
+        "deadline_us": 1000
+      },
+      {
+        "kind": "status",
+        "persisted_generation": 7,
+        "storage_available": 1,
+        "streaming": 1,
+        "input_peak": 0.125,
+        "output_peak": 0,
+        "underruns": 6,
+        "overruns": 18,
+        "max_processing_us": 931,
+        "deadline_us": 1000
+      }
+    ],
+    "saved_generations": [
+      6,
+      7
+    ],
+    "baseline_restored_byte_identically": true,
+    "after": [
+      {
+        "kind": "status",
+        "persisted_generation": 7,
+        "storage_available": 1,
+        "streaming": 0,
+        "input_peak": 0,
+        "output_peak": 0,
+        "underruns": 7,
+        "overruns": 18,
+        "max_processing_us": 931,
+        "deadline_us": 1000
+      },
+      {
+        "kind": "diagnostics",
+        "ring_underruns": 7,
+        "i2s_stalls": 0,
+        "rejected_packets": 18,
+        "dsp_failures": 0,
+        "deadline_misses": 0,
+        "usb_suspends": 0,
+        "usb_resumes": 0
+      }
+    ],
+    "interpretation": "All 18 aggregate overrun increments are receive-side packet rejections. DSP-failure and processing-deadline counters remain zero; I2S stalls remain zero. The rejections occur at the two maintenance-gated saves."
+  },
+  "suspend_attempt": {
+    "host_observations": [
+      {
+        "stage": "before_open",
+        "result": "0x00000000",
+        "information": 24,
+        "suspended": false
+      },
+      {
+        "stage": "open_without_seize",
+        "result": "0x00000000"
+      },
+      {
+        "stage": "suspend",
+        "result": "0x00000000"
+      },
+      {
+        "stage": "after_suspend",
+        "result": "0x00000000",
+        "information": 24,
+        "suspended": false
+      }
+    ],
+    "exit_status": 1,
+    "before": {
+      "kind": "diagnostics",
+      "ring_underruns": 6,
+      "i2s_stalls": 0,
+      "rejected_packets": 0,
+      "dsp_failures": 0,
+      "deadline_misses": 0,
+      "usb_suspends": 0,
+      "usb_resumes": 0
+    },
+    "after": {
+      "kind": "diagnostics",
+      "ring_underruns": 6,
+      "i2s_stalls": 0,
+      "rejected_packets": 0,
+      "dsp_failures": 0,
+      "deadline_misses": 0,
+      "usb_suspends": 0,
+      "usb_resumes": 0
+    },
+    "cleanup_resume_succeeded": true,
+    "accepted": false,
+    "interpretation": "The host request returns success, but neither the sampled port bit nor firmware suspend/resume notification counters confirm a cycle. The reason is not established. No driver was seized/detached and no parent hub was reset."
+  },
+  "idle_policy_attempt": {
+    "method": "IOUSBHostInterface on exact serial/VID/PID, reset interface 3 only, with options None; no capture or seize.",
+    "original_idle_timeout_seconds": 0,
+    "requested_idle_timeout_seconds": 1,
+    "idle_timeout_readback_seconds": 1,
+    "observation_window_seconds": 2.5,
+    "restore_original_timeout_acknowledged": true,
+    "client_destroyed": true,
+    "suspend_notifications_before_and_after": [0, 0],
+    "resume_notifications_before_and_after": [0, 0],
+    "generation_before_and_after": [7, 7],
+    "profile_muted_before_and_after": true,
+    "default_output_uids_unchanged": true,
+    "accepted_as_suspend_cycle": false,
+    "interpretation": "The interface accepts the timeout and acknowledges restoration. No firmware notification confirms an actual suspend/resume cycle. This does not establish why the legacy request or the interface policy fails to produce an observed cycle."
+  },
+  "client_lifetime_attempts": {
+    "method": "Exact serial/VID/PID only. Request suspend without seize, close the helper's own device access, wait, reopen, request resume, and close. A second variant also releases its user client and recreates it on the same retained registry service before reopening.",
+    "requested_wait_seconds": 1,
+    "close_access_variant": {
+      "local_observation": "2026-10-18 15:06",
+      "host_api_results": "All observed calls return kIOReturnSuccess.",
+      "port_information_before_during_after": [24, 24, 24],
+      "suspend_notifications_before_and_after": [0, 0],
+      "resume_notifications_before_and_after": [0, 0]
+    },
+    "release_client_variant": {
+      "local_observation": "2026-10-18 15:08",
+      "host_api_results": "All observed calls return kIOReturnSuccess.",
+      "port_information_before_during_after": [24, 24, 24],
+      "suspend_notifications_before_and_after": [0, 0],
+      "resume_notifications_before_and_after": [0, 0],
+      "limitation": "Recreating a client before reading port information may itself affect power state. The firmware counters also remain zero; no cycle is accepted."
+    },
+    "both_variants": {
+      "accepted_as_suspend_cycle": false,
+      "active_and_persisted_generation": 7,
+      "profile_muted": true,
+      "default_output_uids_unchanged": true,
+      "system_wide_sleep_attempted": false,
+      "driver_capture_seize_or_detach_attempted": false,
+      "parent_hub_reset_attempted": false
+    },
+    "retained_owners_observed_after_helper_exit": {
+      "audio_interfaces": "usbaudiod",
+      "hid_interface": "AppleUserUSBHostHIDDevice",
+      "additional_device_user_client": "ChatGPT",
+      "additional_client_visible_in_followup": true,
+      "owners_closed_or_interrupted": false,
+      "causal_role": "Not established. These observations do not prove that a particular owner prevents suspend."
+    },
+    "interpretation": "Neither changing the helper's open state nor releasing its client confirms a physical cycle in these observations. The cause remains unknown."
+  },
+  "host_power_notification_regression": {
+    "source": "Firmware/Tests/usb_iso_tests.c",
+    "layer": "Host logical-register fixture compiling the actual vendored RP2 driver, not a physical USB controller or timing emulator.",
+    "covers": [
+      "Suspend and host-resume interrupt enable masks",
+      "Individual suspend and resume event IDs, root port, interrupt context, and status-clear alias writes",
+      "Suspend-before-resume notification order when both interrupt bits are latched",
+      "Unchanged pending ISO output, feedback, HID, and logical control buffer contents"
+    ],
+    "positive_assertions": 444,
+    "negative_controls": [
+      "Removing the suspend event produces CTest exit 8 at event_count == 1.",
+      "Removing the resume event produces CTest exit 8 at event_count == 2."
+    ],
+    "vendored_driver_restored_byte_identically": true,
+    "pinned_sdk_modified": false,
+    "complete_local_gate": {
+      "completed_local": "2026-10-18 15:18",
+      "ctest_cases": 20,
+      "positive_cases": 19,
+      "positive_assertions": 316522,
+      "expected_failure_controls": 1,
+      "swift_tests": 31,
+      "format_lint_release_cross_build_guards_shellcheck_actionlint": "Passed"
+    },
+    "accepted_as_physical_suspend_cycle": false
+  },
+  "reboot": {
+    "method": "SDK-compatible application/watchdog reset after audio quiescence.",
+    "immediate_hid_set_report_result": "0xe00002ed",
+    "immediate_result_name": "kIOReturnNotResponding",
+    "later_registry_enumeration_and_hid_succeeded": true,
+    "baseline_restored_byte_identically": true,
+    "final": [
+      {
+        "kind": "capabilities",
+        "serial": "D4CDD489AFE28CC5",
+        "firmware": "e59f08cf",
+        "protocol_minor": 1,
+        "features": 7,
+        "clock_hz": 150000000
+      },
+      {
+        "kind": "state",
+        "generation": 7,
+        "muted": 1,
+        "attenuation_db": -24
+      },
+      {
+        "kind": "status",
+        "persisted_generation": 7,
+        "storage_available": 1,
+        "streaming": 0,
+        "input_peak": 0,
+        "output_peak": 0,
+        "underruns": 0,
+        "overruns": 0,
+        "max_processing_us": 933,
+        "deadline_us": 1000
+      },
+      {
+        "kind": "diagnostics",
+        "ring_underruns": 0,
+        "i2s_stalls": 0,
+        "rejected_packets": 0,
+        "dsp_failures": 0,
+        "deadline_misses": 0,
+        "usb_suspends": 0,
+        "usb_resumes": 0
+      }
+    ],
+    "default_output_uids_unchanged": true
+  },
+  "limits": [
+    "All profiles remain digitally muted. The unmuted final clamp path is not timed.",
+    "The 931 us processing high-water value belongs to the whole first boot session and predates streaming; it is not a configuration-specific maximum. The next idle boot reports 933 us. Both exclude DMA wait/submission.",
+    "Physical suspend/resume remains unqualified; API success is not accepted as proof.",
+    "No electrical I2S, speaker/acoustic, runtime stack high-water, or physical power-loss qualification.",
+    "The immediate post-reset HID error and later successful enumeration are retained as separate observations."
+  ]
+}
