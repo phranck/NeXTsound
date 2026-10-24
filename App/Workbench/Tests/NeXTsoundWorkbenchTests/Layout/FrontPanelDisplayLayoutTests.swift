@@ -138,10 +138,10 @@ struct FrontPanelDisplayLayoutTests {
             #expect(abs(card.rows.lowerBound - (layout.rows - 1 - card.rows.upperBound)) <= 1)
             let lastTextColumn = card.textColumn + DotMatrixMetrics.columns(forCells: card.lines.map(\.count).max() ?? 0) - 1
             let lastTextRow = card.textRow(index: card.lines.count - 1) + DotMatrixFont.glyphRows - 1
-            #expect(card.textColumn - card.columns.lowerBound == layout.messageCardPaddingColumns + 1)
-            #expect(card.columns.upperBound - lastTextColumn == layout.messageCardPaddingColumns + 1)
-            #expect(card.textRow(index: 0) - card.rows.lowerBound == layout.messageCardPaddingRows + 1)
-            #expect(card.rows.upperBound - lastTextRow == layout.messageCardPaddingRows + 1)
+            #expect(card.textColumn - card.columns.lowerBound == layout.messageCardPadding + 1)
+            #expect(card.columns.upperBound - lastTextColumn == layout.messageCardPadding + 1)
+            #expect(card.textRow(index: 0) - card.rows.lowerBound == layout.messageCardPadding + 1)
+            #expect(card.rows.upperBound - lastTextRow == layout.messageCardPadding + 1)
             #expect(card.clearedColumns.lowerBound >= 0 && card.clearedColumns.upperBound < columns)
         }
     }

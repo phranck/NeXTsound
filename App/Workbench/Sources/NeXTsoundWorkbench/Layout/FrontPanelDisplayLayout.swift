@@ -62,10 +62,8 @@ enum FrontPanelDisplayLayout {
     static let messageCardTextCells = 48
     /// The most lines a message takes in its card.
     static let messageCardLineLimit = 4
-    /// The unlit dot columns between the message card's side edges and its text.
-    static let messageCardPaddingColumns = 3
-    /// The unlit dot rows between the message card's top and bottom edges and its text.
-    static let messageCardPaddingRows = 2
+    /// The unlit dots between the message card's frame and its text, on every side.
+    static let messageCardPadding = 6
     /// The dot columns that the status column takes from the curve, the gap before it included. The column slides
     /// this far to the right to leave the display.
     static let statusReservedColumns = DotMatrixMetrics.columns(forCells: statusCells) + statusGapColumns
@@ -184,7 +182,7 @@ extension FrontPanelDisplayLayout {
     /// card is as wide as its longest line with the padding and the frame around it, and centers on the display.
     static func messageCard(_ message: FrontPanelMessage, displayColumns: Int) -> MessageCard {
         // The padding, the frame and the unlit ring around it on either side of the text.
-        let edgeColumns = 2 * (messageCardPaddingColumns + 2)
+        let edgeColumns = 2 * (messageCardPadding + 2)
         let cells = min(messageCardTextCells, DotMatrixMetrics.cells(inColumns: displayColumns - edgeColumns))
         let lines = DotMatrixWrap.lines(
             of: message.text,
@@ -192,8 +190,8 @@ extension FrontPanelDisplayLayout {
             firstPrefix: message.isError ? errorMarker : infoMarker,
             laterPrefix: messageIndent
         ).prefix(messageCardLineLimit)
-        let width = DotMatrixMetrics.columns(forCells: lines.map(\.count).max() ?? 0) + 2 * (messageCardPaddingColumns + 1)
-        let height = DotMatrixMetrics.rows(forLines: lines.count) + 2 * (messageCardPaddingRows + 1)
+        let width = DotMatrixMetrics.columns(forCells: lines.map(\.count).max() ?? 0) + 2 * (messageCardPadding + 1)
+        let height = DotMatrixMetrics.rows(forLines: lines.count) + 2 * (messageCardPadding + 1)
         let firstColumn = (displayColumns - width) / 2
         let firstRow = (rows - height) / 2
         return MessageCard(lines: Array(lines), columns: firstColumn ... firstColumn + width - 1, rows: firstRow ... firstRow + height - 1)
@@ -244,7 +242,7 @@ extension FrontPanelDisplayLayout {
 extension FrontPanelDisplayLayout.MessageCard {
     /// The first dot column of the card's text, inside the frame and its padding.
     var textColumn: Int {
-        columns.lowerBound + 1 + FrontPanelDisplayLayout.messageCardPaddingColumns
+        columns.lowerBound + 1 + FrontPanelDisplayLayout.messageCardPadding
     }
 
     /// The dot columns the card keeps unlit beneath it: its frame and one unlit column on either side.
@@ -284,6 +282,6 @@ extension FrontPanelDisplayLayout.MessageCard {
 
     /// The first dot row of the line at `index`, inside the frame and its padding.
     func textRow(index: Int) -> Int {
-        rows.lowerBound + 1 + FrontPanelDisplayLayout.messageCardPaddingRows + index * DotMatrixMetrics.linePitch
+        rows.lowerBound + 1 + FrontPanelDisplayLayout.messageCardPadding + index * DotMatrixMetrics.linePitch
     }
 }
