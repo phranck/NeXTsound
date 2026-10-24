@@ -6,22 +6,27 @@ The firmware connects this core to deferred device persistence through geometry-
 
 ## Layout
 
-There are two isolated 4096-byte sectors. A record occupies the first 512 bytes of a sector. Each 256-byte page is programmed once after erase. The remaining sector bytes are unused by this format.
+There are two isolated 4096-byte sectors. A record occupies the first 768 bytes of a sector: the data page, the commit page, and the note page, in that order. Each 256-byte page is programmed once after erase. The remaining sector bytes are unused by this format.
 
-All integers are little-endian. Storage format version 1 embeds protocol snapshot version 1.0 through `NXS_SNAPSHOT_PROTOCOL_MAJOR` and `NXS_SNAPSHOT_PROTOCOL_MINOR`. This version does not advance when the HID envelope adds operations. Unknown versions, generation zero, invalid snapshots, and dirty padding are rejected.
+All integers are little-endian. Every save writes storage format 2, which adds the owner metadata of [issue 39](https://github.com/phranck/NeXTsound/issues/39). Format 1 records, as firmware before 0.1.1 writes them, still decode with empty metadata, provided their note page is erased. Firmware before 0.1.1 does not read format 2, so it falls back to a format-1 record in the other sector if there is one. Both formats embed protocol snapshot version 1.0 through `NXS_SNAPSHOT_PROTOCOL_MAJOR` and `NXS_SNAPSHOT_PROTOCOL_MINOR`. This version does not advance when the HID envelope adds operations. Unknown versions, generation zero, invalid snapshots, and dirty padding are rejected.
 
 | Data-page offset | Bytes | Meaning |
 | --- | --- | --- |
 | 0 | 4 | `NXSP` magic |
-| 4 | 2 | Storage format version |
+| 4 | 2 | Storage format version, 1 or 2 |
 | 6 | 2 | Data-page size, 256 |
 | 8 | 4 | Snapshot generation |
 | 12 | 1 | Protocol major version |
 | 13 | 1 | Protocol minor version |
 | 14 | 2 | Snapshot payload size, 120 |
 | 16 | 120 | Canonical `nxs_snapshot_encode` payload |
-| 136 | 116 | Erased padding, `0xff` |
-| 252 | 4 | CRC-32/ISO-HDLC of data-page bytes 0 through 251 |
+| 136 | 32 | Device name, zero-padded |
+| 168 | 4 | Format 2: the owner's date as YYYYMMDD, 0 when unset |
+| 172 | 3 | Format 2: serial number, 0 when unset |
+| 175 | 1 | Format 2: reserved, 0 |
+| 176 | 64 | Format 2: owner, UTF-8 padded with zero bytes |
+| 240 | 12 | Erased padding, `0xff`; in format 1 the padding starts at 168 |
+| 252 | 4 | CRC-32/ISO-HDLC of data-page bytes 0 through 251, continued over the whole note page in format 2 |
 
 The commit page starts at record offset 256. Its offsets below are relative to that page.
 
@@ -29,11 +34,13 @@ The commit page starts at record offset 256. Its offsets below are relative to t
 | --- | --- | --- |
 | 0 | 4 | `NXSC` magic |
 | 4 | 4 | Matching snapshot generation |
-| 8 | 4 | Matching data-page CRC |
+| 8 | 4 | Matching record CRC |
 | 12 | 4 | Bitwise complement of that CRC |
 | 16 | 240 | Erased padding, `0xff` |
 
-The commit page is written only after the data page has passed readback comparison. CRC detects accidental corruption; it is not authentication.
+The note page starts at record offset 512 and holds the owner's 256-byte note, UTF-8 padded with zero bytes. Format 1 leaves it erased. It follows the commit page in the record so that format-1 records keep their layout.
+
+The commit page is written last, after the data and note pages have passed readback comparison. CRC detects accidental corruption; it is not authentication.
 
 ## Selection and generations
 
@@ -45,14 +52,16 @@ An I/O read failure prevents selection and saving because the unread slot might 
 
 ## Write and acknowledgement
 
-The I/O callbacks address only a slot and one of its two pages. The platform must map them into verified flash bounds and arrange safe execution.
+The I/O callbacks address only a slot and one of its three pages. The platform must map them into verified flash bounds and arrange safe execution. The storage core keeps its records in static buffers, because two records and their decoded states would not fit the 4 KiB stack of the control core; it runs only there and never reentrantly.
 
-1. Scan both slots and validate the requested generation/snapshot.
+1. Scan both slots and validate the requested generation, snapshot, and serial number.
 2. Erase the inactive sector and verify that its record space is erased.
-3. Program the data page and compare its complete readback. The commit page must remain erased.
-4. Program the separate commit page.
-5. Read the complete record, decode it, and compare every byte with the expected record.
-6. Return success only after that verification.
+3. Program the data page and compare its readback. The note and commit pages must remain erased.
+4. Program the note page and compare its readback. The commit page must remain erased.
+5. Program the commit page and compare the complete record with the expected one.
+6. Decode the record, and return success only after that verification.
+
+Because the device holds the metadata restored at boot and puts it into every save, saving a profile or a name keeps the owner metadata.
 
 A failed final read can leave a complete new record even though no success was acknowledged. A later boot or rescan can select it. Clients must read device state after an uncertain save rather than infer that the older record is still current.
 
@@ -82,6 +91,6 @@ These were control/storage tests without a USB audio stream. They do not establi
 
 ## Host verification
 
-[`storage_tests.c`](../Firmware/Tests/storage_tests.c) uses fresh in-memory sectors. Its NOR model programs bits only from one to zero. Tests cover every byte-prefix cutoff across both program pages and a sector erase, every individual record-bit corruption, CRC-valid malformed headers/snapshots, I/O failures, conflicting generations, and a newest record corrupted before the next save.
+[`storage_tests.c`](../Firmware/Tests/storage_tests.c) uses fresh in-memory sectors. Its NOR model programs bits only from one to zero. Tests cover every byte-prefix cutoff across all three program pages and a sector erase, every individual record-bit corruption, CRC-valid malformed headers/snapshots, I/O failures, conflicting generations, and a newest record corrupted before the next save. The [format-1 fixture](../Firmware/Tests/Fixtures/storage-record-v1.hex) is the record that the format-1 encoder of firmware 0.1.0 writes; it must decode to the same snapshot, generation, and name, reject every single-bit change, and be replaced by a format-2 record in the other sector on the next save.
 
-The host tests compare CRCs with zlib from the pinned Xcode SDK. Removing the data-CRC check or commit-magic check separately causes the corruption test to fail. With both checks present, 84339 assertions pass. These are software-model results, not physical power-loss tests or flash-execution timing measurements. Geometry tests use only captured SFDP metadata, not original user flash. USB callback fixtures cover deferred saves, producer gating, post-flash draining, telemetry ownership, exact retries, and session-reset completion. The reset-driver fixture checks request type, interface, values, stages, and bus-reset cancellation. Removing telemetry-field ownership makes the actual callback regression fail.
+The host tests compare CRCs with zlib from the pinned Xcode SDK. Removing the data-CRC check or commit-magic check separately causes the corruption test to fail, and so does removing format-1 decoding. With all of them present, 117718 assertions pass. These are software-model results, not physical power-loss tests or flash-execution timing measurements. Geometry tests use only captured SFDP metadata, not original user flash. USB callback fixtures cover deferred saves, producer gating, post-flash draining, telemetry ownership, exact retries, and session-reset completion. The reset-driver fixture checks request type, interface, values, stages, and bus-reset cancellation. Removing telemetry-field ownership makes the actual callback regression fail.

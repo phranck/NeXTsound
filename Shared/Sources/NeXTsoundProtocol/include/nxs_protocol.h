@@ -30,6 +30,11 @@ extern "C" {
 #define NXS_SNAPSHOT_SIZE 120u
 /** Bytes including the null terminator; matches the USB product string descriptor's practical length. */
 #define NXS_DEVICE_NAME_LENGTH 32u
+/** Bytes of the owner metadata's text fields; see nxs_owner_metadata_t. */
+#define NXS_OWNER_NAME_LENGTH 64u
+#define NXS_OWNER_NOTE_LENGTH 256u
+/** The board stores the serial number in three bytes, so this is the largest one. */
+#define NXS_SERIAL_NUMBER_MAX 0xffffffu
 #define NXS_CAPABILITIES_SIZE 136u
 #define NXS_RUNTIME_STATUS_SIZE 40u
 #define NXS_RUNTIME_DIAGNOSTICS_SIZE 32u
@@ -141,6 +146,18 @@ typedef struct {
     uint32_t usb_suspend_count;
     uint32_t usb_resume_count;
 } nxs_runtime_diagnostics_t;
+
+/** The owner's metadata about one board. Zero means unset in every field, and text is UTF-8 padded with zero bytes. */
+typedef struct {
+    /** The owner's date as YYYYMMDD, such as 20261024. */
+    uint32_t date;
+    /** The number the app shows after the prefix NXSB, at most NXS_SERIAL_NUMBER_MAX. */
+    uint32_t serial_number;
+    /** Not terminated when the text fills the field. */
+    uint8_t owner[NXS_OWNER_NAME_LENGTH];
+    /** Not terminated when the text fills the field. */
+    uint8_t note[NXS_OWNER_NOTE_LENGTH];
+} nxs_owner_metadata_t;
 
 typedef struct {
     nxs_operation_t operation;

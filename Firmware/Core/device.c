@@ -49,6 +49,7 @@ bool nxs_device_configure_storage(nxs_device_t *device, uint32_t flash_size_byte
         device->generation = restored->generation;
         device->status.persisted_generation = restored->generation;
         memcpy(device->capabilities.device_name, restored->device_name, sizeof(device->capabilities.device_name));
+        device->metadata = restored->metadata;
     }
     return true;
 }
@@ -264,6 +265,7 @@ bool nxs_device_pending_persistence(const nxs_device_t *device, nxs_stored_state
     candidate.generation = device->persistence_pending ? device->pending_request.generation : device->generation + 1u;
     const char *name = device->name_pending ? device->pending_name : device->capabilities.device_name;
     memcpy(candidate.device_name, name, sizeof(candidate.device_name));
+    candidate.metadata = device->metadata;
     *state = candidate;
     return true;
 }

@@ -16,6 +16,8 @@ typedef struct {
 typedef struct {
     nxs_capabilities_t capabilities;
     nxs_snapshot_t active;
+    /** Restored at boot. Every save writes it back, so saving a profile or a name never clears it. */
+    nxs_owner_metadata_t metadata;
     nxs_runtime_status_t status;
     nxs_runtime_diagnostics_t diagnostics;
     uint32_t generation;
