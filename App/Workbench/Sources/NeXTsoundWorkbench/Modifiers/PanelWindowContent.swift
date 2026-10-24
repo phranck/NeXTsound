@@ -31,21 +31,34 @@ extension EnvironmentValues {
 /// the window ends where the panel ends. The panel starts from the height its scene says the window opens with, so
 /// the window's first frame already shows it in place, and the window confirms the height once the panel stands in
 /// it. The height never comes from the panel's safe area, because the panel leaves the safe area as it moves up, and
-/// a safe area read from it would undo the move. Only the drag answers the click that activates the window, so a
-/// click into an inactive window never presses one of the panel's keys.
+/// a safe area read from it would undo the move.
+///
+/// A drag that no control takes moves the window with the pointer. The panel moves the window itself, because
+/// SwiftUI's `WindowDragGesture` on this panel starts and ends at once without moving the window. Only the drag
+/// answers the click that activates the window, so a click into an inactive window never presses one of the panel's
+/// keys.
 private struct PanelWindowContent: ViewModifier {
     @Environment(\.openingTitleBarHeight) private var openingTitleBarHeight
     @State private var windowTitleBarHeight: CGFloat?
+    @State private var mover = PanelWindowMover()
 
     func body(content: Content) -> some View {
         content
             .allowsWindowActivationEvents(false)
             .padding(.top, -(windowTitleBarHeight ?? openingTitleBarHeight))
             .background {
-                TitleBarReader(height: $windowTitleBarHeight)
+                PanelWindowReader(titleBarHeight: $windowTitleBarHeight, mover: mover)
                     .frame(width: 0, height: 0)
             }
-            .gesture(WindowDragGesture())
+            .gesture(
+                DragGesture(minimumDistance: 1)
+                    .onChanged { drag in
+                        mover.follow(pointer: NSEvent.mouseLocation, translation: drag.translation)
+                    }
+                    .onEnded { _ in
+                        mover.endDrag()
+                    }
+            )
             .allowsWindowActivationEvents()
     }
 }
@@ -59,37 +72,79 @@ extension PanelWindowContent {
     }
 }
 
-/// An AppKit view without an area that reads the title bar's height of the window it stands in.
+/// Moves a panel's window along with the pointer while a drag on the panel lasts.
 ///
-/// It takes no room, so an image render, which draws no AppKit view, has nothing to leave out.
-private struct TitleBarReader: NSViewRepresentable {
-    @Binding var height: CGFloat?
+/// It follows the pointer on the screen rather than the drag's own position, because the drag measures in the panel,
+/// which moves along with the window.
+@MainActor
+final class PanelWindowMover {
+    /// The window the panel stands in.
+    weak var window: NSWindow?
+    /// The window's origin and the pointer's position on the screen where the drag began.
+    private var start: (origin: NSPoint, pointer: NSPoint)?
 
-    func makeNSView(context _: Context) -> TitleBarReadingView {
-        let view = TitleBarReadingView()
-        view.report = { height = $0 }
-        return view
+    /// Places the window so it has moved as far as the pointer since the drag began.
+    ///
+    /// - Parameters:
+    ///   - pointer: The pointer's position on the screen, whose y axis points up.
+    ///   - translation: How far the drag has moved in the panel, whose y axis points down. On the drag's first call it
+    ///     places the drag's beginning on the screen.
+    func follow(pointer: NSPoint, translation: CGSize) {
+        guard let window else {
+            return
+        }
+        let start = start ?? (
+            origin: window.frame.origin,
+            pointer: NSPoint(x: pointer.x - translation.width, y: pointer.y + translation.height)
+        )
+        self.start = start
+        window.setFrameOrigin(NSPoint(x: start.origin.x + pointer.x - start.pointer.x, y: start.origin.y + pointer.y - start.pointer.y))
     }
 
-    func updateNSView(_ view: TitleBarReadingView, context _: Context) {
-        view.report = { height = $0 }
+    /// Ends the drag, so the next one starts from where the window stands then.
+    func endDrag() {
+        start = nil
     }
 }
 
-/// Reports its window's title bar height, which is the window's height less the rectangle its content may use
-/// unobscured, once it stands in the window.
-private final class TitleBarReadingView: NSView {
-    var report: (CGFloat?) -> Void = { _ in }
+/// An AppKit view without an area that reads the window it stands in: the window for the mover, and the height of
+/// its title bar.
+///
+/// It takes no room, so an image render, which draws no AppKit view, has nothing to leave out.
+private struct PanelWindowReader: NSViewRepresentable {
+    @Binding var titleBarHeight: CGFloat?
+    let mover: PanelWindowMover
+
+    func makeNSView(context _: Context) -> PanelWindowReadingView {
+        let view = PanelWindowReadingView()
+        view.report = report
+        return view
+    }
+
+    func updateNSView(_ view: PanelWindowReadingView, context _: Context) {
+        view.report = report
+    }
+
+    /// Hands the window to the mover and takes the title bar's height from it, which is the window's height less the
+    /// rectangle its content may use unobscured.
+    func report(_ window: NSWindow) {
+        mover.window = window
+        titleBarHeight = window.frame.height - window.contentLayoutRect.height
+    }
+}
+
+/// Reports its window once it stands in one.
+private final class PanelWindowReadingView: NSView {
+    var report: (NSWindow) -> Void = { _ in }
 
     override func viewDidMoveToWindow() {
         super.viewDidMoveToWindow()
         guard let window else {
             return
         }
-        let height = window.frame.height - window.contentLayoutRect.height
         // The view moves into the window while SwiftUI updates the panel, which must not change its state.
         Task { [report] in
-            report(height)
+            report(window)
         }
     }
 }
