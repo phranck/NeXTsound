@@ -13,6 +13,24 @@ struct PanelWindowTests {
         let model = try WorkbenchModel(library: ProfileLibrary(profiles: [profile], selectedID: profile.id))
         try await expectWindowFits(FrontPanelView(model: model, driverLibrary: DriverLibraryModel()))
     }
+
+    /// The About window shows nothing of its title bar, so its close, minimize and zoom buttons are hidden once the
+    /// panel stands in it.
+    @Test func theAboutWindowHidesItsButtons() async throws {
+        let info = AboutInfo(version: "1.2.0", build: "34", copyright: nil)
+        let about = hostingWindow(
+            for: AboutPanel(info: info, icon: NSImage()),
+            styleMask: [.titled, .closable, .miniaturizable, .fullSizeContentView]
+        )
+        defer {
+            about.window.close()
+        }
+        let kinds: [NSWindow.ButtonType] = [.closeButton, .miniaturizeButton, .zoomButton]
+        let buttons = kinds.compactMap { about.window.standardWindowButton($0) }
+        try #require(buttons.count == kinds.count, "The window has \(buttons.count) of its \(kinds.count) buttons.")
+        let hidden = await waitUntil { buttons.allSatisfy(\.isHidden) }
+        #expect(hidden, "Visible buttons: \(buttons.filter { !$0.isHidden }.count)")
+    }
 }
 
 /// Hosts a panel the way a scene with a hidden title bar and content-sized resizability does, and expects the window

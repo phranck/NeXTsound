@@ -4,8 +4,9 @@ import SwiftUI
 /// The About window's content: the app's icon over the front panel's header, the version with its build in a
 /// readout, and the copyright as a caption, on the panels' metal.
 ///
-/// The readout takes the display color that the front panel's keys choose. The metal reaches under the hidden title
-/// bar, and a drag anywhere on it moves the window, as on the front panel.
+/// The readout takes the display color that the front panel's keys choose. The icon casts its shadow onto the metal.
+/// The metal reaches under the hidden title bar, the window shows none of its buttons, and a drag anywhere on the
+/// metal moves the window, as on the front panel.
 public struct AboutPanel: View {
     private let info: AboutInfo
     private let icon: NSImage
@@ -17,6 +18,11 @@ public struct AboutPanel: View {
                 Image(nsImage: icon)
                     .resizable()
                     .frame(width: AboutPanelLayout.iconSize, height: AboutPanelLayout.iconSize)
+                    .shadow(
+                        color: AboutPanelLayout.iconShadowColor,
+                        radius: AboutPanelLayout.iconShadowRadius,
+                        y: AboutPanelLayout.iconShadowOffset
+                    )
                     .accessibilityHidden(true)
                 FrontPanelHeader()
                 PanelReadout(text: info.versionLine, layout: DotMatrixLinesLayout(cells: info.versionLine.count))
@@ -35,6 +41,7 @@ public struct AboutPanel: View {
         }
         .environment(\.phosphorTheme, theme)
         .panelWindowContent()
+        .windowButtonsHidden()
         .windowMinimizeBehavior(.disabled)
     }
 
