@@ -5,8 +5,7 @@ import SwiftUI
 /// readout, and the copyright as a caption, on the panels' metal.
 ///
 /// The readout takes the display color that the front panel's keys choose. The icon casts its shadow onto the metal.
-/// The metal reaches under the hidden title bar, the window shows none of its buttons, and a drag anywhere on the
-/// metal moves the window, as on the front panel.
+/// The metal reaches under the hidden title bar, and a drag anywhere on it moves the window, as on the front panel.
 public struct AboutPanel: View {
     private let info: AboutInfo
     private let icon: NSImage
@@ -41,7 +40,6 @@ public struct AboutPanel: View {
         }
         .environment(\.phosphorTheme, theme)
         .panelWindowContent()
-        .windowButtonsHidden()
         .windowMinimizeBehavior(.disabled)
     }
 
