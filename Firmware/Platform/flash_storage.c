@@ -103,7 +103,7 @@ static bool erase_slot(void *context, unsigned int slot) {
 static bool program_page(void *context, unsigned int slot, unsigned int page, const uint8_t bytes[NXS_STORAGE_PAGE_BYTES]) {
     (void)context;
     uintptr_t address = (uintptr_t)bytes;
-    if (!geometry_valid || slot >= NXS_STORAGE_SLOT_COUNT || page > NXS_STORAGE_COMMIT_PAGE || address < SRAM_BASE ||
+    if (!geometry_valid || slot >= NXS_STORAGE_SLOT_COUNT || page >= NXS_STORAGE_RECORD_PAGES || address < SRAM_BASE ||
         address > SRAM_END - NXS_STORAGE_PAGE_BYTES) {
         return false;
     }

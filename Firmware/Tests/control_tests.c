@@ -167,7 +167,7 @@ static bool storage_erase(void *context, unsigned int slot) {
 
 static bool storage_program(void *context, unsigned int slot, unsigned int page, const uint8_t bytes[NXS_STORAGE_PAGE_BYTES]) {
     (void)context;
-    CHECK(slot < NXS_STORAGE_SLOT_COUNT && page <= NXS_STORAGE_COMMIT_PAGE);
+    CHECK(slot < NXS_STORAGE_SLOT_COUNT && page < NXS_STORAGE_RECORD_PAGES);
     CHECK(mock.maintenance_requested && mock.maintenance_ready);
     ++mock.storage_programs;
     for (size_t index = 0; index < NXS_STORAGE_PAGE_BYTES; ++index) {
@@ -406,7 +406,7 @@ static void test_persistence_waits_for_audio_and_drains_usb(void) {
     uint32_t previous_epoch = mock.epoch;
     nxs_usb_task();
     nxs_message_t reply = response(2, NXS_RESULT_OK);
-    CHECK(reply.generation == 1 && mock.storage_erases == 1 && mock.storage_programs == 2);
+    CHECK(reply.generation == 1 && mock.storage_erases == 1 && mock.storage_programs == NXS_STORAGE_RECORD_PAGES);
     CHECK(mock.maintenance_requested);
     mock.available = NXS_DSP_BLOCK_FRAMES * 4;
     CHECK(tud_audio_rx_done_isr(0, mock.available, 0, NXS_USB_AUDIO_OUT_ENDPOINT, 1));
@@ -529,10 +529,29 @@ static void test_name_persistence_updates_product_string(void) {
     CHECK(strcmp(stored.device_name, "Bedroom SoundBox") == 0);
 }
 
+static void test_persistence_keeps_restored_metadata(void) {
+    initialize();
+    nxs_stored_state_t restored = {
+        .snapshot = nxs_default_snapshot(), .generation = 4, .metadata = {.date = 20261024u, .serial_number = 1}};
+    memcpy(restored.metadata.owner, "Bench owner", strlen("Bench owner"));
+    enable_storage(&restored);
+    send(NXS_OPERATION_PERSIST_STATE, 1, 4, NULL);
+    nxs_usb_task();
+    mock.maintenance_ready = true;
+    nxs_usb_task();
+    response(1, NXS_RESULT_OK);
+    nxs_storage_record_t record;
+    memcpy(record.bytes, mock.storage[0], sizeof(record.bytes));
+    nxs_stored_state_t stored;
+    CHECK(nxs_storage_record_decode(&record, &stored));
+    CHECK(stored.generation == 4 && memcmp(&stored.metadata, &restored.metadata, sizeof(stored.metadata)) == 0);
+}
+
 static void test_storage_callbacks(void) {
     test_persistence_waits_for_audio_and_drains_usb();
     test_persistence_completes_after_session_reset();
     test_name_persistence_updates_product_string();
+    test_persistence_keeps_restored_metadata();
 }
 
 static void test_basic_callbacks(void) {

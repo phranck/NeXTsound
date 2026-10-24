@@ -6,17 +6,8 @@
 #include <string.h>
 
 static void test_golden_message(const char *fixture_path) {
-    FILE *fixture = fopen(fixture_path, "r");
-    CHECK(fixture != NULL);
     uint8_t expected[NXS_REPORT_SIZE];
-    for (size_t byte_index = 0; byte_index < sizeof(expected); ++byte_index) {
-        unsigned int value;
-        CHECK(fscanf(fixture, "%2x", &value) == 1);
-        expected[byte_index] = (uint8_t)value;
-    }
-    unsigned int extra;
-    CHECK(fscanf(fixture, "%2x", &extra) == EOF);
-    CHECK(fclose(fixture) == 0);
+    nxs_test_read_hex(fixture_path, expected, sizeof(expected));
     nxs_message_t request = {0};
     request.operation = NXS_OPERATION_CAPABILITIES;
     request.request_id = 0x01020304;

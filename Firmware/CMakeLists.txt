@@ -10,7 +10,7 @@ endif()
 include("${PICO_SDK_PATH}/pico_sdk_init.cmake")
 # The firmware's version number. Scripts/check-firmware-version.sh fails a branch that changes the firmware
 # without raising it, so two different firmwares never report the same number.
-project(NeXTsoundFirmware VERSION 0.1.0 LANGUAGES C CXX ASM)
+project(NeXTsoundFirmware VERSION 0.1.1 LANGUAGES C CXX ASM)
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_CXX_STANDARD 17)
 pico_sdk_init()
