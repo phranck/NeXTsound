@@ -7,15 +7,17 @@ import SwiftUI
 /// of controls that edits the profile. The row sets the panel's width, and the header and the display take it, so
 /// they end where the controls end. The metal reaches under the hidden title bar, so the window's buttons sit on it.
 /// The key at the row's right end and the View menu show the Library as a sheet on this window, and the FLASH button
-/// shows the flash sheet. The INFO key and the View menu slide the display's status column in and out, and a new
-/// error brings it back in. The window presents the panels that import and export a profile, which the Library and
-/// the File menu ask for, except while the Library sheet is shown and presents them over itself.
+/// shows the flash sheet. The INFO key and the View menu slide the display's status column in and out, and the
+/// display's overlay shows the model's messages as `FrontPanelMessageOverlay` decides. The window presents the panels
+/// that import and export a profile, which the Library and the File menu ask for, except while the Library sheet is
+/// shown and presents them over itself.
 public struct FrontPanelView: View {
     @Bindable private var model: WorkbenchModel
     private let driverLibrary: DriverLibraryModel
     @State private var selectedBand = 0
     @State private var saveFeedback = FrontPanelSaveFeedback()
     @State private var presentedSheet: FrontPanelSheet?
+    @State private var messageOverlay = FrontPanelMessageOverlay()
     @AppStorage(PhosphorTheme.storageKey) private var theme = PhosphorTheme.blue
     @AppStorage(FrontPanelStatus.visibilityStorageKey) private var showsStatus = true
     @Environment(\.undoManager) private var undoManager
@@ -29,7 +31,8 @@ public struct FrontPanelView: View {
                     profileName: model.profile.displayName,
                     status: status,
                     showsStatus: showsStatus,
-                    selectedBand: selectedBand
+                    selectedBand: selectedBand,
+                    overlayMessage: messageOverlay.shown
                 )
                 .padding(FrontPanelLayout.bayMargin)
                 FrontPanelControlRow(
@@ -49,10 +52,8 @@ public struct FrontPanelView: View {
         }
         .environment(\.phosphorTheme, theme)
         .panelWindowContent()
-        .onChange(of: status.errorText) { _, errorText in
-            if errorText != nil {
-                showsStatus = true
-            }
+        .task(id: status.message) {
+            await follow(status.message)
         }
         .focusedSceneValue(\.frontPanelBand, FrontPanelBand(editor: editor, index: selectedBand))
         .focusedSceneValue(\.libraryEditor, LibraryEditor(model: model, undoManager: undoManager))
@@ -118,6 +119,27 @@ private extension FrontPanelView {
     var status: FrontPanelStatus {
         FrontPanelStatus(model: model, saveSucceeded: saveFeedback.showsSuccess)
     }
+
+    /// Shows a new message in the overlay after it settles, and hides it once its time is up. A newer message cancels
+    /// the wait, because the task runs once per message.
+    func follow(_ message: FrontPanelMessage?) async {
+        guard let settleDelay = messageOverlay.receive(message) else {
+            return
+        }
+        try? await Task.sleep(for: settleDelay)
+        guard
+            !Task.isCancelled,
+            let message,
+            let showDuration = messageOverlay.settle(message)
+        else {
+            return
+        }
+        try? await Task.sleep(for: showDuration)
+        guard !Task.isCancelled else {
+            return
+        }
+        messageOverlay.expire(message)
+    }
 }
 
 /// The multifunction display's housing: a dark frame around the glass.
@@ -132,6 +154,7 @@ private struct DisplayBay: View {
     let status: FrontPanelStatus
     let showsStatus: Bool
     let selectedBand: Int
+    let overlayMessage: FrontPanelMessage?
 
     var body: some View {
         FrontPanelDisplay(
@@ -139,7 +162,8 @@ private struct DisplayBay: View {
             profileName: profileName,
             status: status,
             showsStatus: showsStatus,
-            selectedBand: selectedBand
+            selectedBand: selectedBand,
+            overlayMessage: overlayMessage
         )
         .padding(FrontPanelLayout.screenPadding)
         .vfdGlass(cornerRadius: FrontPanelLayout.bayRadius - FrontPanelLayout.frameWidth)

@@ -118,6 +118,28 @@ struct FrontPanelDisplayLayoutTests {
         #expect(FrontPanelDisplayLayout.graphColumns(displayColumns: 500, statusShift: reserved) == 500)
         #expect(FrontPanelDisplayLayout.statusColumn(displayColumns: 500, statusShift: reserved) >= 500)
     }
+
+    /// A message wraps over the display's whole width with its marker and a hanging indent, keeps at most three lines,
+    /// and ends on the display's bottom line, under its frame line. The unlit row above the frame falls between two
+    /// lines of text, so the line above the overlay stays whole.
+    @Test func theOverlayWrapsAcrossTheDisplayAndLeavesTheLinesAboveItWhole() {
+        let layout = FrontPanelDisplayLayout.self
+        let columns = Self.frontPanelDisplayColumns
+        let short = layout.messageOverlayLines(FrontPanelMessage(text: "Settings saved"), displayColumns: columns)
+        #expect(short == ["> Settings saved"])
+        let long = String(repeating: "word ", count: 80)
+        let lines = layout.messageOverlayLines(FrontPanelMessage(text: long, isError: true), displayColumns: columns)
+        #expect(lines.count == layout.messageOverlayLineLimit)
+        #expect(lines[0].hasPrefix(layout.errorMarker) && lines[1].hasPrefix(layout.messageIndent))
+        #expect(lines.allSatisfy { $0.count <= DotMatrixMetrics.cells(inColumns: columns) })
+        #expect(layout.messageOverlayTextRow(index: 2, lineCount: 3) == layout.rows - DotMatrixFont.glyphRows)
+        for lineCount in 1 ... layout.messageOverlayLineLimit {
+            let topRow = layout.messageOverlayTopRow(lineCount: lineCount)
+            #expect(topRow % DotMatrixMetrics.linePitch == DotMatrixFont.glyphRows)
+            #expect(layout.messageOverlayFrameRow(lineCount: lineCount) > topRow)
+            #expect(layout.messageOverlayFrameRow(lineCount: lineCount) < layout.messageOverlayTextRow(index: 0, lineCount: lineCount))
+        }
+    }
 }
 
 private extension FrontPanelDisplayLayoutTests {

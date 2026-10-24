@@ -4,8 +4,9 @@ import SwiftUI
 /// The multifunction display's dot matrix.
 ///
 /// The live EQ curve takes its left part between its gain and frequency scales, with the selected profile's name under
-/// it, and the status column on the right shows the SoundBox and the latest message. The grid starts at the display's
-/// leading edge, so every dot keeps its whole-pixel position.
+/// it, and the status column on the right shows the SoundBox. A message stands in an overlay over the display's bottom
+/// lines, across its whole width. The grid starts at the display's leading edge, so every dot keeps its whole-pixel
+/// position.
 ///
 /// The status column slides in from the right and out to the right in whole dot columns over the unlit grid, and the
 /// curve takes the columns it leaves. With reduced motion, it appears and disappears at once.
@@ -17,6 +18,8 @@ struct FrontPanelDisplay: View {
     let showsStatus: Bool
     /// The band the band keys select, whose marker lights in the peak step.
     var selectedBand: Int?
+    /// The message the overlay shows, or nil while it shows none.
+    var overlayMessage: FrontPanelMessage?
     @Environment(\.phosphorTheme) private var theme
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
@@ -32,6 +35,7 @@ struct FrontPanelDisplay: View {
                     status: status,
                     theme: theme,
                     selectedBand: selectedBand,
+                    overlayMessage: overlayMessage,
                     columns: columns,
                     statusReveal: showsStatus ? 1 : 0
                 )
@@ -46,10 +50,11 @@ struct FrontPanelDisplay: View {
 }
 
 /// The lit dots of the multifunction display: the axes, the grid lines and their labels, the curve with its fill, the
-/// band markers, the profile's name and the status column.
+/// band markers, the profile's name, the status column, and over them the message overlay.
 ///
 /// An animation of the status column's reveal redraws the dots for every step, and the column moves in whole dot
-/// columns. Dots that slide past the display's right edge are cut off.
+/// columns. Dots that slide past the display's right edge are cut off. The overlay leaves every other dot under it
+/// unlit, so only the unlit grid stands around its text.
 @Animatable
 private struct FrontPanelDisplayDots: View {
     let settings: DSPSettings
@@ -57,6 +62,7 @@ private struct FrontPanelDisplayDots: View {
     let status: FrontPanelStatus
     let theme: PhosphorTheme
     let selectedBand: Int?
+    let overlayMessage: FrontPanelMessage?
     let columns: Int
     /// How far the status column stands in the display, from 0, out of it, to 1, in its place.
     var statusReveal: Double
@@ -83,11 +89,19 @@ private struct FrontPanelDisplayDots: View {
             if statusColumn < columns {
                 paintStatus(normal: &normal, bright: &bright, column: statusColumn)
             }
-            fill.fill(context, shading: fillShading)
-            dim.fill(context, color: theme.dim)
-            normal.fill(context, color: theme.normal)
-            bright.fill(context, color: theme.bright)
-            peak.fill(context, color: theme.peak)
+            var underlay = context
+            let overlayLines = overlayMessage.map { FrontPanelDisplayLayout.messageOverlayLines($0, displayColumns: columns) } ?? []
+            if !overlayLines.isEmpty {
+                underlay.clip(to: Path(overlayArea(lineCount: overlayLines.count, size: size)), options: .inverse)
+            }
+            fill.fill(underlay, shading: fillShading)
+            dim.fill(underlay, color: theme.dim)
+            normal.fill(underlay, color: theme.normal)
+            bright.fill(underlay, color: theme.bright)
+            peak.fill(underlay, color: theme.peak)
+            if let overlayMessage, !overlayLines.isEmpty {
+                paintOverlay(overlayLines, tone: overlayMessage.tone, in: context)
+            }
         }
         .frame(
             width: DotMatrixMetrics.size(columns: columns, rows: FrontPanelDisplayLayout.rows).width,
@@ -251,38 +265,41 @@ private extension FrontPanelDisplayDots {
         painter.write(name, column: layout.gainScaleColumns + (curveColumns - nameColumns) / 2, row: layout.rows - DotMatrixFont.glyphRows)
     }
 
-    /// Draws the status column from its first dot column: the connection on the first line, each field's label in the
-    /// normal tone with its value bright after it, and the message on the bottom line. The message wraps upward with a
-    /// hanging indent into the lines the fields leave free.
+    /// Draws the status column from its first dot column: the connection on the first line, and each field's label in
+    /// the normal tone with its value bright after it on the lines below, as many as the column has.
     func paintStatus(normal: inout DotMatrixPainter, bright: inout DotMatrixPainter, column labelColumn: Int) {
         let layout = FrontPanelDisplayLayout.self
         let valueColumn = labelColumn + DotMatrixMetrics.columns(forCells: layout.statusLabelCells) + DotMatrixMetrics.cellSpacing
         let valueCells = layout.statusCells - layout.statusLabelCells
         bright.write(DotMatrixAlignment.leading.fit(status.connection, cells: layout.statusCells), column: labelColumn, row: 0)
-        for (index, field) in status.fields.enumerated() {
+        for (index, field) in status.fields.prefix(layout.statusLines - 1).enumerated() {
             let row = (index + 1) * DotMatrixMetrics.linePitch
             normal.write(DotMatrixAlignment.leading.fit(field.label, cells: layout.statusLabelCells), column: labelColumn, row: row)
             bright.write(DotMatrixAlignment.leading.fit(field.value, cells: valueCells), column: valueColumn, row: row)
         }
-        guard let message = status.message else {
-            return
+    }
+
+    /// The part of the display the overlay keeps to itself: from the unlit row above its frame line down to the
+    /// display's bottom edge, across its whole width.
+    func overlayArea(lineCount: Int, size: CGSize) -> CGRect {
+        let top = DotMatrixMetrics.rect(column: 0, row: FrontPanelDisplayLayout.messageOverlayTopRow(lineCount: lineCount)).minY
+        return CGRect(x: 0, y: top, width: size.width, height: size.height - top)
+    }
+
+    /// Draws the overlay: a frame line across the display in the dim step, and the message's lines under it in the
+    /// message's own tone, the last one on the display's bottom line.
+    func paintOverlay(_ lines: [String], tone: DotMatrixTone, in context: GraphicsContext) {
+        let layout = FrontPanelDisplayLayout.self
+        var frame = DotMatrixPainter()
+        var text = DotMatrixPainter()
+        let frameRow = layout.messageOverlayFrameRow(lineCount: lines.count)
+        for column in 0 ..< columns {
+            frame.light(column: column, row: frameRow)
         }
-        let bottomRow = layout.rows - DotMatrixFont.glyphRows
-        let room = layout.statusLines - 1 - status.fields.count
-        let lines = DotMatrixWrap.lines(
-            of: message.text,
-            width: layout.statusCells,
-            firstPrefix: message.isError ? layout.errorMarker : layout.infoMarker,
-            laterPrefix: layout.messageIndent
-        ).prefix(room)
         for (index, line) in lines.enumerated() {
-            let row = bottomRow - (lines.count - 1 - index) * DotMatrixMetrics.linePitch
-            let text = DotMatrixAlignment.leading.fit(line, cells: layout.statusCells)
-            if message.tone == .bright {
-                bright.write(text, column: labelColumn, row: row)
-            } else {
-                normal.write(text, column: labelColumn, row: row)
-            }
+            text.write(line, column: 0, row: layout.messageOverlayTextRow(index: index, lineCount: lines.count))
         }
+        frame.fill(context, color: theme.dim)
+        text.fill(context, color: tone == .bright ? theme.bright : theme.normal)
     }
 }

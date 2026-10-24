@@ -3,9 +3,9 @@ import NeXTsoundCore
 
 /// What the status column at the right of the multifunction display shows.
 ///
-/// The connection stands on its first line, a verified board's metadata and live values below it, and the latest
-/// message on the bottom line, level with the profile's name. A board that is not verified has reported nothing, so
-/// it shows no value lines, which leaves the message room to wrap upward.
+/// The connection stands on its first line, and a verified board's identity, live values and owner details below it.
+/// A board that is not verified has reported nothing, so it shows no value lines. The message is not part of the
+/// column: the display's overlay shows it, as `FrontPanelMessageOverlay` decides.
 struct FrontPanelStatus: Equatable {
     var connection: String
     var fields: [FrontPanelStatusField]
@@ -18,11 +18,13 @@ struct FrontPanelStatusField: Equatable {
     let value: String
 }
 
-/// The message on the display's bottom line.
+/// A message the display's overlay shows.
 struct FrontPanelMessage: Equatable {
     let text: String
     var isError = false
     var tone = DotMatrixTone.bright
+    /// Whether the message stays while it is current, as a save in progress does, instead of leaving after a while.
+    var isLasting = false
 }
 
 extension FrontPanelStatus {
@@ -30,7 +32,7 @@ extension FrontPanelStatus {
     /// launches.
     static let visibilityStorageKey = "frontPanelShowsStatusColumn"
 
-    /// The column for a board's connection, storage, live values and owner metadata, and the message to show under them.
+    /// The column for a board's connection, storage, live values and owner metadata, and the message for the overlay.
     init(
         board: BoardConnectionState,
         storage: BoardStorageState,
@@ -41,12 +43,6 @@ extension FrontPanelStatus {
         connection = board.title
         fields = Self.fields(board: board, storage: storage, runtime: runtime, metadata: metadata)
         self.message = message
-    }
-
-    /// The message's text when it reports an error, and nil otherwise. A new error brings a hidden status column back
-    /// into the display.
-    var errorText: String? {
-        message.flatMap { $0.isError ? $0.text : nil }
     }
 
     /// The column for the model's board, with the message that the model's state calls for. `saveSucceeded` says
@@ -62,14 +58,11 @@ extension FrontPanelStatus {
         )
     }
 
-    /// What VoiceOver reads for the display: the profile, and while the status column stands in the display, the
-    /// connection, every field and the message.
+    /// What VoiceOver reads for the display: the profile, while the status column stands in the display the connection
+    /// and every field, and the current message, which the overlay shows whether the column stands in it or not.
     func spokenDescription(profileName: String, showsStatus: Bool) -> String {
-        guard showsStatus else {
-            return profileName
-        }
-        let fieldTexts = fields.map { "\($0.label) \($0.value)" }
-        return ([profileName, connection] + fieldTexts + [message?.text].compactMap(\.self)).joined(separator: ". ")
+        let columnTexts = showsStatus ? [connection] + fields.map { "\($0.label) \($0.value)" } : []
+        return ([profileName] + columnTexts + [message?.text].compactMap(\.self)).joined(separator: ". ")
     }
 }
 
@@ -113,8 +106,7 @@ private extension FrontPanelStatus {
         return fields
     }
 
-    /// A line for each owner field that is set, so the message keeps the lines that unset fields leave. The note shows
-    /// its first line.
+    /// A line for each owner field that is set. The note shows its first line.
     static func metadataFields(_ metadata: OwnerMetadata) -> [FrontPanelStatusField] {
         var fields: [FrontPanelStatusField] = []
         if !metadata.owner.isEmpty {
@@ -189,7 +181,7 @@ private extension FrontPanelStatus {
     }
 }
 
-/// Everything the display's message line reports, and the one message it shows.
+/// Everything the display's message overlay reports, and the one message that is current.
 ///
 /// The first of these that has something to say wins: a save that runs or has just finished, a board or profile
 /// error, the profile's validation problem, the library's storage status, and the reminder that a verified board
@@ -226,7 +218,7 @@ extension FrontPanelMessageSources {
 
     var message: FrontPanelMessage? {
         if let saveInProgress {
-            return FrontPanelMessage(text: saveInProgress)
+            return FrontPanelMessage(text: saveInProgress, isLasting: true)
         }
         if saveSucceeded {
             return FrontPanelMessage(text: String(localized: "Settings saved"))

@@ -58,6 +58,8 @@ enum FrontPanelDisplayLayout {
     static let infoMarker = "> "
     /// The indent of a message's later lines, as wide as its marker.
     static let messageIndent = "  "
+    /// The most lines a message takes in the overlay at the display's bottom.
+    static let messageOverlayLineLimit = 3
     /// The dot columns that the status column takes from the curve, the gap before it included. The column slides
     /// this far to the right to leave the display.
     static let statusReservedColumns = DotMatrixMetrics.columns(forCells: statusCells) + statusGapColumns
@@ -168,6 +170,38 @@ extension FrontPanelDisplayLayout {
     static func statusShift(reveal: Double) -> Int {
         let clamped = reveal.isFinite ? min(max(reveal, 0), 1) : 1
         return Int(((1 - clamped) * Double(statusReservedColumns)).rounded())
+    }
+
+    /// A message's lines in the overlay on a display of `displayColumns` columns: broken between its words, with its
+    /// marker before the first line and a hanging indent after it, and at most `messageOverlayLineLimit` of them, so a
+    /// longer message keeps its first lines.
+    static func messageOverlayLines(_ message: FrontPanelMessage, displayColumns: Int) -> [String] {
+        let lines = DotMatrixWrap.lines(
+            of: message.text,
+            width: DotMatrixMetrics.cells(inColumns: displayColumns),
+            firstPrefix: message.isError ? errorMarker : infoMarker,
+            laterPrefix: messageIndent
+        )
+        return Array(lines.prefix(messageOverlayLineLimit))
+    }
+
+    /// The first dot row of the overlay's line of text at `index` among `lineCount` lines, which end on the display's
+    /// bottom line.
+    static func messageOverlayTextRow(index: Int, lineCount: Int) -> Int {
+        rows - DotMatrixFont.glyphRows - (lineCount - 1 - index) * DotMatrixMetrics.linePitch
+    }
+
+    /// The dot row of the overlay's frame line, directly above its `lineCount` lines of text. Every glyph lights its
+    /// bottom row, and two lines of text leave only two unlit rows between them, so the frame takes the lower of those
+    /// rows and the upper one stays unlit to set it apart from the line above.
+    static func messageOverlayFrameRow(lineCount: Int) -> Int {
+        messageOverlayTextRow(index: 0, lineCount: lineCount) - 1
+    }
+
+    /// The first dot row the overlay keeps to itself above `lineCount` lines of text: the unlit row above its frame
+    /// line, so the line of text above the overlay stays whole.
+    static func messageOverlayTopRow(lineCount: Int) -> Int {
+        messageOverlayFrameRow(lineCount: lineCount) - 1
     }
 
     /// The dot row a gain falls on among `rows` rows, with 0 dB in the middle row and every gain beyond the range on
