@@ -125,7 +125,7 @@ private extension FrontPanelRenderTests {
     static var aboutIconRegion: (columns: Range<Int>, rows: Range<Int>) {
         let edge = Int(AboutPanelLayout.iconSize * 2)
         let left = Int(AboutPanelLayout.width - AboutPanelLayout.iconSize)
-        let top = Int(AboutPanelLayout.padding * 2)
+        let top = Int(AboutPanelLayout.padding.top * 2)
         return (left ..< left + edge, top ..< top + edge)
     }
 
