@@ -53,7 +53,7 @@ struct FrontPanelDisplay: View {
 ///
 /// An animation of the status column's reveal redraws the dots for every step, and the column moves in whole dot
 /// columns. Dots that slide past the display's right edge are cut off. The card leaves every other dot under it unlit,
-/// so only the unlit grid stands around its frame and its text.
+/// so only the unlit grid stands around its frame and its text, and everything outside it lights dimmer while it shows.
 @Animatable
 private struct FrontPanelDisplayDots: View {
     let settings: DSPSettings
@@ -92,6 +92,7 @@ private struct FrontPanelDisplayDots: View {
             let card = overlayMessage.map { FrontPanelDisplayLayout.messageCard($0, displayColumns: columns) }
             if let card {
                 underlay.clip(to: cardArea(card), options: .inverse)
+                underlay.opacity = Self.underlayOpacityBehindCard
             }
             fill.fill(underlay, shading: fillShading)
             dim.fill(underlay, color: theme.dim)
@@ -122,6 +123,9 @@ private extension FrontPanelDisplayDots {
     static let fillTopOpacity = 0.55
     /// The fill's opacity at the graph's bottom axis.
     static let fillBottomOpacity = 0.05
+    /// The opacity of every lit dot outside the message card while the card shows, so the card stands in front of
+    /// the curve and the status column.
+    static let underlayOpacityBehindCard = 0.35
 
     /// Draws the axes along the curve's left and bottom edges, the solid 0 dB line, and dotted lines at the gains and
     /// frequencies the scales label. The lines leave out the dots in `sparing`, which the band markers clear.
