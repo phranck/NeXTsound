@@ -10,7 +10,15 @@ bash Scripts/firmware.sh
 
 The script bootstraps the pinned project-local tools, builds all three firmware targets, tests the persistent-sector linker boundary, and inspects `nxs_firmware.uf2` as a file. It does not access a connected board or install firmware. Outputs are in `.build/firmware`. The separate `nxs_dsp_probe` target configures no USB or audio output. The SRAM-only `nxs_flash_probe` reads chip metadata over USB CDC; its ELF load ranges are checked during the build. See [flash identification and recovery](Backup.md).
 
-`toolchain.json` supplies the board and dependency revisions. The program version identifies the Git revision and marks tracked working-tree changes. The audio firmware reserves 4 KiB stacks for both cores in the SDK's scratch banks. GCC emits `.su` frame reports beside its objects. These reports are not a measurement of interrupt-inclusive stack high-water use.
+`toolchain.json` supplies the board and dependency revisions. The audio firmware reserves 4 KiB stacks for both cores in the SDK's scratch banks. GCC emits `.su` frame reports beside its objects. These reports are not a measurement of interrupt-inclusive stack high-water use.
+
+## Version
+
+The firmware's version number is the `project()` version in [`Firmware/CMakeLists.txt`](../Firmware/CMakeLists.txt), such as `0.1.0`. Capabilities report it, and the app shows it as `FW`. A build from a working copy with uncommitted changes to tracked files reports it with `-dirty` appended. The UF2 metadata adds the commit, so `picotool info` shows `0.1.0 (<commit>)` and names the exact source. The reported text holds at most 16 characters, and a longer version fails the build.
+
+Every change to the firmware raises the version number: the patch number for a fix, the minor number for a new capability, and the major number for a change that older apps cannot follow. [`Scripts/check-firmware-version.sh`](../Scripts/check-firmware-version.sh) is part of the complete gate. It fails when `Firmware` outside its tests, the shared C protocol and DSP sources, or the firmware section of `toolchain.json` differ from the merge base with `origin/main` while the version stays the same.
+
+## TinyUSB port
 
 The RP2 device port is the one in the pinned TinyUSB 0.21.0. Its `dcd_edpt_iso_activate` aborts a pending transfer before it reactivates an ISO endpoint, which keeps USB control responsive when audio restarts. The host fixture [`usb_iso_tests.c`](../Firmware/Tests/usb_iso_tests.c) compiles that port with TinyUSB's common RP2 source, and it fails when the abort is missing.
 
