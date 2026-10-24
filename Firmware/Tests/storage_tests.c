@@ -1,5 +1,5 @@
+#include "nxs_protocol_test.h"
 #include "nxs_storage.h"
-#include "nxs_test.h"
 
 #include <limits.h>
 #include <math.h>
@@ -12,8 +12,8 @@
 #define TEST_NAME_OFFSET (TEST_PAYLOAD_OFFSET + NXS_SNAPSHOT_SIZE)
 #define TEST_DATE_OFFSET (TEST_NAME_OFFSET + NXS_DEVICE_NAME_LENGTH)
 #define TEST_SERIAL_OFFSET (TEST_DATE_OFFSET + 4u)
-#define TEST_RESERVED_OFFSET (TEST_SERIAL_OFFSET + 3u)
-#define TEST_OWNER_OFFSET (TEST_RESERVED_OFFSET + 1u)
+#define TEST_FLAGS_OFFSET (TEST_SERIAL_OFFSET + 3u)
+#define TEST_OWNER_OFFSET (TEST_FLAGS_OFFSET + 1u)
 #define TEST_FORMAT_2_END (TEST_OWNER_OFFSET + NXS_OWNER_NAME_LENGTH)
 #define TEST_COMMIT_OFFSET (NXS_STORAGE_COMMIT_PAGE * NXS_STORAGE_PAGE_BYTES)
 #define TEST_COMMIT_HEADER_BYTES 16u
@@ -77,7 +77,7 @@ static nxs_stored_state_t make_state(uint32_t generation, float attenuation) {
 
 /** Metadata with a short owner and a note that fills its whole page. */
 static nxs_owner_metadata_t make_metadata(uint32_t serial_number) {
-    nxs_owner_metadata_t metadata = {.date = 20261024u, .serial_number = serial_number};
+    nxs_owner_metadata_t metadata = {.date = 20261024u, .has_serial_number = true, .serial_number = serial_number};
     memcpy(metadata.owner, "Bench owner", strlen("Bench owner"));
     memset(metadata.note, 'n', sizeof(metadata.note));
     return metadata;
@@ -90,7 +90,7 @@ static void check_state(const nxs_stored_state_t *actual, const nxs_stored_state
     CHECK(nxs_snapshot_encode(&expected->snapshot, expected_payload, sizeof(expected_payload)) == NXS_RESULT_OK);
     CHECK(memcmp(actual_payload, expected_payload, sizeof(actual_payload)) == 0);
     CHECK(strcmp(actual->device_name, expected->device_name) == 0);
-    CHECK(memcmp(&actual->metadata, &expected->metadata, sizeof(actual->metadata)) == 0);
+    CHECK(nxs_test_metadata_equal(&actual->metadata, &expected->metadata));
 }
 
 /** Every single-bit change anywhere in the record is rejected and leaves the destination unchanged. */
@@ -189,7 +189,7 @@ static void record_validation(void) {
     CHECK(read_u32(record.bytes + TEST_DATE_OFFSET) == 20261024u);
     CHECK(record.bytes[TEST_SERIAL_OFFSET] == 0x0c && record.bytes[TEST_SERIAL_OFFSET + 1] == 0x0b &&
           record.bytes[TEST_SERIAL_OFFSET + 2] == 0x0a);
-    CHECK(record.bytes[TEST_RESERVED_OFFSET] == 0);
+    CHECK(record.bytes[TEST_FLAGS_OFFSET] == NXS_METADATA_FLAG_SERIAL_NUMBER);
     CHECK(memcmp(record.bytes + TEST_OWNER_OFFSET, original.metadata.owner, NXS_OWNER_NAME_LENGTH) == 0);
     CHECK(memcmp(record.bytes + TEST_NOTE_OFFSET, original.metadata.note, NXS_OWNER_NOTE_LENGTH) == 0);
     CHECK(read_u32(record.bytes + TEST_CHECKSUM_OFFSET) == reference_checksum(&record));
@@ -236,7 +236,7 @@ static void record_validation(void) {
             corrupt.bytes[TEST_FORMAT_2_END] = 0;
             break;
         case 12:
-            corrupt.bytes[TEST_RESERVED_OFFSET] = 1;
+            corrupt.bytes[TEST_FLAGS_OFFSET] = 2;
             break;
         case 13:
             corrupt.bytes[4] = 1;
@@ -301,6 +301,23 @@ static void format_1_records(const char *fixture_path) {
     CHECK(memcmp(flash.sectors[0], record.bytes, sizeof(record.bytes)) == 0);
     CHECK(nxs_storage_read(&io, &loaded, &slot) == NXS_STORAGE_LOADED && slot == 1);
     check_state(&loaded, &next);
+}
+
+/** The fixture is the record firmware 0.2.0 writes for a board with serial number 1, which carries no flag. */
+static void format_2_records_without_the_flag(const char *fixture_path) {
+    nxs_storage_record_t record;
+    nxs_test_read_hex(fixture_path, record.bytes, sizeof(record.bytes));
+    CHECK(record.bytes[4] == 2 && record.bytes[TEST_FLAGS_OFFSET] == 0);
+    nxs_stored_state_t expected = make_state(102, -18.0f), decoded;
+    strcpy(expected.device_name, "NeXT SoundBox mini");
+    expected.metadata = (nxs_owner_metadata_t){.date = 20261024u, .has_serial_number = true, .serial_number = 1};
+    memcpy(expected.metadata.owner, "Bench owner", strlen("Bench owner"));
+    memcpy(expected.metadata.note, "First line\nSecond line", strlen("First line\nSecond line"));
+    CHECK(nxs_storage_record_decode(&record, &decoded));
+    check_state(&decoded, &expected);
+    nxs_storage_record_t rewritten;
+    CHECK(nxs_storage_record_encode(&decoded, &rewritten));
+    CHECK(rewritten.bytes[TEST_FLAGS_OFFSET] == NXS_METADATA_FLAG_SERIAL_NUMBER);
 }
 
 static void selection_and_generation(void) {
@@ -503,15 +520,24 @@ static void metadata_persistence(void) {
     CHECK(nxs_storage_read(&io, &restored, &slot) == NXS_STORAGE_LOADED);
     check_state(&restored, &cleared);
 
-    nxs_stored_state_t too_large = make_state(4, -18.0f);
+    nxs_stored_state_t test_number = make_state(4, -18.0f);
+    test_number.metadata = (nxs_owner_metadata_t){.has_serial_number = true, .serial_number = 0};
+    CHECK(nxs_storage_save(&io, &test_number) == NXS_RESULT_OK);
+    CHECK(nxs_storage_read(&io, &restored, &slot) == NXS_STORAGE_LOADED);
+    CHECK(restored.metadata.has_serial_number && restored.metadata.serial_number == 0);
+    check_state(&restored, &test_number);
+
+    nxs_stored_state_t too_large = make_state(5, -18.0f);
+    too_large.metadata.has_serial_number = true;
     too_large.metadata.serial_number = NXS_SERIAL_NUMBER_MAX + 1u;
     CHECK(nxs_storage_save(&io, &too_large) == NXS_RESULT_INVALID_PARAMETERS);
 }
 
 int main(int argument_count, char **arguments) {
-    CHECK(argument_count == 2);
+    CHECK(argument_count == 3);
     record_validation();
     format_1_records(arguments[1]);
+    format_2_records_without_the_flag(arguments[2]);
     selection_and_generation();
     interrupted_programs();
     interrupted_erases();

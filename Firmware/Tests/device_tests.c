@@ -445,7 +445,7 @@ static uint16_t feature_flags(nxs_device_t *device, uint32_t identifier, uint8_t
 }
 
 static nxs_owner_metadata_t sample_metadata(uint32_t serial_number) {
-    nxs_owner_metadata_t metadata = {.date = 20261024u, .serial_number = serial_number};
+    nxs_owner_metadata_t metadata = {.date = 20261024u, .has_serial_number = true, .serial_number = serial_number};
     memcpy(metadata.owner, "Bench owner", strlen("Bench owner"));
     memcpy(metadata.note, "First line\nSecond line", strlen("First line\nSecond line"));
     return metadata;
@@ -460,7 +460,7 @@ static void test_owner_metadata_boot_and_refusals(void) {
     send_metadata_part(&device, 1, 1, 0, block);
     response(&device, 1, NXS_RESULT_STORAGE_UNAVAILABLE);
     nxs_owner_metadata_t current = read_metadata(&device, 2);
-    CHECK(memcmp(&current, &empty, sizeof(current)) == 0);
+    CHECK(nxs_test_metadata_equal(&current, &empty));
     nxs_device_reset_session(&device);
     CHECK(nxs_device_configure_storage(&device, NXS_FLASH_SUPPORTED_BYTES, true, NULL));
     CHECK(feature_flags(&device, 4, 1) & NXS_FEATURE_METADATA);
@@ -472,7 +472,7 @@ static void test_owner_metadata_boot_and_refusals(void) {
     response(&device, 11, NXS_RESULT_OK);
     CHECK(device.generation == 1 && !device.metadata_pending);
     current = read_metadata(&device, 12);
-    CHECK(memcmp(&current, &empty, sizeof(current)) == 0);
+    CHECK(nxs_test_metadata_equal(&current, &empty));
     nxs_device_reset_session(&device);
     send_metadata_part(&device, 14, 1, 1, block);
     response(&device, 14, NXS_RESULT_INVALID_PARAMETERS);
@@ -519,7 +519,7 @@ static void test_owner_metadata_boot_and_refusals(void) {
     nxs_stored_state_t restored = {.snapshot = nxs_default_snapshot(), .generation = 7, .metadata = metadata};
     CHECK(nxs_device_configure_storage(&device, NXS_FLASH_SUPPORTED_BYTES, true, &restored));
     current = read_metadata(&device, 30);
-    CHECK(memcmp(&current, &metadata, sizeof(current)) == 0);
+    CHECK(nxs_test_metadata_equal(&current, &metadata));
 }
 
 static void test_owner_metadata_write(void) {
@@ -535,7 +535,7 @@ static void test_owner_metadata_write(void) {
     CHECK(device.metadata_pending);
     nxs_stored_state_t pending;
     CHECK(nxs_device_pending_persistence(&device, &pending));
-    CHECK(pending.generation == 2 && memcmp(&pending.metadata, &metadata, sizeof(metadata)) == 0);
+    CHECK(pending.generation == 2 && nxs_test_metadata_equal(&pending.metadata, &metadata));
     send_name(&device, 3, 1, "Bedroom SoundBox");
     response(&device, 3, NXS_RESULT_BUSY);
     send_metadata_part(&device, 2, 1, 1, block);
@@ -543,11 +543,11 @@ static void test_owner_metadata_write(void) {
     nxs_message_t reply = response(&device, 2, NXS_RESULT_OK);
     CHECK(reply.generation == 2 && device.generation == 2 && device.status.persisted_generation == 2 && !device.metadata_pending);
     nxs_owner_metadata_t current = read_metadata(&device, 4);
-    CHECK(memcmp(&current, &metadata, sizeof(current)) == 0);
+    CHECK(nxs_test_metadata_equal(&current, &metadata));
 
     send_name(&device, 6, 2, "Bedroom SoundBox");
     CHECK(nxs_device_pending_persistence(&device, &pending));
-    CHECK(memcmp(&pending.metadata, &metadata, sizeof(metadata)) == 0);
+    CHECK(nxs_test_metadata_equal(&pending.metadata, &metadata));
     CHECK(nxs_device_complete_persistence(&device, NXS_RESULT_OK));
     response(&device, 6, NXS_RESULT_OK);
     CHECK(device.generation == 3);
@@ -561,7 +561,7 @@ static void test_owner_metadata_write(void) {
     response(&device, 8, NXS_RESULT_STORAGE_FAILED);
     CHECK(device.generation == 3);
     current = read_metadata(&device, 9);
-    CHECK(memcmp(&current, &metadata, sizeof(current)) == 0);
+    CHECK(nxs_test_metadata_equal(&current, &metadata));
 }
 
 int main(void) {

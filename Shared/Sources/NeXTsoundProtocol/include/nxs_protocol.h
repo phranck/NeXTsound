@@ -36,6 +36,8 @@ extern "C" {
 #define NXS_OWNER_NOTE_LENGTH 256u
 /** The board stores the serial number in three bytes, so this is the largest one. */
 #define NXS_SERIAL_NUMBER_MAX 0xffffffu
+/** The flag byte of the metadata block and the storage record: bit 0 says that a serial number is set. */
+#define NXS_METADATA_FLAG_SERIAL_NUMBER 1u
 #define NXS_CAPABILITIES_SIZE 136u
 #define NXS_RUNTIME_STATUS_SIZE 40u
 #define NXS_RUNTIME_DIAGNOSTICS_SIZE 32u
@@ -163,11 +165,16 @@ typedef struct {
     uint32_t usb_resume_count;
 } nxs_runtime_diagnostics_t;
 
-/** The owner's metadata about one board. Zero means unset in every field, and text is UTF-8 padded with zero bytes. */
+/**
+ * The owner's metadata about one board. Unset fields are zero, and text is UTF-8 padded with zero bytes. The serial
+ * number has a flag of its own, because 0 is a number the owner gives.
+ */
 typedef struct {
-    /** The owner's date as YYYYMMDD, such as 20261024. */
+    /** The owner's date as YYYYMMDD, such as 20261024, or 0 when unset. */
     uint32_t date;
-    /** The number the app shows after the prefix NXSB, at most NXS_SERIAL_NUMBER_MAX. */
+    /** Whether the board carries a serial number. Without one, serial_number is 0. */
+    bool has_serial_number;
+    /** The number the app shows after the prefix NXSB, from 0 to NXS_SERIAL_NUMBER_MAX. */
     uint32_t serial_number;
     /** Not terminated when the text fills the field. */
     uint8_t owner[NXS_OWNER_NAME_LENGTH];
@@ -194,10 +201,16 @@ bool nxs_snapshot_is_valid(const nxs_snapshot_t *snapshot);
 bool nxs_device_name_is_valid(const char name[NXS_DEVICE_NAME_LENGTH]);
 bool nxs_host_volume_is_valid(float volume_db);
 /**
- * Unset fields are zero. A set date is a valid Gregorian YYYYMMDD from year 1 to 9999. Owner and note are UTF-8 without
- * control characters, except line feeds in the note, and every byte after the text is zero.
+ * Unset fields are zero, and an unset serial number is 0 without its flag. A set date is a valid Gregorian YYYYMMDD from
+ * year 1 to 9999. Owner and note are UTF-8 without control characters, except line feeds in the note, and every byte
+ * after the text is zero.
  */
 bool nxs_owner_metadata_is_valid(const nxs_owner_metadata_t *metadata);
+/**
+ * Whether a decoded serial number is set: with its flag, or without one when it is not 0, because firmware 0.2.0 wrote
+ * numbers without the flag. Encoders always write the flag for a set number.
+ */
+bool nxs_metadata_serial_number_is_set(uint8_t flags, uint32_t serial_number);
 const char *nxs_result_description(nxs_result_t result);
 
 /** Failure leaves the caller's destination unchanged. Padding must be zero. */
@@ -213,7 +226,7 @@ nxs_result_t nxs_runtime_diagnostics_encode(const nxs_runtime_diagnostics_t *dia
 nxs_result_t nxs_runtime_diagnostics_decode(const uint8_t *payload, size_t length, nxs_runtime_diagnostics_t *diagnostics);
 nxs_result_t nxs_device_name_encode(const char name[NXS_DEVICE_NAME_LENGTH], uint8_t *payload, size_t length);
 nxs_result_t nxs_device_name_decode(const uint8_t *payload, size_t length, char name[NXS_DEVICE_NAME_LENGTH]);
-/** The NXS_METADATA_SIZE block: date, serial number in three bytes, a zero byte, owner, then note. */
+/** The NXS_METADATA_SIZE block: date, serial number in three bytes, the flag byte, owner, then note. */
 nxs_result_t nxs_owner_metadata_encode(const nxs_owner_metadata_t *metadata, uint8_t *block, size_t length);
 nxs_result_t nxs_owner_metadata_decode(const uint8_t *block, size_t length, nxs_owner_metadata_t *metadata);
 

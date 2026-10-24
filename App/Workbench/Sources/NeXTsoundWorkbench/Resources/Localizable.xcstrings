@@ -1992,13 +1992,13 @@
         }
       }
     },
-    "The number takes digits from 1 to %@." : {
+    "The number takes digits from 0 to %@." : {
       "comment" : "The edit form's problem when the serial number is not a number the board stores; the placeholder is the largest one.",
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Die Nummer besteht aus Ziffern von 1 bis %@."
+            "value" : "Die Nummer besteht aus Ziffern von 0 bis %@."
           }
         }
       }
