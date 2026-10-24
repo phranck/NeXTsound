@@ -8,7 +8,9 @@ if(NOT PICO_SDK_PATH)
     message(FATAL_ERROR "Run bash Scripts/firmware.sh from the repository root.")
 endif()
 include("${PICO_SDK_PATH}/pico_sdk_init.cmake")
-project(NeXTsoundFirmware LANGUAGES C CXX ASM)
+# The firmware's version number. Scripts/check-firmware-version.sh fails a branch that changes the firmware
+# without raising it, so two different firmwares never report the same number.
+project(NeXTsoundFirmware VERSION 0.1.0 LANGUAGES C CXX ASM)
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_CXX_STANDARD 17)
 pico_sdk_init()
@@ -30,12 +32,20 @@ pico_add_extra_outputs(nxs_dsp_probe)
 
 find_package(Git REQUIRED)
 execute_process(COMMAND "${GIT_EXECUTABLE}" rev-parse --short=8 HEAD
-    WORKING_DIRECTORY "${CMAKE_CURRENT_LIST_DIR}/.." OUTPUT_VARIABLE NXS_GIT_VERSION OUTPUT_STRIP_TRAILING_WHITESPACE)
+    WORKING_DIRECTORY "${CMAKE_CURRENT_LIST_DIR}/.." OUTPUT_VARIABLE NXS_GIT_COMMIT OUTPUT_STRIP_TRAILING_WHITESPACE)
 execute_process(COMMAND "${GIT_EXECUTABLE}" diff-index --quiet HEAD --
     WORKING_DIRECTORY "${CMAKE_CURRENT_LIST_DIR}/.." RESULT_VARIABLE NXS_GIT_DIRTY)
+set(NXS_FIRMWARE_VERSION "${PROJECT_VERSION}")
 if(NXS_GIT_DIRTY)
-    string(APPEND NXS_GIT_VERSION "-dirty")
+    string(APPEND NXS_FIRMWARE_VERSION "-dirty")
 endif()
+# The capabilities field holds 16 characters, and nxs_device_init refuses a longer version, which stops the board at boot.
+string(LENGTH "${NXS_FIRMWARE_VERSION}" NXS_FIRMWARE_VERSION_LENGTH)
+if(NXS_FIRMWARE_VERSION_LENGTH GREATER 16)
+    message(FATAL_ERROR "Firmware version ${NXS_FIRMWARE_VERSION} is longer than the 16 characters capabilities hold.")
+endif()
+# The UF2 metadata keeps the commit beside the version number, so picotool info still names the exact source.
+set(NXS_PROGRAM_VERSION "${NXS_FIRMWARE_VERSION} (${NXS_GIT_COMMIT})")
 
 add_executable(nxs_firmware main.c Platform/engine.c Platform/i2s.c Platform/flash_storage.c USB/control.c USB/descriptors.c USB/reset.c)
 pico_set_boot_stage2(nxs_firmware nxs_read_only_boot2)
@@ -46,14 +56,14 @@ target_compile_options(nxs_firmware PRIVATE -Wall -Wextra -Werror -fstack-usage)
 foreach(NXS_LIBRARY nxs_protocol nxs_dsp nxs_device nxs_storage)
     target_compile_options(${NXS_LIBRARY} PRIVATE -fstack-usage)
 endforeach()
-target_compile_definitions(nxs_firmware PRIVATE NXS_FIRMWARE_VERSION="${NXS_GIT_VERSION}"
+target_compile_definitions(nxs_firmware PRIVATE NXS_FIRMWARE_VERSION="${NXS_FIRMWARE_VERSION}"
     PICO_STACK_SIZE=0x1000 PICO_CORE1_STACK_SIZE=0x1000
     PICO_FLASH_ASSUME_CORE0_SAFE=0 PICO_FLASH_ASSUME_CORE1_SAFE=0 PICO_FLASH_ASSERT_ON_UNSAFE=0)
 pico_generate_pio_header(nxs_firmware "${CMAKE_CURRENT_LIST_DIR}/Platform/i2s.pio")
 pico_enable_stdio_usb(nxs_firmware 0)
 pico_enable_stdio_uart(nxs_firmware 0)
 pico_set_program_name(nxs_firmware "NeXTsound development firmware")
-pico_set_program_version(nxs_firmware "${NXS_GIT_VERSION}")
+pico_set_program_version(nxs_firmware "${NXS_PROGRAM_VERSION}")
 pico_set_program_description(nxs_firmware "USB audio and HID control; mono I2S; muted start")
 pico_add_extra_outputs(nxs_firmware)
 
@@ -65,7 +75,7 @@ target_compile_options(nxs_flash_probe PRIVATE -Wall -Wextra -Werror -fstack-usa
 pico_enable_stdio_usb(nxs_flash_probe 1)
 pico_enable_stdio_uart(nxs_flash_probe 0)
 pico_set_program_name(nxs_flash_probe "NeXTsound RAM flash metadata probe")
-pico_set_program_version(nxs_flash_probe "${NXS_GIT_VERSION}")
+pico_set_program_version(nxs_flash_probe "${NXS_PROGRAM_VERSION}")
 pico_set_program_description(nxs_flash_probe "RAM-only JEDEC and SFDP reader; no audio or flash programming")
 pico_add_extra_outputs(nxs_flash_probe)
 

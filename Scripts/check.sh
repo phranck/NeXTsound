@@ -11,6 +11,7 @@ while IFS= read -r -d '' relative; do
 done < <(swift_sources)
 "$root/.tools/bin/swiftlint" lint --strict --config "$root/.swiftlint.yml" "${swift_files[@]}"
 
+bash "$root/Scripts/check-firmware-version.sh"
 bash "$root/Scripts/firmware.sh"
 cmake -S "$root/Shared" -B "$root/.build/c-protocol" -G Ninja \
     -DCMAKE_BUILD_TYPE=Debug -DCMAKE_C_COMPILER="$(xcrun --find clang)" -DNXS_TEST_FIRMWARE=ON
