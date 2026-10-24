@@ -1,0 +1,93 @@
+{
+  "date": "2026-10-18",
+  "scope": "Native offline profile document workbench, issue 14. Software/model tests and offscreen rendering only.",
+  "base_revision": "74c1c8ab0ed8d86407f88905c46083f347e33565",
+  "branch": "issue/14-offline-workbench",
+  "platform": {
+    "minimum_macos": "15.0",
+    "xcode": "27.0",
+    "xcode_build": "27A266a",
+    "xcodegen": "2.45.4"
+  },
+  "gate": {
+    "completed_local": "2026-10-18T17:05:22+02:00",
+    "shared_swift_tests": 29,
+    "app_swift_tests": 20,
+    "ctest_cases": 18,
+    "c_assertions": 315899,
+    "swiftlint_violations": 0,
+    "format_layout_fixtures": true,
+    "rp2350_targets_and_guards": true,
+    "native_debug_build": true,
+    "native_release_build": true,
+    "release_packages": true,
+    "shellcheck": true,
+    "actionlint": true
+  },
+  "rendering": {
+    "method": "NSHostingView in the renderer process's own hidden offscreen window; application activation prohibited. Not a running app screenshot.",
+    "fixtures": "Generic muted Warm preset with no selected speaker or enclosure.",
+    "views": [
+      {
+        "width_points": 1080,
+        "height_points": 680,
+        "appearance": "dark",
+        "window_visible": false,
+        "text_fields": 8,
+        "text_field_font_points": 13,
+        "text_field_height_points": 22
+      },
+      {
+        "width_points": 1080,
+        "height_points": 680,
+        "appearance": "light",
+        "window_visible": false,
+        "text_fields": 8,
+        "text_field_font_points": 13,
+        "text_field_height_points": 22
+      },
+      {
+        "width_points": 1280,
+        "height_points": 860,
+        "appearance": "dark",
+        "window_visible": false,
+        "text_fields": 8,
+        "text_field_font_points": 13,
+        "text_field_height_points": 22
+      },
+      {
+        "width_points": 1280,
+        "height_points": 860,
+        "appearance": "light",
+        "window_visible": false,
+        "text_fields": 8,
+        "text_field_font_points": 13,
+        "text_field_height_points": 22
+      }
+    ],
+    "minimum_view_scrolls_vertically": true,
+    "interactive_native_menu_dialog_tests": false,
+    "product_gui_launched": false
+  },
+  "observed_red_cases": [
+    {
+      "case": "Directory FileWrapper before the regular-file guard",
+      "result": "NSInternalInconsistencyException and process signal 6. Corrected by checking isRegularFile before regularFileContents."
+    },
+    {
+      "case": "Generator invoked through its command symlink",
+      "result": "Missing bundled setting presets and invalid empty module name; xcodebuild exit 65. Corrected by executing the packaged binary."
+    }
+  ],
+  "board_access_performed": false,
+  "audio_playback_performed": false,
+  "system_audio_output_changed": false,
+  "system_wide_sleep_performed": false,
+  "input_models_modified_or_published": false,
+  "limits": [
+    "No visible product GUI or interactive native file/menu workflow was exercised.",
+    "macOS 15 is the deployment minimum, not a separately tested runtime.",
+    "No physical, acoustic, speaker-protection, or enclosure-volume claim follows.",
+    "Speaker/enclosure editor, A/B, and live HID remain separate delivery slices."
+  ]
+}

@@ -137,8 +137,13 @@ static void test_capability_validation(void) {
     CHECK(nxs_capabilities_decode(payload, sizeof(payload), &decoded) == NXS_RESULT_OK);
     CHECK(strcmp(decoded.device_serial, original.device_serial) == 0);
     CHECK(decoded.sample_rate_hz == NXS_SAMPLE_RATE_HZ);
+    CHECK(decoded.device_name[0] == 0);
     payload[104] = 1;
-    CHECK(nxs_capabilities_decode(payload, sizeof(payload), &decoded) == NXS_RESULT_INVALID_REPORT);
+    CHECK(nxs_capabilities_decode(payload, sizeof(payload), &decoded) == NXS_RESULT_INVALID_PARAMETERS);
+    strcpy(original.device_name, "Bedroom SoundBox");
+    CHECK(nxs_capabilities_encode(&original, payload, sizeof(payload)) == NXS_RESULT_OK);
+    CHECK(nxs_capabilities_decode(payload, sizeof(payload), &decoded) == NXS_RESULT_OK);
+    CHECK(strcmp(decoded.device_name, original.device_name) == 0);
     original.feature_flags = NXS_FEATURE_PERSISTENCE;
     CHECK(nxs_capabilities_encode(&original, payload, sizeof(payload)) == NXS_RESULT_INVALID_PARAMETERS);
     original.feature_flags = NXS_FEATURE_FLASH_VERIFIED;
@@ -234,6 +239,43 @@ static void test_optional_protocol_revision(void) {
     CHECK(nxs_message_decode(report, sizeof(report), &decoded) == NXS_RESULT_UNSUPPORTED_VERSION);
 }
 
+/** The operation numbers are wire values that installed firmware and apps already exchange. */
+static void test_operation_numbers(void) {
+    CHECK(NXS_OPERATION_STATUS == 5);
+    CHECK(NXS_OPERATION_SET_NAME == 6);
+    CHECK(NXS_OPERATION_DIAGNOSTICS == 7);
+}
+
+static void test_device_name(void) {
+    char empty[NXS_DEVICE_NAME_LENGTH] = {0};
+    CHECK(nxs_device_name_is_valid(empty));
+    uint8_t payload[NXS_DEVICE_NAME_LENGTH];
+    CHECK(nxs_device_name_encode(empty, payload, sizeof(payload)) == NXS_RESULT_OK);
+    char decoded[NXS_DEVICE_NAME_LENGTH];
+    CHECK(nxs_device_name_decode(payload, sizeof(payload), decoded) == NXS_RESULT_OK);
+    CHECK(decoded[0] == 0);
+
+    char name[NXS_DEVICE_NAME_LENGTH] = {0};
+    strcpy(name, "Office SoundBox");
+    CHECK(nxs_device_name_is_valid(name));
+    CHECK(nxs_device_name_encode(name, payload, sizeof(payload)) == NXS_RESULT_OK);
+    CHECK(payload[strlen(name)] == 0);
+    CHECK(nxs_device_name_decode(payload, sizeof(payload), decoded) == NXS_RESULT_OK);
+    CHECK(strcmp(decoded, name) == 0);
+
+    char too_long[NXS_DEVICE_NAME_LENGTH];
+    memset(too_long, 'A', sizeof(too_long));
+    CHECK(!nxs_device_name_is_valid(too_long));
+    CHECK(nxs_device_name_encode(too_long, payload, sizeof(payload)) == NXS_RESULT_INVALID_PARAMETERS);
+
+    char control_character[NXS_DEVICE_NAME_LENGTH] = {0};
+    control_character[0] = '\n';
+    CHECK(!nxs_device_name_is_valid(control_character));
+    CHECK(nxs_device_name_encode(control_character, payload, sizeof(payload)) == NXS_RESULT_INVALID_PARAMETERS);
+
+    CHECK(nxs_device_name_decode(payload, sizeof(payload) - 1, decoded) == NXS_RESULT_INVALID_REPORT);
+}
+
 int main(int argument_count, char **arguments) {
     CHECK(argument_count == 2);
     test_golden_message(arguments[1]);
@@ -243,6 +285,8 @@ int main(int argument_count, char **arguments) {
     test_capability_validation();
     test_runtime_status();
     test_optional_protocol_revision();
+    test_operation_numbers();
     test_diagnostic_payload();
+    test_device_name();
     return nxs_test_finish("Protocol");
 }

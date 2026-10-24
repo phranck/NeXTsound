@@ -21,12 +21,16 @@ extern "C" {
 #define NXS_USB_PRODUCT_ID 0x4014u
 #define NXS_HID_USAGE_PAGE 0xff4eu
 #define NXS_HID_USAGE 1u
+/** The HID interface's index in the composite USB configuration (Audio Control, Audio Stream, HID, Reset). */
+#define NXS_USB_HID_INTERFACE 2u
 #define NXS_REPORT_ID 1u
 #define NXS_REPORT_SIZE 256u
 #define NXS_HEADER_SIZE 20u
 #define NXS_PAYLOAD_CAPACITY (NXS_REPORT_SIZE - NXS_HEADER_SIZE)
 #define NXS_SNAPSHOT_SIZE 120u
-#define NXS_CAPABILITIES_SIZE 112u
+/** Bytes including the null terminator; matches the USB product string descriptor's practical length. */
+#define NXS_DEVICE_NAME_LENGTH 32u
+#define NXS_CAPABILITIES_SIZE 136u
 #define NXS_RUNTIME_STATUS_SIZE 40u
 #define NXS_RUNTIME_DIAGNOSTICS_SIZE 32u
 #define NXS_EQ_BAND_COUNT 5u
@@ -48,7 +52,8 @@ typedef enum {
     NXS_OPERATION_APPLY_STATE = 3,
     NXS_OPERATION_PERSIST_STATE = 4,
     NXS_OPERATION_STATUS = 5,
-    NXS_OPERATION_DIAGNOSTICS = 6
+    NXS_OPERATION_SET_NAME = 6,
+    NXS_OPERATION_DIAGNOSTICS = 7
 } nxs_operation_t;
 
 typedef enum {
@@ -108,6 +113,8 @@ typedef struct {
     char device_serial[17];
     char firmware_version[17];
     nxs_parameter_range_t ranges[NXS_PARAMETER_COUNT];
+    /** Empty when unset; the USB product string then falls back to its fixed default. */
+    char device_name[NXS_DEVICE_NAME_LENGTH];
 } nxs_capabilities_t;
 
 typedef struct {
@@ -150,6 +157,8 @@ nxs_parameter_range_t nxs_parameter_range(nxs_parameter_t parameter);
 nxs_snapshot_t nxs_default_snapshot(void);
 nxs_capabilities_t nxs_default_capabilities(void);
 bool nxs_snapshot_is_valid(const nxs_snapshot_t *snapshot);
+/** Empty (all-zero) is valid: it means no custom name is stored yet. */
+bool nxs_device_name_is_valid(const char name[NXS_DEVICE_NAME_LENGTH]);
 bool nxs_host_volume_is_valid(float volume_db);
 const char *nxs_result_description(nxs_result_t result);
 
@@ -164,6 +173,8 @@ nxs_result_t nxs_runtime_status_encode(const nxs_runtime_status_t *status, uint8
 nxs_result_t nxs_runtime_status_decode(const uint8_t *payload, size_t length, nxs_runtime_status_t *status);
 nxs_result_t nxs_runtime_diagnostics_encode(const nxs_runtime_diagnostics_t *diagnostics, uint8_t *payload, size_t length);
 nxs_result_t nxs_runtime_diagnostics_decode(const uint8_t *payload, size_t length, nxs_runtime_diagnostics_t *diagnostics);
+nxs_result_t nxs_device_name_encode(const char name[NXS_DEVICE_NAME_LENGTH], uint8_t *payload, size_t length);
+nxs_result_t nxs_device_name_decode(const uint8_t *payload, size_t length, char name[NXS_DEVICE_NAME_LENGTH]);
 
 #ifdef __cplusplus
 }

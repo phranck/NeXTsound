@@ -33,6 +33,22 @@ public struct SpeakerRecord: Codable, Equatable, Identifiable, Sendable {
 }
 
 public extension SpeakerRecord {
+    /// Snapshots a driver library entry's identity, electrical/power specs, and provenance into
+    /// a profile's speaker record, matching the catalog/snapshot separation: a later edit to the
+    /// library entry never changes an already-saved profile.
+    init(driver: DriverRecord) {
+        id = driver.id
+        name = driver.name
+        manufacturer = driver.manufacturer
+        model = driver.model
+        nominalImpedanceOhms = driver.nominalImpedanceOhms
+        ratedPowerWatts = driver.ratedPowerWatts
+        recommendedHighPassHz = driver.recommendedHighPassHz
+        origin = driver.origin
+        sourceURLs = driver.sourceURLs
+        notes = driver.notes
+    }
+
     func validate() throws {
         let specifications = [nominalImpedanceOhms, ratedPowerWatts, recommendedHighPassHz].compactMap(\.self)
         guard
@@ -93,6 +109,33 @@ public struct EnclosureRecord: Codable, Equatable, Identifiable, Sendable {
         volume = nil
         modelReference = nil
         notes = ""
+    }
+}
+
+public extension EnclosureRecord {
+    /// The one fixed enclosure this product ships. Vb (net internal air volume) comes from
+    /// `Documentation/Verification/Enclosure-2026-10-21.json`: the owner modeled the interior
+    /// cavity itself as its own solid in Shapr3D and exported it, the driver, and the RP2350
+    /// board separately; each STL's volume was computed via the divergence theorem over its
+    /// connected components, and Vb is the cavity volume minus driver and board displacement.
+    /// Supersedes the 2026-10-18 record, which described an earlier, not yet acoustically
+    /// sealed design and is no longer current.
+    static func nextSoundBoxMini() -> EnclosureRecord {
+        let id = UUID(uuid: (0x6F, 0x1D, 0x4A, 0x2E, 0x9C, 0x05, 0x4F, 0x83, 0xA6, 0x2B, 0x7D, 0x14, 0xE0, 0x58, 0x3C, 0x91))
+        var enclosure = EnclosureRecord(id: id, name: "NeXT Sound Box mini")
+        enclosure.volume = EnclosureVolume(internalLiters: 0.196018, displacementLiters: 0.017686, origin: .model)
+        enclosure.modelReference = ModelReference(
+            fileName: "Documentation/Verification/Enclosure-2026-10-21.json",
+            sha256: "817a67353801d7e35f8b8e361c59a81ddbc301b90e2628ad99e4ae4ceebf0dc8"
+        )
+        enclosure.notes = """
+        Internal cavity 0.196018 L, minus driver displacement 0.017153 L and RP2350 board \
+        assembly displacement 0.000533 L (0.017686 L combined), net Vb = 0.178332 L. The \
+        source STL files were temporary chat attachments, already removed from disk when \
+        this record was written; their sha256 could not be captured, so the committed \
+        provenance JSON's own sha256 is what this reference checks instead.
+        """
+        return enclosure
     }
 }
 

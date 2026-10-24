@@ -5,7 +5,8 @@
 #include "pico.h"
 /* Logical registers and separate alias-write records, not a controller or timing emulator. */
 typedef struct {
-    io_rw_32 dev_addr_ctrl, main_ctrl, buf_status, sie_status, sie_ctrl, inte, ints, pwr, muxing, abort, abort_done, ep_stall_arm, sof_rd;
+    io_rw_32 dev_addr_ctrl, main_ctrl, buf_status, buf_cpu_should_handle, sie_status, sie_ctrl, inte, ints, pwr, muxing, abort, abort_done,
+        ep_stall_arm, sof_rd;
 } usb_hw_t;
 extern usb_hw_t nxs_test_usb_hw, nxs_test_usb_set, nxs_test_usb_clear;
 extern usb_device_dpram_t nxs_test_usb_dpram;

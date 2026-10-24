@@ -22,6 +22,24 @@ select_xcode() {
     fi
 }
 
+tool_executable() {
+    local executable="$root/.tools/bin/$1"
+    if [ -L "$executable" ]; then
+        readlink "$executable"
+    else
+        printf '%s\n' "$executable"
+    fi
+}
+
+tool_version() {
+    local tool="$1" argument prefix actual executable
+    argument=$(jq -r --arg tool "$tool" '.tools[$tool].version_argument' "$manifest")
+    prefix=$(jq -r --arg tool "$tool" '.tools[$tool].version_prefix // ""' "$manifest")
+    executable=$(tool_executable "$tool")
+    actual=$("$executable" "$argument")
+    printf '%s\n' "${actual#"$prefix"}"
+}
+
 swift_sources() {
     git -C "$root" ls-files -z --cached --others --exclude-standard -- '*.swift'
 }

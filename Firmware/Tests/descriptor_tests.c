@@ -3,6 +3,8 @@
 #include "pico/usb_reset_interface.h"
 #include "tusb.h"
 
+#include <string.h>
+
 static uint16_t read_u16(const uint8_t *bytes) {
     return (uint16_t)(bytes[0] | ((uint16_t)bytes[1] << 8));
 }
@@ -33,7 +35,7 @@ int main(void) {
                 CHECK(descriptor[6] == RESET_INTERFACE_SUBCLASS && descriptor[7] == RESET_INTERFACE_PROTOCOL);
             }
         } else if (descriptor[1] == TUSB_DESC_CS_INTERFACE && interface == NXS_USB_AUDIO_STREAM_INTERFACE &&
-                   descriptor[2] == AUDIO_CS_AS_INTERFACE_FORMAT_TYPE) {
+                   descriptor[2] == AUDIO20_CS_AS_INTERFACE_FORMAT_TYPE) {
             CHECK(alternate == 1 || alternate == 2);
             CHECK(descriptor[4] == alternate + 1 && descriptor[5] == (alternate == 1 ? 16 : 24));
             ++formats;
@@ -93,5 +95,24 @@ int main(void) {
     const uint16_t *serial = tud_descriptor_string_cb(3, 0x0409);
     CHECK(serial != NULL && (serial[0] & 0xffu) == 22);
     CHECK(tud_descriptor_string_cb(255, 0x0409) == NULL);
+
+    const uint16_t *default_product = tud_descriptor_string_cb(2, 0x0409);
+    CHECK(default_product != NULL && (default_product[0] & 0xffu) == 2u * strlen("NeXTsound development") + 2u);
+    const uint16_t *default_audio_interface = tud_descriptor_string_cb(4, 0x0409);
+    CHECK(default_audio_interface != NULL && (default_audio_interface[0] & 0xffu) == 2u * strlen("NeXTsound Audio") + 2u);
+    nxs_usb_set_product_name("Bedroom SoundBox");
+    const uint16_t *custom_product = tud_descriptor_string_cb(2, 0x0409);
+    CHECK(custom_product != NULL && (custom_product[0] & 0xffu) == 2u * strlen("Bedroom SoundBox") + 2u);
+    CHECK(custom_product[1] == 'B');
+    /* macOS Sound settings names the device from index 4 (the Audio Control interface's own
+     * iInterface string), not from iProduct (index 2); both must carry the custom name. */
+    const uint16_t *custom_audio_interface = tud_descriptor_string_cb(4, 0x0409);
+    CHECK(custom_audio_interface != NULL && (custom_audio_interface[0] & 0xffu) == 2u * strlen("Bedroom SoundBox") + 2u);
+    CHECK(custom_audio_interface[1] == 'B');
+    nxs_usb_set_product_name("");
+    const uint16_t *cleared_product = tud_descriptor_string_cb(2, 0x0409);
+    CHECK(cleared_product != NULL && (cleared_product[0] & 0xffu) == 2u * strlen("NeXTsound development") + 2u);
+    const uint16_t *cleared_audio_interface = tud_descriptor_string_cb(4, 0x0409);
+    CHECK(cleared_audio_interface != NULL && (cleared_audio_interface[0] & 0xffu) == 2u * strlen("NeXTsound Audio") + 2u);
     return nxs_test_finish("USB descriptor");
 }

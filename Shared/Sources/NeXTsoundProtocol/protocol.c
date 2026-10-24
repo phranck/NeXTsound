@@ -113,12 +113,53 @@ static void encode_text(uint8_t *destination, const char source[17]) {
     }
 }
 
+/**
+ * Unlike text_is_valid, an empty name is valid (no custom name stored yet), and a space is
+ * allowed: this is a human-chosen label like "Bedroom SoundBox", not an identifier.
+ */
+static bool device_name_characters_valid(const char name[NXS_DEVICE_NAME_LENGTH]) {
+    if (name[0] == 0) {
+        return true;
+    }
+    for (size_t character_index = 0; character_index < NXS_DEVICE_NAME_LENGTH; ++character_index) {
+        unsigned char character = (unsigned char)name[character_index];
+        if (character == 0) {
+            return true;
+        }
+        if (character_index == NXS_DEVICE_NAME_LENGTH - 1 || character < 0x20 || character > 0x7e) {
+            return false;
+        }
+    }
+    return false;
+}
+
+static bool decode_device_name(const uint8_t *source, char destination[NXS_DEVICE_NAME_LENGTH]) {
+    bool terminated = false;
+    memset(destination, 0, NXS_DEVICE_NAME_LENGTH);
+    for (size_t character_index = 0; character_index < NXS_DEVICE_NAME_LENGTH - 1; ++character_index) {
+        if (source[character_index] == 0) {
+            terminated = true;
+        } else if (terminated || source[character_index] < 0x20 || source[character_index] > 0x7e) {
+            return false;
+        }
+        destination[character_index] = (char)source[character_index];
+    }
+    return device_name_characters_valid(destination);
+}
+
+static void encode_device_name(uint8_t *destination, const char source[NXS_DEVICE_NAME_LENGTH]) {
+    for (size_t character_index = 0; character_index < NXS_DEVICE_NAME_LENGTH - 1 && source[character_index] != 0; ++character_index) {
+        destination[character_index] = (uint8_t)source[character_index];
+    }
+}
+
 static bool capabilities_are_valid(const nxs_capabilities_t *capabilities) {
     if (!capabilities || capabilities->sample_rate_hz != NXS_SAMPLE_RATE_HZ || capabilities->system_clock_hz != NXS_SYSTEM_CLOCK_HZ ||
         capabilities->eq_band_count != NXS_EQ_BAND_COUNT || capabilities->sample_format_mask == 0 ||
         (capabilities->sample_format_mask & ~(NXS_FORMAT_PCM16 | NXS_FORMAT_PCM24)) ||
         (capabilities->feature_flags & ~(NXS_FEATURE_PERSISTENCE | NXS_FEATURE_FLASH_VERIFIED | NXS_FEATURE_DIAGNOSTICS)) ||
-        !text_is_valid(capabilities->device_serial) || !text_is_valid(capabilities->firmware_version)) {
+        !text_is_valid(capabilities->device_serial) || !text_is_valid(capabilities->firmware_version) ||
+        !device_name_characters_valid(capabilities->device_name)) {
         return false;
     }
     if ((capabilities->feature_flags & NXS_FEATURE_FLASH_VERIFIED) && capabilities->flash_size_bytes == 0) {
@@ -195,6 +236,10 @@ bool nxs_snapshot_is_valid(const nxs_snapshot_t *snapshot) {
         }
     }
     return true;
+}
+
+bool nxs_device_name_is_valid(const char name[NXS_DEVICE_NAME_LENGTH]) {
+    return name && device_name_characters_valid(name);
 }
 
 const char *nxs_result_description(nxs_result_t result) {
@@ -349,11 +394,12 @@ nxs_result_t nxs_capabilities_encode(const nxs_capabilities_t *capabilities, uin
         write_float(payload + offset, capabilities->ranges[parameter_index].minimum);
         write_float(payload + offset + 4, capabilities->ranges[parameter_index].maximum);
     }
+    encode_device_name(payload + 104, capabilities->device_name);
     return NXS_RESULT_OK;
 }
 
 nxs_result_t nxs_capabilities_decode(const uint8_t *payload, size_t length, nxs_capabilities_t *capabilities) {
-    if (!payload || !capabilities || length != NXS_CAPABILITIES_SIZE || !all_zero(payload + 104, 8)) {
+    if (!payload || !capabilities || length != NXS_CAPABILITIES_SIZE) {
         return NXS_RESULT_INVALID_REPORT;
     }
     nxs_capabilities_t candidate = {0};
@@ -370,10 +416,37 @@ nxs_result_t nxs_capabilities_decode(const uint8_t *payload, size_t length, nxs_
         size_t offset = 48 + parameter_index * 8;
         candidate.ranges[parameter_index] = (nxs_parameter_range_t){read_float(payload + offset), read_float(payload + offset + 4)};
     }
+    if (!decode_device_name(payload + 104, candidate.device_name)) {
+        return NXS_RESULT_INVALID_PARAMETERS;
+    }
     if (!capabilities_are_valid(&candidate)) {
         return NXS_RESULT_INVALID_PARAMETERS;
     }
     *capabilities = candidate;
+    return NXS_RESULT_OK;
+}
+
+nxs_result_t nxs_device_name_encode(const char name[NXS_DEVICE_NAME_LENGTH], uint8_t *payload, size_t length) {
+    if (!payload || length != NXS_DEVICE_NAME_LENGTH) {
+        return NXS_RESULT_INVALID_REPORT;
+    }
+    if (!device_name_characters_valid(name)) {
+        return NXS_RESULT_INVALID_PARAMETERS;
+    }
+    memset(payload, 0, length);
+    encode_device_name(payload, name);
+    return NXS_RESULT_OK;
+}
+
+nxs_result_t nxs_device_name_decode(const uint8_t *payload, size_t length, char name[NXS_DEVICE_NAME_LENGTH]) {
+    if (!payload || !name || length != NXS_DEVICE_NAME_LENGTH) {
+        return NXS_RESULT_INVALID_REPORT;
+    }
+    char candidate[NXS_DEVICE_NAME_LENGTH];
+    if (!decode_device_name(payload, candidate)) {
+        return NXS_RESULT_INVALID_PARAMETERS;
+    }
+    memcpy(name, candidate, NXS_DEVICE_NAME_LENGTH);
     return NXS_RESULT_OK;
 }
 

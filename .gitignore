@@ -5,3 +5,7 @@ Papers
 .tools
 .swiftpm
 DerivedData
+App/NeXTsound.xcodeproj
+App/Generated
+App/Workbench/Sources/NeXTsoundWorkbench/Resources/picotool
+App/Workbench/Sources/NeXTsoundWorkbench/Resources/nxs_firmware.uf2

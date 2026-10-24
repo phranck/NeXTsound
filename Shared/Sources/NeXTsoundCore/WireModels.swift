@@ -19,6 +19,7 @@ public enum WireOperation: CaseIterable, Equatable, Sendable {
     case applyState
     case persistState
     case status
+    case setName
     case diagnostics
 }
 
@@ -30,6 +31,7 @@ extension WireOperation {
         case .applyState: NXS_OPERATION_APPLY_STATE
         case .persistState: NXS_OPERATION_PERSIST_STATE
         case .status: NXS_OPERATION_STATUS
+        case .setName: NXS_OPERATION_SET_NAME
         case .diagnostics: NXS_OPERATION_DIAGNOSTICS
         }
     }
@@ -69,13 +71,17 @@ public struct WireMessage: Equatable, Sendable {
 }
 
 public extension WireMessage {
+    /// True once this reply's identity matches the request, regardless of its result code.
+    /// An operation that completes asynchronously on the device (persist, set name) replies
+    /// later than its own USB transaction, so a poll may observe an unrelated reply first.
+    func matchesRequest(_ request: Self) -> Bool {
+        isResponse && !request.isResponse && operation == request.operation && requestID == request.requestID
+    }
+
     func validateResponse(to request: Self) throws {
         guard
-            isResponse,
-            !request.isResponse,
-            operation == request.operation,
-            protocolMinor == request.protocolMinor,
-            requestID == request.requestID
+            matchesRequest(request),
+            protocolMinor == request.protocolMinor
         else {
             throw WireError(result: NXS_RESULT_INVALID_REPORT)
         }
@@ -100,6 +106,8 @@ public struct DeviceSnapshot: Equatable, Sendable {
 public struct DeviceCapabilities: Equatable, Sendable {
     public var serial: String
     public var firmwareVersion: String
+    /// Empty when no custom name is stored yet; see WireOperation.setName.
+    public var deviceName: String
     public var sampleRateHz: UInt32
     public var systemClockHz: UInt32
     public var flashSizeBytes: UInt32
@@ -120,9 +128,17 @@ public struct DeviceCapabilities: Equatable, Sendable {
         featureFlags & UInt16(NXS_FEATURE_FLASH_VERIFIED) != 0
     }
 
-    public init(serial: String, firmwareVersion: String) {
+    /// The PCM sample sizes the board's USB audio accepts, in bits, smallest first.
+    public var sampleBits: [Int] {
+        [(NXS_FORMAT_PCM16, 16), (NXS_FORMAT_PCM24, 24)].compactMap { flag, bits in
+            sampleFormatMask & UInt8(flag) != 0 ? bits : nil
+        }
+    }
+
+    public init(serial: String, firmwareVersion: String, deviceName: String = "") {
         self.serial = serial
         self.firmwareVersion = firmwareVersion
+        self.deviceName = deviceName
         sampleRateHz = UInt32(NXS_SAMPLE_RATE_HZ)
         systemClockHz = UInt32(NXS_SYSTEM_CLOCK_HZ)
         flashSizeBytes = 0

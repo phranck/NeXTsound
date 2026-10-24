@@ -25,11 +25,13 @@ typedef struct {
     bool response_available;
     bool apply_pending;
     bool persistence_pending;
+    bool name_pending;
     bool pending_can_reply;
     uint8_t pending_report[NXS_REPORT_SIZE];
     nxs_message_t pending_request;
     nxs_snapshot_t pending_snapshot;
     nxs_dsp_configuration_t pending_configuration;
+    char pending_name[NXS_DEVICE_NAME_LENGTH];
 } nxs_device_t;
 
 /** All calls belong to the USB/control owner, not the audio core. */
@@ -44,6 +46,7 @@ bool nxs_device_response(const nxs_device_t *device, uint8_t *report, size_t len
 /** Audio ownership transfer is supplied by the platform, after reading this immutable configuration. */
 const nxs_dsp_configuration_t *nxs_device_pending_configuration(const nxs_device_t *device);
 bool nxs_device_complete_apply(nxs_device_t *device, nxs_result_t result);
+/** True while a PERSIST_STATE or SET_NAME request awaits its one shared flash write. */
 bool nxs_device_pending_persistence(const nxs_device_t *device, nxs_stored_state_t *state);
 bool nxs_device_complete_persistence(nxs_device_t *device, nxs_result_t result);
 /** Accepted in-flight work survives disconnect; its old session's reply does not. */

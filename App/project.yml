@@ -1,0 +1,60 @@
+name: NeXTsound
+options:
+  minimumXcodeGenVersion: ${NXS_XCODEGEN_VERSION}
+  deploymentTarget:
+    macOS: ${NXS_MACOS_MINIMUM}
+settings:
+  base:
+    SWIFT_VERSION: "6.0"
+    SWIFT_STRICT_CONCURRENCY: complete
+    CODE_SIGNING_ALLOWED: NO
+    MARKETING_VERSION: "0.1.0"
+    CURRENT_PROJECT_VERSION: "1"
+    # NXSUSBHostShim links Homebrew's libusb, which Homebrew only ships for arm64 on Apple Silicon.
+    ARCHS: arm64
+    VALID_ARCHS: arm64
+packages:
+  Workbench:
+    path: Workbench
+targets:
+  NeXTsound:
+    type: application
+    platform: macOS
+    sources:
+      - Application
+    settings:
+      base:
+        PRODUCT_NAME: NeXTsound
+        PRODUCT_BUNDLE_IDENTIFIER: work.layered.NeXTsound
+        COMBINE_HIDPI_IMAGES: YES
+    dependencies:
+      - package: Workbench
+        product: NeXTsoundWorkbench
+    info:
+      path: Generated/Info.plist
+      properties:
+        CFBundleDisplayName: NeXTsound
+        # XcodeGen writes 1.0 and 1 into a generated Info.plist unless these name the build settings above.
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        NSHumanReadableCopyright: "© 2026 LAYERED.work"
+        NSPrincipalClass: NSApplication
+        NSHighResolutionCapable: true
+        LSApplicationCategoryType: public.app-category.music
+        UTExportedTypeDeclarations:
+          - UTTypeIdentifier: ${NXS_PROFILE_IDENTIFIER}
+            UTTypeDescription: NeXTsound sound profile
+            UTTypeConformsTo:
+              - public.json
+            UTTypeTagSpecification:
+              public.filename-extension:
+                - ${NXS_PROFILE_EXTENSION}
+schemes:
+  NeXTsound:
+    build:
+      targets:
+        NeXTsound: all
+    run:
+      config: Debug
+    archive:
+      config: Release

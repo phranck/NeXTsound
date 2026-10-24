@@ -85,7 +85,7 @@ int main(void) {
                                 .bInterval = 1};
     CHECK(dcd_edpt_open(0, &hid));
     uint8_t bytes[294] = {0};
-    CHECK(dcd_edpt_xfer(0, 0x82, bytes, 16));
+    CHECK(dcd_edpt_xfer(0, 0x82, bytes, 16, false));
     /* EP0 has no endpoint-control register. Preserve its logical buffer state without executing native EP0 MMIO. */
     usb_dpram->ep_buf_ctrl[0].in = USB_BUF_CTRL_AVAIL | 16u;
     uint32_t hid_pending = usb_dpram->ep_buf_ctrl[2].in;
@@ -99,7 +99,7 @@ int main(void) {
         CHECK((usb_dpram->ep_buf_ctrl[1].out & USB_BUF_CTRL_AVAIL) == 0);
         if (cycle != 0)
             CHECK(nxs_test_usb_set.abort == (1u << 3));
-        CHECK(dcd_edpt_xfer(0, 0x01, bytes, packet));
+        CHECK(dcd_edpt_xfer(0, 0x01, bytes, packet, false));
         CHECK(usb_dpram->ep_buf_ctrl[1].out & USB_BUF_CTRL_AVAIL);
         CHECK((usb_dpram->ep_buf_ctrl[1].out & USB_BUF_CTRL_LEN_MASK) == packet);
         tusb_desc_endpoint_t feedback = iso_descriptor(0x81, 3);
@@ -107,7 +107,7 @@ int main(void) {
         CHECK((usb_dpram->ep_buf_ctrl[1].in & USB_BUF_CTRL_AVAIL) == 0);
         if (cycle != 0)
             CHECK(nxs_test_usb_set.abort == (1u << 2));
-        CHECK(dcd_edpt_xfer(0, 0x81, bytes, 3));
+        CHECK(dcd_edpt_xfer(0, 0x81, bytes, 3, false));
         CHECK(usb_dpram->ep_buf_ctrl[1].in & USB_BUF_CTRL_AVAIL);
         CHECK(usb_dpram->ep_buf_ctrl[2].in == hid_pending);
         CHECK(usb_dpram->ep_buf_ctrl[0].in == control_pending);

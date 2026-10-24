@@ -11,6 +11,7 @@
 #include <string.h>
 
 static const char *device_serial;
+static const char *product_name;
 static uint16_t string_buffer[64];
 
 static const tusb_desc_device_t device_descriptor = {.bLength = sizeof(tusb_desc_device_t),
@@ -40,36 +41,37 @@ static const uint8_t hid_report[] = {HID_USAGE_PAGE_N(NXS_HID_USAGE_PAGE, 2),
                                      HID_COLLECTION_END};
 
 #define NXS_AUDIO_ALT_DESCRIPTOR(alternate, sample_bytes, resolution)                                                                      \
-    TUD_AUDIO_DESC_STD_AS_INT(NXS_USB_AUDIO_STREAM_INTERFACE, alternate, 2, 0),                                                            \
-        TUD_AUDIO_DESC_CS_AS_INT(NXS_USB_INPUT_ENTITY, AUDIO_CTRL_NONE, AUDIO_FORMAT_TYPE_I, AUDIO_DATA_FORMAT_TYPE_I_PCM,                 \
-                                 NXS_AUDIO_CHANNELS, AUDIO_CHANNEL_CONFIG_NON_PREDEFINED, 0),                                              \
-        TUD_AUDIO_DESC_TYPE_I_FORMAT(sample_bytes, resolution),                                                                            \
-        TUD_AUDIO_DESC_STD_AS_ISO_EP(NXS_USB_AUDIO_OUT_ENDPOINT,                                                                           \
-                                     TUSB_XFER_ISOCHRONOUS | TUSB_ISO_EP_ATT_ASYNCHRONOUS | TUSB_ISO_EP_ATT_DATA,                          \
-                                     NXS_AUDIO_USB_MAX_FRAMES * NXS_AUDIO_CHANNELS * sample_bytes, 1),                                     \
-        TUD_AUDIO_DESC_CS_AS_ISO_EP(AUDIO_CS_AS_ISO_DATA_EP_ATT_NON_MAX_PACKETS_OK, AUDIO_CTRL_NONE,                                       \
-                                    AUDIO_CS_AS_ISO_DATA_EP_LOCK_DELAY_UNIT_MILLISEC, 1),                                                  \
-        TUD_AUDIO_DESC_STD_AS_ISO_FB_EP(NXS_USB_FEEDBACK_ENDPOINT, 3, 1)
+    TUD_AUDIO20_DESC_STD_AS_INT(NXS_USB_AUDIO_STREAM_INTERFACE, alternate, 2, 0),                                                          \
+        TUD_AUDIO20_DESC_CS_AS_INT(NXS_USB_INPUT_ENTITY, AUDIO20_CTRL_NONE, AUDIO20_FORMAT_TYPE_I, AUDIO20_DATA_FORMAT_TYPE_I_PCM,         \
+                                   NXS_AUDIO_CHANNELS, AUDIO20_CHANNEL_CONFIG_NON_PREDEFINED, 0),                                          \
+        TUD_AUDIO20_DESC_TYPE_I_FORMAT(sample_bytes, resolution),                                                                          \
+        TUD_AUDIO20_DESC_STD_AS_ISO_EP(NXS_USB_AUDIO_OUT_ENDPOINT,                                                                         \
+                                       TUSB_XFER_ISOCHRONOUS | TUSB_ISO_EP_ATT_ASYNCHRONOUS | TUSB_ISO_EP_ATT_DATA,                        \
+                                       NXS_AUDIO_USB_MAX_FRAMES * NXS_AUDIO_CHANNELS * sample_bytes, 1),                                   \
+        TUD_AUDIO20_DESC_CS_AS_ISO_EP(AUDIO20_CS_AS_ISO_DATA_EP_ATT_NON_MAX_PACKETS_OK, AUDIO20_CTRL_NONE,                                 \
+                                      AUDIO20_CS_AS_ISO_DATA_EP_LOCK_DELAY_UNIT_MILLISEC, 1),                                              \
+        TUD_AUDIO20_DESC_STD_AS_ISO_FB_EP(NXS_USB_FEEDBACK_ENDPOINT, 3, 1)
 
 static const uint8_t configuration_descriptor[] = {
     TUD_CONFIG_DESCRIPTOR(1, NXS_USB_INTERFACE_COUNT, 0, NXS_USB_CONFIGURATION_LENGTH, 0, 500),
-    TUD_AUDIO_DESC_IAD(NXS_USB_AUDIO_CONTROL_INTERFACE, 2, 0),
-    TUD_AUDIO_DESC_STD_AC(NXS_USB_AUDIO_CONTROL_INTERFACE, 0, 4),
-    TUD_AUDIO_DESC_CS_AC(0x0200, AUDIO_FUNC_DESKTOP_SPEAKER,
-                         TUD_AUDIO_DESC_CLK_SRC_LEN + TUD_AUDIO_DESC_INPUT_TERM_LEN + TUD_AUDIO_DESC_OUTPUT_TERM_LEN +
-                             TUD_AUDIO_DESC_FEATURE_UNIT_TWO_CHANNEL_LEN,
-                         0),
-    TUD_AUDIO_DESC_CLK_SRC(NXS_USB_CLOCK_ENTITY, AUDIO_CLOCK_SOURCE_ATT_INT_FIX_CLK,
-                           (AUDIO_CTRL_R << AUDIO_CLOCK_SOURCE_CTRL_CLK_FRQ_POS) | (AUDIO_CTRL_R << AUDIO_CLOCK_SOURCE_CTRL_CLK_VAL_POS),
-                           NXS_USB_INPUT_ENTITY, 0),
-    TUD_AUDIO_DESC_INPUT_TERM(NXS_USB_INPUT_ENTITY, AUDIO_TERM_TYPE_USB_STREAMING, 0, NXS_USB_CLOCK_ENTITY, NXS_AUDIO_CHANNELS,
-                              AUDIO_CHANNEL_CONFIG_NON_PREDEFINED, 0, 0, 0),
-    TUD_AUDIO_DESC_OUTPUT_TERM(NXS_USB_OUTPUT_ENTITY, AUDIO_TERM_TYPE_OUT_DESKTOP_SPEAKER, 0, NXS_USB_FEATURE_ENTITY, NXS_USB_CLOCK_ENTITY,
-                               0, 0),
-    TUD_AUDIO_DESC_FEATURE_UNIT_TWO_CHANNEL(
-        NXS_USB_FEATURE_ENTITY, NXS_USB_INPUT_ENTITY,
-        (AUDIO_CTRL_RW << AUDIO_FEATURE_UNIT_CTRL_MUTE_POS) | (AUDIO_CTRL_RW << AUDIO_FEATURE_UNIT_CTRL_VOLUME_POS), 0, 0, 0),
-    TUD_AUDIO_DESC_STD_AS_INT(NXS_USB_AUDIO_STREAM_INTERFACE, 0, 0, 0),
+    TUD_AUDIO20_DESC_IAD(NXS_USB_AUDIO_CONTROL_INTERFACE, 2, 0),
+    TUD_AUDIO20_DESC_STD_AC(NXS_USB_AUDIO_CONTROL_INTERFACE, 0, 4),
+    TUD_AUDIO20_DESC_CS_AC(0x0200, AUDIO20_FUNC_DESKTOP_SPEAKER,
+                           TUD_AUDIO20_DESC_CLK_SRC_LEN + TUD_AUDIO20_DESC_INPUT_TERM_LEN + TUD_AUDIO20_DESC_OUTPUT_TERM_LEN +
+                               TUD_AUDIO20_DESC_FEATURE_UNIT_LEN(NXS_AUDIO_CHANNELS),
+                           0),
+    TUD_AUDIO20_DESC_CLK_SRC(NXS_USB_CLOCK_ENTITY, AUDIO20_CLOCK_SOURCE_ATT_INT_FIX_CLK,
+                             (AUDIO20_CTRL_R << AUDIO20_CLOCK_SOURCE_CTRL_CLK_FRQ_POS) |
+                                 (AUDIO20_CTRL_R << AUDIO20_CLOCK_SOURCE_CTRL_CLK_VAL_POS),
+                             NXS_USB_INPUT_ENTITY, 0),
+    TUD_AUDIO20_DESC_INPUT_TERM(NXS_USB_INPUT_ENTITY, AUDIO_TERM_TYPE_USB_STREAMING, 0, NXS_USB_CLOCK_ENTITY, NXS_AUDIO_CHANNELS,
+                                AUDIO20_CHANNEL_CONFIG_NON_PREDEFINED, 0, 0, 0),
+    TUD_AUDIO20_DESC_OUTPUT_TERM(NXS_USB_OUTPUT_ENTITY, AUDIO_TERM_TYPE_OUT_DESKTOP_SPEAKER, 0, NXS_USB_FEATURE_ENTITY,
+                                 NXS_USB_CLOCK_ENTITY, 0, 0),
+    TUD_AUDIO20_DESC_FEATURE_UNIT(
+        NXS_USB_FEATURE_ENTITY, NXS_USB_INPUT_ENTITY, 0,
+        (AUDIO20_CTRL_RW << AUDIO20_FEATURE_UNIT_CTRL_MUTE_POS) | (AUDIO20_CTRL_RW << AUDIO20_FEATURE_UNIT_CTRL_VOLUME_POS), 0, 0),
+    TUD_AUDIO20_DESC_STD_AS_INT(NXS_USB_AUDIO_STREAM_INTERFACE, 0, 0, 0),
     NXS_AUDIO_ALT_DESCRIPTOR(1, 2, 16),
     NXS_AUDIO_ALT_DESCRIPTOR(2, 3, 24),
     TUD_HID_DESCRIPTOR(NXS_USB_HID_INTERFACE, 5, HID_ITF_PROTOCOL_NONE, sizeof(hid_report), NXS_USB_HID_ENDPOINT, 16, 16),
@@ -87,6 +89,10 @@ _Static_assert(sizeof(configuration_descriptor) == NXS_USB_CONFIGURATION_LENGTH,
 
 void nxs_usb_set_serial(const char *serial) {
     device_serial = serial;
+}
+
+void nxs_usb_set_product_name(const char *name) {
+    product_name = (name && name[0]) ? name : NULL;
 }
 
 const uint8_t *tud_descriptor_device_cb(void) {
@@ -108,8 +114,15 @@ const uint16_t *tud_descriptor_string_cb(uint8_t index, uint16_t language) {
         string_buffer[1] = 0x0409;
         return string_buffer;
     }
-    const char *strings[] = {
-        NULL, "Layered", "NeXTsound development", device_serial, "NeXTsound Audio", "NeXTsound Control", "NeXTsound Maintenance"};
+    /* Index 4 is the Audio Control interface's own iInterface string (see TUD_AUDIO_DESC_STD_AC
+     * below); macOS Sound settings names the device from this string, not from iProduct (index 2). */
+    const char *strings[] = {NULL,
+                             "Layered",
+                             product_name ? product_name : "NeXTsound development",
+                             device_serial,
+                             product_name ? product_name : "NeXTsound Audio",
+                             "NeXTsound Control",
+                             "NeXTsound Maintenance"};
     if (index >= sizeof(strings) / sizeof(strings[0]) || !strings[index]) {
         return NULL;
     }

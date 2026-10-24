@@ -1,0 +1,241 @@
+import Foundation
+import NeXTsoundCore
+import Testing
+@testable import NeXTsoundWorkbench
+
+@MainActor
+struct BoardMonitorTests {
+    @Test func startsDisconnected() {
+        let monitor = BoardMonitor(discovery: FakeBoardDiscovery())
+        #expect(monitor.state == .disconnected)
+    }
+
+    @Test func aDisabledMonitorNeverStartsDiscovery() {
+        let discovery = FakeBoardDiscovery()
+        let monitor = BoardMonitor(isEnabled: false, discovery: discovery)
+        monitor.start()
+        #expect(discovery.startCount == 0)
+        #expect(monitor.state == .disconnected)
+    }
+
+    @Test func connectingEntersDetectedBeforeTheReplyArrives() async {
+        let discovery = FakeBoardDiscovery()
+        let monitor = BoardMonitor(discovery: discovery)
+        monitor.start()
+        let capabilities = fixtureCapabilities()
+        discovery.simulateConnect(
+            BoardIdentitySnapshot(vendorID: 1, productID: 2, enumeratedSerial: capabilities.serial),
+            transport: FakeBoardTransport(behavior: .delayed(capabilities, .milliseconds(100)))
+        )
+        let detected = await waitFor(monitor) { $0 == .detected }
+        #expect(detected)
+        let verified = await waitFor(monitor) {
+            if case .verified = $0 {
+                true
+            } else {
+                false
+            }
+        }
+        #expect(verified)
+    }
+
+    @Test func connectingMovesToVerifiedOnMatchingSerial() async {
+        let discovery = FakeBoardDiscovery()
+        let monitor = BoardMonitor(discovery: discovery)
+        monitor.start()
+        let capabilities = fixtureCapabilities()
+        discovery.simulateConnect(
+            BoardIdentitySnapshot(vendorID: 1, productID: 2, enumeratedSerial: capabilities.serial),
+            transport: FakeBoardTransport(behavior: .success(capabilities))
+        )
+        let verified = await waitFor(monitor) {
+            if case .verified = $0 {
+                true
+            } else {
+                false
+            }
+        }
+        #expect(verified)
+        #expect(monitor.state == .verified(capabilities))
+    }
+
+    @Test func aMismatchedEnumeratedSerialIsRejected() async {
+        let discovery = FakeBoardDiscovery()
+        let monitor = BoardMonitor(discovery: discovery)
+        monitor.start()
+        let capabilities = fixtureCapabilities(serial: "FROM-FIRMWARE")
+        discovery.simulateConnect(
+            BoardIdentitySnapshot(vendorID: 1, productID: 2, enumeratedSerial: "FROM-ENUMERATION"),
+            transport: FakeBoardTransport(behavior: .success(capabilities))
+        )
+        let mismatched = await waitFor(monitor) {
+            if case .mismatched = $0 {
+                true
+            } else {
+                false
+            }
+        }
+        #expect(mismatched)
+    }
+
+    @Test func aFailedCapabilityQueryIsReportedAsMismatched() async {
+        let discovery = FakeBoardDiscovery()
+        let monitor = BoardMonitor(discovery: discovery)
+        monitor.start()
+        discovery.simulateConnect(
+            BoardIdentitySnapshot(vendorID: 1, productID: 2),
+            transport: FakeBoardTransport(behavior: .failure(.invalidReport))
+        )
+        let mismatched = await waitFor(monitor) {
+            if case .mismatched = $0 {
+                true
+            } else {
+                false
+            }
+        }
+        #expect(mismatched)
+    }
+
+    @Test func disconnectingReturnsToDisconnectedAndDiscardsAPendingReply() async {
+        let discovery = FakeBoardDiscovery()
+        let monitor = BoardMonitor(discovery: discovery)
+        monitor.start()
+        let capabilities = fixtureCapabilities()
+        discovery.simulateConnect(
+            BoardIdentitySnapshot(vendorID: 1, productID: 2, enumeratedSerial: capabilities.serial),
+            transport: FakeBoardTransport(behavior: .delayed(capabilities, .milliseconds(100)))
+        )
+        discovery.simulateDisconnect()
+        let disconnected = await waitFor(monitor) { $0 == .disconnected }
+        #expect(disconnected)
+        try? await Task.sleep(for: .milliseconds(200))
+        #expect(monitor.state == .disconnected)
+    }
+
+    @Test func reconnectingAfterADisconnectVerifiesAgain() async {
+        let discovery = FakeBoardDiscovery()
+        let monitor = BoardMonitor(discovery: discovery)
+        monitor.start()
+        let capabilities = fixtureCapabilities()
+        discovery.simulateConnect(
+            BoardIdentitySnapshot(vendorID: 1, productID: 2, enumeratedSerial: capabilities.serial),
+            transport: FakeBoardTransport(behavior: .success(capabilities))
+        )
+        _ = await waitFor(monitor) {
+            if case .verified = $0 {
+                true
+            } else {
+                false
+            }
+        }
+        discovery.simulateDisconnect()
+        let disconnected = await waitFor(monitor) { $0 == .disconnected }
+        #expect(disconnected)
+        discovery.simulateConnect(
+            BoardIdentitySnapshot(vendorID: 1, productID: 2, enumeratedSerial: capabilities.serial),
+            transport: FakeBoardTransport(behavior: .success(capabilities))
+        )
+        let verified = await waitFor(monitor) {
+            if case .verified = $0 {
+                true
+            } else {
+                false
+            }
+        }
+        #expect(verified)
+    }
+
+    @Test func settingTheDeviceNameRefreshesTheVerifiedCapabilities() async throws {
+        let discovery = FakeBoardDiscovery()
+        let monitor = BoardMonitor(discovery: discovery)
+        monitor.start()
+        let capabilities = fixtureCapabilities()
+        var renamedCapabilities = capabilities
+        renamedCapabilities.deviceName = "Bedroom SoundBox"
+        discovery.simulateConnect(
+            BoardIdentitySnapshot(vendorID: 1, productID: 2, enumeratedSerial: capabilities.serial),
+            transport: FakeBoardTransport(behavior: .success(renamedCapabilities))
+        )
+        _ = await waitFor(monitor) {
+            if case .verified = $0 {
+                true
+            } else {
+                false
+            }
+        }
+        try await monitor.setDeviceName("Bedroom SoundBox")
+        #expect(monitor.state == .verified(renamedCapabilities))
+    }
+
+    @Test func settingTheDeviceNameFailsWithoutAConnectedBoard() async {
+        let monitor = BoardMonitor(discovery: FakeBoardDiscovery())
+        await #expect(throws: BoardTransportError.notConnected) {
+            try await monitor.setDeviceName("Bedroom SoundBox")
+        }
+    }
+
+    @Test func aFailedRenameLeavesTheStateUnchanged() async throws {
+        let discovery = FakeBoardDiscovery()
+        let monitor = BoardMonitor(discovery: discovery)
+        monitor.start()
+        let capabilities = fixtureCapabilities()
+        discovery.simulateConnect(
+            BoardIdentitySnapshot(vendorID: 1, productID: 2, enumeratedSerial: capabilities.serial),
+            transport: FakeBoardTransport(behavior: .success(capabilities), renameError: .invalidReport)
+        )
+        _ = await waitFor(monitor) {
+            if case .verified = $0 {
+                true
+            } else {
+                false
+            }
+        }
+        await #expect(throws: BoardTransportError.invalidReport) {
+            try await monitor.setDeviceName("Bedroom SoundBox")
+        }
+        #expect(monitor.state == .verified(capabilities))
+    }
+
+    @Test func applyingASnapshotSendsItToTheConnectedBoard() async throws {
+        let discovery = FakeBoardDiscovery()
+        let monitor = BoardMonitor(discovery: discovery)
+        monitor.start()
+        let capabilities = fixtureCapabilities()
+        let applyStateCalls = CallCounter()
+        let appliedSnapshots = SnapshotRecorder()
+        discovery.simulateConnect(
+            BoardIdentitySnapshot(vendorID: 1, productID: 2, enumeratedSerial: capabilities.serial),
+            transport: FakeBoardTransport(
+                behavior: .success(capabilities),
+                applyStateCalls: applyStateCalls,
+                appliedSnapshots: appliedSnapshots
+            )
+        )
+        _ = await waitFor(monitor) {
+            if case .verified = $0 {
+                true
+            } else {
+                false
+            }
+        }
+        let snapshot = DeviceSnapshot(profileID: UUID(), profileRevision: 1, settings: DSPSettings())
+        try await monitor.apply(snapshot)
+        #expect(applyStateCalls.total == 1)
+        #expect(appliedSnapshots.snapshots == [snapshot])
+    }
+
+    @Test func applyingASnapshotFailsWithoutAConnectedBoard() async {
+        let monitor = BoardMonitor(discovery: FakeBoardDiscovery())
+        let snapshot = DeviceSnapshot(profileID: UUID(), profileRevision: 1, settings: DSPSettings())
+        await #expect(throws: BoardTransportError.notConnected) {
+            try await monitor.apply(snapshot)
+        }
+    }
+}
+
+@MainActor
+private extension BoardMonitorTests {
+    func waitFor(_ monitor: BoardMonitor, matches: (BoardConnectionState) -> Bool) async -> Bool {
+        await waitUntil { matches(monitor.state) }
+    }
+}

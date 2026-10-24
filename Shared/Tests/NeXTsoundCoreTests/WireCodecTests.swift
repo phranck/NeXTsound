@@ -92,6 +92,33 @@ struct WireCodecTests {
         #expect(throws: WireError.self) { try WireCodec.encodeCapabilities(capabilities) }
     }
 
+    @Test func capabilityRoundTripPreservesTheDeviceName() throws {
+        let capabilities = DeviceCapabilities(serial: "TESTDEVICE", firmwareVersion: "test", deviceName: "Bedroom SoundBox")
+        let payload = try WireCodec.encodeCapabilities(capabilities)
+        #expect(try WireCodec.decodeCapabilities(payload).deviceName == "Bedroom SoundBox")
+    }
+
+    @Test func capabilityRoundTripAllowsAnEmptyDeviceName() throws {
+        let capabilities = DeviceCapabilities(serial: "TESTDEVICE", firmwareVersion: "test")
+        let payload = try WireCodec.encodeCapabilities(capabilities)
+        #expect(try WireCodec.decodeCapabilities(payload).deviceName.isEmpty)
+    }
+
+    @Test func deviceNameRoundTripPreservesSpacesAndClearsPadding() throws {
+        let payload = try WireCodec.encodeDeviceName("Bedroom SoundBox")
+        #expect(payload.count == Int(NXS_DEVICE_NAME_LENGTH))
+        #expect(try WireCodec.decodeDeviceName(payload) == "Bedroom SoundBox")
+    }
+
+    @Test func deviceNameRejectsEmbeddedNullsAndOversizedNames() {
+        #expect(throws: WireError.self) { try WireCodec.encodeDeviceName("test\0hidden") }
+        #expect(throws: WireError.self) { try WireCodec.encodeDeviceName(String(repeating: "A", count: Int(NXS_DEVICE_NAME_LENGTH))) }
+    }
+
+    @Test func deviceNameDecodeRejectsTheWrongPayloadLength() {
+        #expect(throws: WireError.self) { try WireCodec.decodeDeviceName(Data(repeating: 0, count: Int(NXS_DEVICE_NAME_LENGTH) - 1)) }
+    }
+
     @Test func runtimeStatusRoundTripPreservesDiagnostics() throws {
         var status = DeviceRuntimeStatus()
         status.persistedGeneration = 20
@@ -140,6 +167,16 @@ struct WireCodecTests {
         #expect(throws: WireError.self) { try reply.validateResponse(to: request) }
         let legacy = WireMessage(operation: .diagnostics, requestID: 18, protocolMinor: 0)
         #expect(throws: WireError(result: NXS_RESULT_UNSUPPORTED_VERSION)) { try WireCodec.encode(legacy) }
+    }
+
+    @Test func setNameOperationRoundTripsThroughTheWireMessage() throws {
+        let request = try WireMessage(
+            operation: .setName,
+            requestID: 9,
+            generation: 2,
+            payload: WireCodec.encodeDeviceName("Office SoundBox")
+        )
+        #expect(try WireCodec.decode(WireCodec.encode(request)) == request)
     }
 
     @Test func acknowledgementsRequireMatchingRequestAndOperation() throws {

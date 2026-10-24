@@ -18,11 +18,23 @@ The canonical declarations are in [`nxs_protocol.h`](../Shared/Sources/NeXTsound
 
 `NXS_REPORT_SIZE` includes the HID report-ID byte. The envelope identifies the protocol version, operation, request, result, and state generation. Request IDs are nonzero. Requests cannot contain a response result. Unused bytes are zero, and a decoder rejects nonzero padding, unsupported versions, invalid lengths, and unknown operations.
 
+The operation numbers are wire values that installed firmware and apps exchange, so they never change.
+
+| Value | Operation | Request payload | Reply payload |
+| --- | --- | --- | --- |
+| 1 | `NXS_OPERATION_CAPABILITIES` | none | 136-byte capabilities |
+| 2 | `NXS_OPERATION_READ_STATE` | none | 120-byte active snapshot |
+| 3 | `NXS_OPERATION_APPLY_STATE` | 120-byte snapshot | none, after the audio owner accepts it |
+| 4 | `NXS_OPERATION_PERSIST_STATE` | none | none, after the active snapshot is saved |
+| 5 | `NXS_OPERATION_STATUS` | none | 40-byte runtime status |
+| 6 | `NXS_OPERATION_SET_NAME` | 32-byte device name | none, after the name is saved |
+| 7 | `NXS_OPERATION_DIAGNOSTICS` | none | 32-byte diagnostics, protocol minor 1 only |
+
 DSP values use IEEE-754 binary32 in physical units. All settings, including disabled filters, must contain finite values inside the canonical bounds returned by `nxs_parameter_range`. Snapshot, capability, runtime-status, and diagnostic payloads have dedicated codecs and exported size constants. A failed C decode leaves its destination unchanged.
 
 The [golden capability-request fixture](../Shared/Tests/NeXTsoundCoreTests/Fixtures/capabilities-request.hex) is consumed by both the C and Swift test suites. It fixes byte order independently of the encoder implementation. Fixture identifiers and capability values are test data, not readings from a board.
 
-Capability text is bounded ASCII. Populate the device serial and firmware version before encoding a default capability object. Persistence requires the verified-flash feature flag and a nonzero reported capacity. Validating those fields does not establish a physical flash measurement.
+Capability text is bounded ASCII. Populate the device serial and firmware version before encoding a default capability object. The device name is printable ASCII, spaces included, with at most 31 characters. It is empty while no custom name is stored, and the USB product string then keeps its default. Setting a name requires storage and advances the generation once it is saved. Persistence requires the verified-flash feature flag and a nonzero reported capacity. Validating those fields does not establish a physical flash measurement.
 
 ## Runtime diagnostics and compatible revisions
 
@@ -52,7 +64,7 @@ The operation accepts no request payload and changes no snapshot, generation, or
 
 [`WireCodec`](../Shared/Sources/NeXTsoundCore/WireCodec.swift) bridges messages, DSP snapshots, capabilities, runtime status, and diagnostics to the C implementation. New Swift messages default to minor 1; their `protocolMinor` can select minor 0. `WireMessage.validateResponse(to:)` checks response direction, request identity, operation identity, envelope revision, and the result code. USB transport completion alone is not an acknowledgement.
 
-The library encodes and validates data. [`Firmware/Core/device.c`](../Firmware/Core/device.c) implements capabilities, state, apply, persistence, status, and diagnostics execution. [`Firmware/USB/control.c`](../Firmware/USB/control.c) bridges TinyUSB to the codec. Apply succeeds only after audio-owner acceptance; transport completion does not advance the state generation. [Persistent storage](Storage.md) is available only after its geometry and execution gates pass.
+The library encodes and validates data. [`Firmware/Core/device.c`](../Firmware/Core/device.c) implements capabilities, state, apply, persistence, status, naming, and diagnostics execution. [`Firmware/USB/control.c`](../Firmware/USB/control.c) bridges TinyUSB to the codec. Apply succeeds only after audio-owner acceptance; transport completion does not advance the state generation. [Persistent storage](Storage.md) is available only after its geometry and execution gates pass.
 
 TinyUSB removes the matching report-ID byte before the SET_REPORT callback and prefixes it around GET_REPORT. These callbacks handle 255 data bytes; the canonical codec and host transport handle all 256 bytes. A client must match the response operation and request ID rather than interpreting the previous reply as acknowledgement of a pending apply. Requests should be serialized.
 

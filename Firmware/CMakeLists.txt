@@ -13,19 +13,6 @@ set(CMAKE_C_STANDARD 11)
 set(CMAKE_CXX_STANDARD 17)
 pico_sdk_init()
 
-# Backport TinyUSB 102c199 without changing the SDK's other tested USB sources.
-set(NXS_RP2_PORT "${CMAKE_CURRENT_LIST_DIR}/ThirdParty/TinyUSB/rp2040/dcd_rp2040.c")
-set(NXS_PINNED_RP2_PORT "${PICO_TINYUSB_PATH}/src/portable/raspberrypi/rp2040/dcd_rp2040.c")
-get_target_property(NXS_USB_DEVICE_SOURCES tinyusb_device_base INTERFACE_SOURCES)
-list(FIND NXS_USB_DEVICE_SOURCES "${NXS_PINNED_RP2_PORT}" NXS_RP2_PORT_INDEX)
-if(NXS_RP2_PORT_INDEX EQUAL -1)
-    message(FATAL_ERROR "The pinned TinyUSB device source list changed; review the RP2 ISO backport.")
-endif()
-list(REMOVE_AT NXS_USB_DEVICE_SOURCES ${NXS_RP2_PORT_INDEX})
-list(INSERT NXS_USB_DEVICE_SOURCES ${NXS_RP2_PORT_INDEX} "${NXS_RP2_PORT}")
-set_property(TARGET tinyusb_device_base PROPERTY INTERFACE_SOURCES "${NXS_USB_DEVICE_SOURCES}")
-target_include_directories(tinyusb_device_base SYSTEM INTERFACE "${PICO_TINYUSB_PATH}/src/portable/raspberrypi/rp2040")
-
 pico_define_boot_stage2(nxs_read_only_boot2 "${PICO_SDK_PATH}/src/rp2350/boot_stage2/boot2_generic_03h.S")
 target_compile_definitions(nxs_read_only_boot2 PRIVATE PICO_FLASH_SPI_CLKDIV=4)
 

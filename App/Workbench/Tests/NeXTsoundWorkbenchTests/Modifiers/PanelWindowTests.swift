@@ -1,0 +1,124 @@
+import AppKit
+import NeXTsoundCore
+import SwiftUI
+import Testing
+@testable import NeXTsoundWorkbench
+
+@MainActor
+struct PanelWindowTests {
+    /// The front panel reaches under its window's hidden title bar, and the window still takes the panel's own size,
+    /// so the metal reaches from the window's top edge to its bottom edge.
+    @Test func theWindowIsAsTallAsTheFrontPanel() async throws {
+        let profile = FactoryPreset.warm.makeProfile()
+        let model = try WorkbenchModel(library: ProfileLibrary(profiles: [profile], selectedID: profile.id))
+        try await expectWindowFits(FrontPanelView(model: model, driverLibrary: DriverLibraryModel()))
+    }
+
+    /// A panel whose scene opens it in a titled window asks for its own height less the title bar before any window
+    /// holds it, so the window opens at the panel's height and shows the panel in place from its first frame.
+    @Test func aPanelAsksForLessThanItsTitleBarBeforeItsWindowExists() {
+        let info = AboutInfo(version: "1.2.0", build: "34", copyright: nil)
+        let plain = NSHostingView(rootView: AboutPanel(info: info, icon: NSImage()))
+        let opening = NSHostingView(rootView: AboutPanel(info: info, icon: NSImage()).opensInTitledWindow())
+        let content = NSRect(x: 0, y: 0, width: 100, height: 100)
+        let titleBar = NSWindow.frameRect(forContentRect: content, styleMask: .titled).height - content.height
+        #expect(titleBar > 0)
+        #expect(plain.fittingSize.height - opening.fittingSize.height == titleBar)
+    }
+
+    /// A drag down and to the right moves the window down and to the right by as much as the pointer moved, although
+    /// the screen counts upward and the drag downward.
+    @Test func aDragMovesTheWindowWithThePointer() {
+        let window = NSWindow(
+            contentRect: NSRect(x: 200, y: 300, width: 100, height: 100),
+            styleMask: [.titled],
+            backing: .buffered,
+            defer: true
+        )
+        window.isReleasedWhenClosed = false
+        let origin = window.frame.origin
+        let mover = PanelWindowMover()
+        mover.window = window
+        mover.follow(pointer: NSPoint(x: 251, y: 349), translation: CGSize(width: 1, height: 1))
+        mover.follow(pointer: NSPoint(x: 280, y: 330), translation: CGSize(width: 30, height: 20))
+        #expect(window.frame.origin == NSPoint(x: origin.x + 30, y: origin.y - 20))
+        mover.endDrag()
+        mover.follow(pointer: NSPoint(x: 400, y: 400), translation: CGSize(width: 1, height: 1))
+        #expect(window.frame.origin == NSPoint(x: origin.x + 31, y: origin.y - 21))
+    }
+
+    /// The About panel reaches under its window's hidden title bar as the front panel does.
+    @Test func theWindowIsAsTallAsTheAboutPanel() async throws {
+        let info = AboutInfo(version: "1.2.0", build: "34", copyright: "© 2026 LAYERED.work")
+        try await expectWindowFits(AboutPanel(info: info, icon: NSImage()))
+    }
+
+    /// A window that closes runs the close action of the view standing in it, once.
+    @Test func closingTheWindowRunsItsCloseAction() async throws {
+        var closes = 0
+        let hosted = hostingWindow(
+            for: Color.clear.frame(width: 100, height: 100).onWindowClose { closes += 1 },
+            styleMask: [.titled, .closable]
+        )
+        let laidOut = await waitUntil { hosted.controller.preferredContentSize != .zero }
+        try #require(laidOut, "The window never laid out its content.")
+        hosted.window.close()
+        #expect(closes == 1)
+    }
+}
+
+/// Hosts a panel the way a scene with a hidden title bar and content-sized resizability does, and expects the window
+/// to take the size that a window without a title bar takes for the same panel, with the metal in every pixel of the
+/// window's first and last rows.
+///
+/// The panel's size comes from a window on the same screen, because the dot grids snap to its pixels, so the panel
+/// is a different number of points tall at another display scale.
+@MainActor
+private func expectWindowFits(_ panel: some View, sourceLocation: SourceLocation = #_sourceLocation) async throws {
+    let untitled = hostingWindow(for: panel, styleMask: [.borderless])
+    let titled = hostingWindow(for: panel, styleMask: [.titled, .closable, .miniaturizable, .fullSizeContentView])
+    defer {
+        untitled.window.close()
+        titled.window.close()
+    }
+    let view = titled.controller.view
+    let hasTitleBar = await waitUntil { view.safeAreaInsets.top > 0 }
+    try #require(hasTitleBar, "The window has no title bar to reach under.", sourceLocation: sourceLocation)
+    let panelSize = untitled.controller.preferredContentSize
+    let fits = await waitUntil { titled.controller.preferredContentSize == panelSize }
+    #expect(
+        fits,
+        "The window asks for \(titled.controller.preferredContentSize), the panel is \(panelSize).",
+        sourceLocation: sourceLocation
+    )
+    titled.window.setContentSize(titled.controller.preferredContentSize)
+    view.layoutSubtreeIfNeeded()
+    let bitmap = try #require(view.bitmapImageRepForCachingDisplay(in: view.bounds))
+    view.cacheDisplay(in: view.bounds, to: bitmap)
+    for row in [0, bitmap.pixelsHigh - 1] {
+        let uncovered = (0 ..< bitmap.pixelsWide).first { column in
+            (bitmap.colorAt(x: column, y: row)?.alphaComponent ?? 0) < 1
+        }
+        #expect(
+            uncovered == nil,
+            "Pixel row \(row) of \(bitmap.pixelsHigh) shows no metal at column \(uncovered ?? -1).",
+            sourceLocation: sourceLocation
+        )
+    }
+}
+
+/// A window whose content is `panel` and whose size follows the size the panel asks for.
+@MainActor
+private func hostingWindow<Panel: View>(
+    for panel: Panel,
+    styleMask: NSWindow.StyleMask
+) -> (window: NSWindow, controller: NSHostingController<Panel>) {
+    let controller = NSHostingController(rootView: panel)
+    controller.sizingOptions = [.preferredContentSize]
+    let window = NSWindow(contentViewController: controller)
+    window.styleMask = styleMask
+    window.titlebarAppearsTransparent = true
+    window.titleVisibility = .hidden
+    window.isReleasedWhenClosed = false
+    return (window, controller)
+}

@@ -28,6 +28,31 @@ struct ProfileTests {
         #expect(restored.enclosure?.volume == nil)
     }
 
+    @Test func speakerRecordCopiesADriversIdentityElectricalsAndProvenance() throws {
+        var driver = DriverRecord(name: "Tectonic TEBM28C10-4")
+        driver.manufacturer = "Tectonic Elements"
+        driver.model = "TEBM28C10-4"
+        driver.nominalImpedanceOhms = 4
+        driver.ratedPowerWatts = 10
+        driver.recommendedHighPassHz = 150
+        driver.origin = .datasheet
+        driver.sourceURLs = try [#require(URL(string: "https://example.com/datasheet.pdf"))]
+        driver.notes = "From the manufacturer's own datasheet."
+
+        let speaker = SpeakerRecord(driver: driver)
+
+        #expect(speaker.id == driver.id)
+        #expect(speaker.name == driver.name)
+        #expect(speaker.manufacturer == driver.manufacturer)
+        #expect(speaker.model == driver.model)
+        #expect(speaker.nominalImpedanceOhms == driver.nominalImpedanceOhms)
+        #expect(speaker.ratedPowerWatts == driver.ratedPowerWatts)
+        #expect(speaker.recommendedHighPassHz == driver.recommendedHighPassHz)
+        #expect(speaker.origin == driver.origin)
+        #expect(speaker.sourceURLs == driver.sourceURLs)
+        #expect(speaker.notes == driver.notes)
+    }
+
     @Test func catalogChangesDoNotAlterProfileSnapshots() {
         var catalogEntry = SpeakerRecord(name: "Original driver")
         var profile = SoundProfile(name: "Desk")

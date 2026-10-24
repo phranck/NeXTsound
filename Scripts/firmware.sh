@@ -32,3 +32,7 @@ grep -Fq 'NeXTsound firmware overlaps persistent snapshot sectors' "$bounds_dir/
 printf 'Storage linker guard accepts the boundary and rejects a one-byte overlap.\n'
 "$root/.tools/arm/bin/arm-none-eabi-size" "$root/.build/firmware/nxs_firmware.elf"
 "$root/.tools/picotool/picotool/picotool" info -a "$root/.build/firmware/nxs_firmware.uf2"
+
+# Embedded as a Package.swift resource so the app's own Flash Firmware button always ships
+# the firmware it was built alongside, never a file the owner has to track down by hand.
+cp "$root/.build/firmware/nxs_firmware.uf2" "$root/App/Workbench/Sources/NeXTsoundWorkbench/Resources/nxs_firmware.uf2"
