@@ -196,7 +196,7 @@ static void record_validation(void) {
     CHECK(nxs_storage_record_decode(&record, &decoded));
     check_state(&decoded, &original);
     check_bit_flips_rejected(&record);
-    for (unsigned int malformed = 0; malformed < 15; ++malformed) {
+    for (unsigned int malformed = 0; malformed < 14; ++malformed) {
         nxs_storage_record_t corrupt = record;
         switch (malformed) {
         case 0:
@@ -240,9 +240,6 @@ static void record_validation(void) {
             break;
         case 13:
             corrupt.bytes[4] = 1;
-            break;
-        case 14:
-            corrupt.bytes[TEST_FLAGS_OFFSET] = 0;
             break;
         }
         refresh_checksum(&corrupt);
@@ -304,6 +301,23 @@ static void format_1_records(const char *fixture_path) {
     CHECK(memcmp(flash.sectors[0], record.bytes, sizeof(record.bytes)) == 0);
     CHECK(nxs_storage_read(&io, &loaded, &slot) == NXS_STORAGE_LOADED && slot == 1);
     check_state(&loaded, &next);
+}
+
+/** The fixture is the record firmware 0.2.0 writes for a board with serial number 1, which carries no flag. */
+static void format_2_records_without_the_flag(const char *fixture_path) {
+    nxs_storage_record_t record;
+    nxs_test_read_hex(fixture_path, record.bytes, sizeof(record.bytes));
+    CHECK(record.bytes[4] == 2 && record.bytes[TEST_FLAGS_OFFSET] == 0);
+    nxs_stored_state_t expected = make_state(102, -18.0f), decoded;
+    strcpy(expected.device_name, "NeXT SoundBox mini");
+    expected.metadata = (nxs_owner_metadata_t){.date = 20261024u, .has_serial_number = true, .serial_number = 1};
+    memcpy(expected.metadata.owner, "Bench owner", strlen("Bench owner"));
+    memcpy(expected.metadata.note, "First line\nSecond line", strlen("First line\nSecond line"));
+    CHECK(nxs_storage_record_decode(&record, &decoded));
+    check_state(&decoded, &expected);
+    nxs_storage_record_t rewritten;
+    CHECK(nxs_storage_record_encode(&decoded, &rewritten));
+    CHECK(rewritten.bytes[TEST_FLAGS_OFFSET] == NXS_METADATA_FLAG_SERIAL_NUMBER);
 }
 
 static void selection_and_generation(void) {
@@ -520,9 +534,10 @@ static void metadata_persistence(void) {
 }
 
 int main(int argument_count, char **arguments) {
-    CHECK(argument_count == 2);
+    CHECK(argument_count == 3);
     record_validation();
     format_1_records(arguments[1]);
+    format_2_records_without_the_flag(arguments[2]);
     selection_and_generation();
     interrupted_programs();
     interrupted_erases();

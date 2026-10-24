@@ -324,6 +324,10 @@ static bool padded_text_is_valid(const uint8_t *text, size_t length, bool allows
     return all_zero(text + index, length - index);
 }
 
+bool nxs_metadata_serial_number_is_set(uint8_t flags, uint32_t serial_number) {
+    return (flags & NXS_METADATA_FLAG_SERIAL_NUMBER) != 0 || serial_number != 0;
+}
+
 bool nxs_owner_metadata_is_valid(const nxs_owner_metadata_t *metadata) {
     return metadata && date_is_valid(metadata->date) && metadata->serial_number <= NXS_SERIAL_NUMBER_MAX &&
            (metadata->has_serial_number || metadata->serial_number == 0) &&
@@ -561,11 +565,11 @@ nxs_result_t nxs_owner_metadata_decode(const uint8_t *block, size_t length, nxs_
     if (!block || !metadata || length != NXS_METADATA_SIZE || (block[NXS_METADATA_FLAGS_OFFSET] & ~NXS_METADATA_FLAG_SERIAL_NUMBER) != 0) {
         return NXS_RESULT_INVALID_REPORT;
     }
-    nxs_owner_metadata_t candidate = {.date = read_u32(block),
-                                      .has_serial_number = (block[NXS_METADATA_FLAGS_OFFSET] & NXS_METADATA_FLAG_SERIAL_NUMBER) != 0};
+    nxs_owner_metadata_t candidate = {.date = read_u32(block)};
     for (size_t byte_index = 0; byte_index < NXS_METADATA_SERIAL_BYTES; ++byte_index) {
         candidate.serial_number |= (uint32_t)block[NXS_METADATA_SERIAL_OFFSET + byte_index] << (byte_index * 8);
     }
+    candidate.has_serial_number = nxs_metadata_serial_number_is_set(block[NXS_METADATA_FLAGS_OFFSET], candidate.serial_number);
     memcpy(candidate.owner, block + NXS_METADATA_OWNER_OFFSET, NXS_OWNER_NAME_LENGTH);
     memcpy(candidate.note, block + NXS_METADATA_NOTE_OFFSET, NXS_OWNER_NOTE_LENGTH);
     if (!nxs_owner_metadata_is_valid(&candidate)) {

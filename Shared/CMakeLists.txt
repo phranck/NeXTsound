@@ -36,7 +36,8 @@ if(PROJECT_IS_TOP_LEVEL)
         nxs_add_host_test(device "${CMAKE_CURRENT_SOURCE_DIR}/../Firmware/Tests/device_tests.c" nxs_device)
         find_package(ZLIB REQUIRED)
         nxs_add_host_test(storage "${CMAKE_CURRENT_SOURCE_DIR}/../Firmware/Tests/storage_tests.c" nxs_storage
-            "${CMAKE_CURRENT_SOURCE_DIR}/../Firmware/Tests/Fixtures/storage-record-v1.hex")
+            "${CMAKE_CURRENT_SOURCE_DIR}/../Firmware/Tests/Fixtures/storage-record-v1.hex"
+            "${CMAKE_CURRENT_SOURCE_DIR}/../Firmware/Tests/Fixtures/storage-record-v2-0.2.0.hex")
         target_link_libraries(nxs_storage_tests PRIVATE ZLIB::ZLIB)
         nxs_add_host_test(flash_geometry "${CMAKE_CURRENT_SOURCE_DIR}/../Firmware/Tests/flash_geometry_tests.c" nxs_storage)
         find_package(Threads REQUIRED)

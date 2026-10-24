@@ -72,7 +72,7 @@ The owner metadata of [issue 39](https://github.com/phranck/NeXTsound/issues/39)
 | --- | --- | --- |
 | 0 | 4 | The owner's date as YYYYMMDD, a valid Gregorian date from year 1 to 9999 |
 | 4 | 3 | Serial number, which the app shows after the prefix `NXSB` |
-| 7 | 1 | Flags: bit 0 `NXS_METADATA_FLAG_SERIAL_NUMBER` when a serial number is set, the other bits 0; without the flag the serial number is 0 |
+| 7 | 1 | Flags: bit 0 `NXS_METADATA_FLAG_SERIAL_NUMBER` when a serial number is set, the other bits 0. Without the flag, a serial number of 0 means none and any other is set, as firmware 0.2.0 sent it |
 | 8 | 64 | Owner, UTF-8 without control characters, padded with zero bytes |
 | 72 | 256 | Note, UTF-8 whose only control character is the line feed, padded with zero bytes |
 

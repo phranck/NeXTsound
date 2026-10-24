@@ -206,6 +206,11 @@ bool nxs_host_volume_is_valid(float volume_db);
  * after the text is zero.
  */
 bool nxs_owner_metadata_is_valid(const nxs_owner_metadata_t *metadata);
+/**
+ * Whether a decoded serial number is set: with its flag, or without one when it is not 0, because firmware 0.2.0 wrote
+ * numbers without the flag. Encoders always write the flag for a set number.
+ */
+bool nxs_metadata_serial_number_is_set(uint8_t flags, uint32_t serial_number);
 const char *nxs_result_description(nxs_result_t result);
 
 /** Failure leaves the caller's destination unchanged. Padding must be zero. */

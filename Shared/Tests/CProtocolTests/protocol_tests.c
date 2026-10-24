@@ -301,6 +301,13 @@ static void test_owner_metadata(void) {
     CHECK(decoded.has_serial_number && decoded.serial_number == 0);
     nxs_owner_metadata_t unflagged = {.serial_number = 5};
     CHECK(!nxs_owner_metadata_is_valid(&unflagged));
+    /* Firmware 0.2.0 sent a number without the flag; any number but 0 still reads as set. */
+    test_block[4] = 7;
+    test_block[7] = 0;
+    CHECK(nxs_owner_metadata_decode(test_block, sizeof(test_block), &decoded) == NXS_RESULT_OK);
+    CHECK(decoded.has_serial_number && decoded.serial_number == 7);
+    test_block[4] = 0;
+    CHECK(nxs_owner_metadata_decode(test_block, sizeof(test_block), &decoded) == NXS_RESULT_OK && !decoded.has_serial_number);
     nxs_owner_metadata_t full = {.date = 99991231u, .has_serial_number = true, .serial_number = NXS_SERIAL_NUMBER_MAX};
     memset(full.owner, 'o', sizeof(full.owner));
     memset(full.note, 'n', sizeof(full.note));
@@ -345,8 +352,6 @@ static void test_owner_metadata(void) {
     memcpy(&unchanged, &decoded, sizeof(unchanged));
     block[7] = 2;
     CHECK(nxs_owner_metadata_decode(block, sizeof(block), &decoded) == NXS_RESULT_INVALID_REPORT);
-    block[7] = 0;
-    CHECK(nxs_owner_metadata_decode(block, sizeof(block), &decoded) == NXS_RESULT_INVALID_PARAMETERS);
     block[7] = NXS_METADATA_FLAG_SERIAL_NUMBER;
     block[8] = 0x80;
     CHECK(nxs_owner_metadata_decode(block, sizeof(block), &decoded) == NXS_RESULT_INVALID_PARAMETERS);

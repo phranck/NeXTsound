@@ -12,7 +12,7 @@
 #define NXS_STORAGE_DATE_OFFSET NXS_STORAGE_FORMAT_1_END
 #define NXS_STORAGE_SERIAL_OFFSET (NXS_STORAGE_DATE_OFFSET + 4u)
 #define NXS_STORAGE_SERIAL_BYTES 3u
-/** Bit 0 is NXS_METADATA_FLAG_SERIAL_NUMBER; firmware 0.2.0 wrote 0 here and refuses any other value. */
+/** Bit 0 is NXS_METADATA_FLAG_SERIAL_NUMBER; firmware 0.2.0 wrote 0 here, also for a number, and refuses any other value. */
 #define NXS_STORAGE_FLAGS_OFFSET (NXS_STORAGE_SERIAL_OFFSET + NXS_STORAGE_SERIAL_BYTES)
 #define NXS_STORAGE_OWNER_OFFSET (NXS_STORAGE_FLAGS_OFFSET + 1u)
 #define NXS_STORAGE_FORMAT_2_END (NXS_STORAGE_OWNER_OFFSET + NXS_OWNER_NAME_LENGTH)
@@ -159,8 +159,9 @@ bool nxs_storage_record_decode(const nxs_storage_record_t *record, nxs_stored_st
     }
     if (!format_1) {
         candidate.metadata.date = read_u32(bytes + NXS_STORAGE_DATE_OFFSET);
-        candidate.metadata.has_serial_number = (bytes[NXS_STORAGE_FLAGS_OFFSET] & NXS_METADATA_FLAG_SERIAL_NUMBER) != 0;
         candidate.metadata.serial_number = read_unsigned(bytes + NXS_STORAGE_SERIAL_OFFSET, NXS_STORAGE_SERIAL_BYTES);
+        candidate.metadata.has_serial_number =
+            nxs_metadata_serial_number_is_set(bytes[NXS_STORAGE_FLAGS_OFFSET], candidate.metadata.serial_number);
         memcpy(candidate.metadata.owner, bytes + NXS_STORAGE_OWNER_OFFSET, NXS_OWNER_NAME_LENGTH);
         memcpy(candidate.metadata.note, note, NXS_OWNER_NOTE_LENGTH);
         if (!nxs_owner_metadata_is_valid(&candidate.metadata)) {
