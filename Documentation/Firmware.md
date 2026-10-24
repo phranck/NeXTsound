@@ -75,9 +75,13 @@ Further exact-serial experiments close the helper's own device access before wai
 
 The host RP2 fixture also checks enabled suspend/resume interrupts, individual and jointly latched notification ordering, interrupt context, status-clear writes, and preservation of pending endpoint buffers. Independently removing either notification makes its negative control fail. These modeled interrupt cases do not qualify physical suspend/resume.
 
+The [observations of October 24](Verification/Diagnostics-2026-10-24.json) installed clean firmware `953d75d4`, built against TinyUSB 0.21.0's own RP2 port, on the same specimen. Its name, saved snapshot and generation survive installation. Minor-0 capabilities omit the diagnostics flag, and minor-1 capabilities report it. Ten malformed requests leave the state unchanged. Muted PCM16, PCM24 with two saves, and PCM16 again change no counter during stable streaming. The saves reject 19 packets, and each stream end adds one ring underrun. A reboot restores the saved snapshot, and the previous unmuted snapshot is then restored byte-identically.
+
+Every boot in that session exceeds the 1000 µs block deadline once before any stream, with two I2S stalls: 1183 µs with the unmuted profile and 1162 µs with its muted copy. The cause is open in [issue 167](https://github.com/phranck/NeXTsound/issues/167).
+
 Earlier datasets retain [storage/corruption recovery](Verification/Storage-2026-10-18.json), [format restart](Verification/AudioFormats-2026-10-18.json), [streaming storage](Verification/AudioStorageStress-2026-10-18.json), and the [unusable post-BOOTSEL SRAM counter method](Verification/RuntimeFollowup-2026-10-18.json). The SRAM zero words are not evidence of zero live counters.
 
-Unmuted processing timing, runtime stack high-water use, I2S signals, wiring, and speaker safety remain unmeasured in [issue 3](https://github.com/phranck/NeXTsound/issues/3), following the storage/backup slice in [issue 9](https://github.com/phranck/NeXTsound/issues/9).
+Unmuted processing timing, runtime stack high-water use, I2S signals, wiring, and speaker safety remain unmeasured. Physical USB suspend and resume remain open in [issue 166](https://github.com/phranck/NeXTsound/issues/166).
 
 ## Upstream notices
 
