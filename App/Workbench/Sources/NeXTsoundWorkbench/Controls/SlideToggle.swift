@@ -178,7 +178,7 @@ private struct EllipticalGlow: View {
     }
 }
 
-/// The reference image's measurements, which the mockup draws at three fifths of their size.
+/// The reference image's measurements, which the toggle draws at three fifths of their size.
 private enum SlideToggleMetrics {
     static let zoom: CGFloat = 0.6
     static let ring: CGFloat = 2.5

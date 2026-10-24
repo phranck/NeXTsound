@@ -4,8 +4,7 @@ import SwiftUI
 /// whatever the shape is filled with.
 ///
 /// SwiftUI's inner shadow style takes its strength from the fill it shades, so on a translucent fill it fades with the
-/// fill, while the mockup's inset shadows keep their own opacity. The blur is given as CSS gives it, twice the
-/// Gaussian's deviation.
+/// fill, while this shadow keeps its own opacity. The blur is given as CSS gives it, twice the Gaussian's deviation.
 struct InsetShadow<ShadowShape: Shape>: View {
     let shape: ShadowShape
     let color: Color

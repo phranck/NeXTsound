@@ -38,7 +38,7 @@ struct SpreadRow: Layout {
     }
 }
 
-/// Lays its views out side by side, each at its share of one width, as the mockup's modules share one column width.
+/// Lays its views out side by side, each at its share of one width, so the row's modules share one column width.
 ///
 /// A view's share is 1 unless `rowWidthShare(_:)` sets it, and the width is the widest view's among those with a whole
 /// share. Each view gets the row's full height.

@@ -49,7 +49,7 @@ private extension RenderWorkbench {
         )
     }
 
-    /// Renders the Library panel with the mockup's sample profiles, its speaker and a verified board.
+    /// Renders the Library panel with sample profiles, a speaker and a verified board.
     static func renderLibraryPanel(destination: URL) throws {
         let profiles = ["Soul Funk", "Flat", "Warm", "Speech", "Late Night", "Desk Monitor"].map { SoundProfile(name: $0) }
         let model = try WorkbenchModel(
@@ -106,8 +106,8 @@ private struct PreviewBoardTransport: BoardTransport {
 
     func persistState() async throws {}
 
-    /// Unsaved, so the connected render shows the storage state on the flash line, and streaming with the mockup's
-    /// sample values, so the status column shows live values.
+    /// Unsaved, so the connected render shows the storage state on the flash line, and streaming with sample values,
+    /// so the status column shows live values.
     func requestStatus() async throws -> BoardStatusReading {
         var runtime = DeviceRuntimeStatus()
         runtime.isStreaming = true

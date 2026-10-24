@@ -40,9 +40,8 @@ extension ControlCaption {
 }
 
 private extension ControlCaption {
-    /// What a line of the mockup's type is taller than a line of SwiftUI's. It goes between the lines of a caption
-    /// that breaks, and half of it above and below the caption, as CSS shares a line's leading out, so every line
-    /// stands where the mockup's does.
+    /// What a line of the front panel's type is taller than a line of SwiftUI's. It goes between the lines of a caption
+    /// that breaks, and half of it above and below the caption, so every line takes the panel's line height.
     static let leading = FrontPanelType.lineHeight - FrontPanelType.textLineHeight
 
     /// The width of the widest word of a caption in capitals with the caption's letter spacing, rounded up to whole

@@ -200,7 +200,7 @@ private struct FaderGripLine: View {
     }
 }
 
-/// A fader's measurements and keys, from the mockup.
+/// A fader's measurements and keys.
 private enum PanelFaderMetrics {
     static let width: CGFloat = 30
     static let height: CGFloat = 108

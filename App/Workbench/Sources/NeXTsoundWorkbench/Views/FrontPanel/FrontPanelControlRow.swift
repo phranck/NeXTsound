@@ -271,7 +271,7 @@ private extension View {
     }
 }
 
-/// The row's measurements, from the mockup.
+/// The row's measurements.
 private enum PanelRowMetrics {
     static let margin = EdgeInsets(top: 0, leading: 24, bottom: 18, trailing: 24)
     static let panelSpacing: CGFloat = 24

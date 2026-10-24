@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// The front panel's motion, all in the mockup's ease: 180 ms for a change of state, 80 ms with reduced motion, and
+/// The front panel's motion, all in one ease: 180 ms for a change of state, 80 ms with reduced motion, and
 /// 400 ms for the display's status column to slide in or out.
 enum FrontPanelMotion {
     static func state(reduceMotion: Bool) -> Animation {
@@ -14,7 +14,7 @@ enum FrontPanelMotion {
 }
 
 private extension FrontPanelMotion {
-    /// The mockup's ease.
+    /// The ease every motion on the front panel shares.
     static func ease(duration: Double) -> Animation {
         .timingCurve(0.3, 0.7, 0.4, 1, duration: duration)
     }

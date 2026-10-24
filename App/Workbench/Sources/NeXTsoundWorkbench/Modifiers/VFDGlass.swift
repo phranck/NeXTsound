@@ -2,7 +2,7 @@ import SwiftUI
 
 extension View {
     /// Puts a display's glass behind the view, with a light edge along its top and left and a dark one along its
-    /// bottom and right, as every display in the mockup has.
+    /// bottom and right.
     func vfdGlass(cornerRadius: CGFloat) -> some View {
         background(
             PhosphorTheme.glass

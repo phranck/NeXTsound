@@ -3,8 +3,8 @@ import SwiftUI
 
 /// The front panel's head: the NeXTSOUND wordmark between the four LAYERED stripes, all pressed into the metal.
 ///
-/// The stripes are as tall as the wordmark's capitals and stand in the middle of the header's row, as the mockup
-/// centers them. They fade out toward the window's edges and take whatever width the wordmark leaves, which centers
+/// The stripes are as tall as the wordmark's capitals and stand in the middle of the header's row. They fade out
+/// toward the window's edges and take whatever width the wordmark leaves, which centers
 /// the wordmark.
 struct FrontPanelHeader: View {
     var body: some View {
@@ -102,7 +102,7 @@ private struct PressedEdgeLight<Outline: View>: View {
     }
 }
 
-/// The header's measurements, from the mockup and from the LAYERED logo.
+/// The header's measurements. The stripes' proportions and colors are the LAYERED logo's.
 private enum FrontPanelHeaderMetrics {
     static let wordmarkSize: CGFloat = 34
     static let wordmarkTracking: CGFloat = 0.04

@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// The Library panel's measurements, from the mockup.
+/// The Library panel's measurements.
 enum LibraryPanelLayout {
     /// The width of the four profile keys, which every readout fills.
     static let contentWidth = MomentaryKeyBank.width(keyCount: 4)

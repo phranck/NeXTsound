@@ -28,7 +28,7 @@ struct DotMatrixTests {
         #expect(masks[DotMatrixFont.glyphColumns] == 0)
     }
 
-    @Test func aReadoutOfFiveCellsMeasuresWhatTheMockupMeasures() {
+    @Test func aReadoutOfFiveCellsTakesItsDotsAndMargin() {
         #expect(DotMatrixLinesLayout(cells: 5).size == CGSize(width: 61.5, height: 17.5))
         #expect(DotMatrixLinesLayout(cells: 5, lines: 2).size.height == 17.5 + 9 * DotMatrixMetrics.pitch)
     }

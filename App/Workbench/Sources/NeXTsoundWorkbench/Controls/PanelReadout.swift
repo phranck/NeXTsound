@@ -30,7 +30,7 @@ extension PanelReadout {
     }
 }
 
-/// A readout's measurements, from the mockup.
+/// A readout's measurements.
 private enum PanelReadoutMetrics {
     static let glassRadius: CGFloat = 5
     /// The frame's corners run parallel to the glass's, so its radius is the glass's plus the frame's width.

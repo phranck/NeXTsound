@@ -66,7 +66,7 @@ enum FaderUnit: Sendable {
 }
 
 extension FaderUnit {
-    /// The readout's text, as compact as the mockup's. It leaves out the unit, because the caption under the fader
+    /// The readout's text, kept compact. It leaves out the unit, because the caption under the fader
     /// names the value, and it writes decimals with a point, as a device's display does.
     func readout(_ value: Float) -> String {
         switch self {
