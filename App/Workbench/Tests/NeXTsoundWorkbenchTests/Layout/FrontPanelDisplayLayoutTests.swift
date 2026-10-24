@@ -119,26 +119,50 @@ struct FrontPanelDisplayLayoutTests {
         #expect(FrontPanelDisplayLayout.statusColumn(displayColumns: 500, statusShift: reserved) >= 500)
     }
 
-    /// A message wraps over the display's whole width with its marker and a hanging indent, keeps at most three lines,
-    /// and ends on the display's bottom line, under its frame line. The unlit row above the frame falls between two
-    /// lines of text, so the line above the overlay stays whole.
-    @Test func theOverlayWrapsAcrossTheDisplayAndLeavesTheLinesAboveItWhole() {
+    /// A message's card wraps it with its marker and a hanging indent, keeps at most four lines of at most 48 cells,
+    /// holds its text inside the padding, and centers on the display.
+    @Test func theMessageCardCentersOnTheDisplayAroundItsText() {
         let layout = FrontPanelDisplayLayout.self
         let columns = Self.frontPanelDisplayColumns
-        let short = layout.messageOverlayLines(FrontPanelMessage(text: "Settings saved"), displayColumns: columns)
-        #expect(short == ["> Settings saved"])
-        let long = String(repeating: "word ", count: 80)
-        let lines = layout.messageOverlayLines(FrontPanelMessage(text: long, isError: true), displayColumns: columns)
-        #expect(lines.count == layout.messageOverlayLineLimit)
-        #expect(lines[0].hasPrefix(layout.errorMarker) && lines[1].hasPrefix(layout.messageIndent))
-        #expect(lines.allSatisfy { $0.count <= DotMatrixMetrics.cells(inColumns: columns) })
-        #expect(layout.messageOverlayTextRow(index: 2, lineCount: 3) == layout.rows - DotMatrixFont.glyphRows)
-        for lineCount in 1 ... layout.messageOverlayLineLimit {
-            let topRow = layout.messageOverlayTopRow(lineCount: lineCount)
-            #expect(topRow % DotMatrixMetrics.linePitch == DotMatrixFont.glyphRows)
-            #expect(layout.messageOverlayFrameRow(lineCount: lineCount) > topRow)
-            #expect(layout.messageOverlayFrameRow(lineCount: lineCount) < layout.messageOverlayTextRow(index: 0, lineCount: lineCount))
+        let short = layout.messageCard(FrontPanelMessage(text: "Settings saved"), displayColumns: columns)
+        #expect(short.lines == ["> Settings saved"])
+        let long = layout.messageCard(
+            FrontPanelMessage(text: String(repeating: "word ", count: 80), isError: true),
+            displayColumns: columns
+        )
+        #expect(long.lines.count == layout.messageCardLineLimit)
+        #expect(long.lines[0].hasPrefix(layout.errorMarker) && long.lines[1].hasPrefix(layout.messageIndent))
+        #expect(long.lines.allSatisfy { $0.count <= layout.messageCardTextCells })
+        for card in [short, long] {
+            #expect(abs(card.columns.lowerBound - (columns - 1 - card.columns.upperBound)) <= 1)
+            #expect(abs(card.rows.lowerBound - (layout.rows - 1 - card.rows.upperBound)) <= 1)
+            let lastTextColumn = card.textColumn + DotMatrixMetrics.columns(forCells: card.lines.map(\.count).max() ?? 0) - 1
+            let lastTextRow = card.textRow(index: card.lines.count - 1) + DotMatrixFont.glyphRows - 1
+            #expect(card.textColumn - card.columns.lowerBound == layout.messageCardPaddingColumns + 1)
+            #expect(card.columns.upperBound - lastTextColumn == layout.messageCardPaddingColumns + 1)
+            #expect(card.textRow(index: 0) - card.rows.lowerBound == layout.messageCardPaddingRows + 1)
+            #expect(card.rows.upperBound - lastTextRow == layout.messageCardPaddingRows + 1)
+            #expect(card.clearedColumns.lowerBound >= 0 && card.clearedColumns.upperBound < columns)
         }
+    }
+
+    /// The card's frame leaves out each corner and the dot beside it on either edge, and joins the edges with a dot on
+    /// the diagonal, so its corners read as rounded.
+    @Test func theMessageCardsFrameRoundsItsCorners() {
+        typealias Dot = FrontPanelDisplayLayout.Dot
+        let card = FrontPanelDisplayLayout.messageCard(
+            FrontPanelMessage(text: "Settings saved"),
+            displayColumns: Self.frontPanelDisplayColumns
+        )
+        let frame = Set(card.frameDots)
+        let left = card.columns.lowerBound
+        let bottom = card.rows.upperBound
+        #expect(frame.count == card.frameDots.count)
+        #expect(frame.allSatisfy { card.columns.contains($0.column) && card.rows.contains($0.row) })
+        #expect(![Dot(column: left, row: bottom), Dot(column: left + 1, row: bottom), Dot(column: left, row: bottom - 1)]
+            .contains(where: frame.contains))
+        #expect([Dot(column: left + 1, row: bottom - 1), Dot(column: left + 2, row: bottom), Dot(column: left, row: bottom - 2)]
+            .allSatisfy(frame.contains))
     }
 }
 

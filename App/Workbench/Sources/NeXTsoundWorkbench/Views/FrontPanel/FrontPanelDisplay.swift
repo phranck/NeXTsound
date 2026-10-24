@@ -4,9 +4,8 @@ import SwiftUI
 /// The multifunction display's dot matrix.
 ///
 /// The live EQ curve takes its left part between its gain and frequency scales, with the selected profile's name under
-/// it, and the status column on the right shows the SoundBox. A message stands in an overlay over the display's bottom
-/// lines, across its whole width. The grid starts at the display's leading edge, so every dot keeps its whole-pixel
-/// position.
+/// it, and the status column on the right shows the SoundBox. A message shows in a card with rounded corners over the
+/// middle of the display. The grid starts at the display's leading edge, so every dot keeps its whole-pixel position.
 ///
 /// The status column slides in from the right and out to the right in whole dot columns over the unlit grid, and the
 /// curve takes the columns it leaves. With reduced motion, it appears and disappears at once.
@@ -18,7 +17,7 @@ struct FrontPanelDisplay: View {
     let showsStatus: Bool
     /// The band the band keys select, whose marker lights in the peak step.
     var selectedBand: Int?
-    /// The message the overlay shows, or nil while it shows none.
+    /// The message the card shows, or nil while the display shows none.
     var overlayMessage: FrontPanelMessage?
     @Environment(\.phosphorTheme) private var theme
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -50,11 +49,11 @@ struct FrontPanelDisplay: View {
 }
 
 /// The lit dots of the multifunction display: the axes, the grid lines and their labels, the curve with its fill, the
-/// band markers, the profile's name, the status column, and over them the message overlay.
+/// band markers, the profile's name, the status column, and over them the message card.
 ///
 /// An animation of the status column's reveal redraws the dots for every step, and the column moves in whole dot
-/// columns. Dots that slide past the display's right edge are cut off. The overlay leaves every other dot under it
-/// unlit, so only the unlit grid stands around its text.
+/// columns. Dots that slide past the display's right edge are cut off. The card leaves every other dot under it unlit,
+/// so only the unlit grid stands around its frame and its text.
 @Animatable
 private struct FrontPanelDisplayDots: View {
     let settings: DSPSettings
@@ -90,17 +89,17 @@ private struct FrontPanelDisplayDots: View {
                 paintStatus(normal: &normal, bright: &bright, column: statusColumn)
             }
             var underlay = context
-            let overlayLines = overlayMessage.map { FrontPanelDisplayLayout.messageOverlayLines($0, displayColumns: columns) } ?? []
-            if !overlayLines.isEmpty {
-                underlay.clip(to: Path(overlayArea(lineCount: overlayLines.count, size: size)), options: .inverse)
+            let card = overlayMessage.map { FrontPanelDisplayLayout.messageCard($0, displayColumns: columns) }
+            if let card {
+                underlay.clip(to: Path(cardArea(card)), options: .inverse)
             }
             fill.fill(underlay, shading: fillShading)
             dim.fill(underlay, color: theme.dim)
             normal.fill(underlay, color: theme.normal)
             bright.fill(underlay, color: theme.bright)
             peak.fill(underlay, color: theme.peak)
-            if let overlayMessage, !overlayLines.isEmpty {
-                paintOverlay(overlayLines, tone: overlayMessage.tone, in: context)
+            if let overlayMessage, let card {
+                paintCard(card, tone: overlayMessage.tone, in: context)
             }
         }
         .frame(
@@ -279,25 +278,24 @@ private extension FrontPanelDisplayDots {
         }
     }
 
-    /// The part of the display the overlay keeps to itself: from the unlit row above its frame line down to the
-    /// display's bottom edge, across its whole width.
-    func overlayArea(lineCount: Int, size: CGSize) -> CGRect {
-        let top = DotMatrixMetrics.rect(column: 0, row: FrontPanelDisplayLayout.messageOverlayTopRow(lineCount: lineCount)).minY
-        return CGRect(x: 0, y: top, width: size.width, height: size.height - top)
+    /// The part of the display the card keeps to itself: its frame and the ring of unlit dots around it. The area's
+    /// edges run between dots, so no dot of the curve or the status column is cut in half.
+    func cardArea(_ card: FrontPanelDisplayLayout.MessageCard) -> CGRect {
+        let first = DotMatrixMetrics.rect(column: card.clearedColumns.lowerBound, row: card.clearedRows.lowerBound)
+        let last = DotMatrixMetrics.rect(column: card.clearedColumns.upperBound, row: card.clearedRows.upperBound)
+        return first.union(last)
     }
 
-    /// Draws the overlay: a frame line across the display in the dim step, and the message's lines under it in the
-    /// message's own tone, the last one on the display's bottom line.
-    func paintOverlay(_ lines: [String], tone: DotMatrixTone, in context: GraphicsContext) {
-        let layout = FrontPanelDisplayLayout.self
+    /// Draws the message card: its frame with rounded corners in the dim step, and the message's lines inside it in the
+    /// message's own tone.
+    func paintCard(_ card: FrontPanelDisplayLayout.MessageCard, tone: DotMatrixTone, in context: GraphicsContext) {
         var frame = DotMatrixPainter()
         var text = DotMatrixPainter()
-        let frameRow = layout.messageOverlayFrameRow(lineCount: lines.count)
-        for column in 0 ..< columns {
-            frame.light(column: column, row: frameRow)
+        for dot in card.frameDots {
+            frame.light(column: dot.column, row: dot.row)
         }
-        for (index, line) in lines.enumerated() {
-            text.write(line, column: 0, row: layout.messageOverlayTextRow(index: index, lineCount: lines.count))
+        for (index, line) in card.lines.enumerated() {
+            text.write(line, column: card.textColumn, row: card.textRow(index: index))
         }
         frame.fill(context, color: theme.dim)
         text.fill(context, color: tone == .bright ? theme.bright : theme.normal)
