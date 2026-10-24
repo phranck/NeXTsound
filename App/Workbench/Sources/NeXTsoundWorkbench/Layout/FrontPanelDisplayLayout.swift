@@ -111,19 +111,24 @@ extension FrontPanelDisplayLayout {
         }
     }
 
-    /// The dots of `shape` around a band at `frequencyHz` and `decibels` on a curve of `curveColumns` columns, in the
-    /// display's dot columns and rows. Dots that would fall left or right of the curve or on its bottom axis are left
-    /// out, so a band at the edge of the range shows the part of its marker that fits.
-    static func bandMarkerDots(frequencyHz: Double, decibels: Double, curveColumns: Int, shape: [Dot]) -> [Dot] {
-        guard let center = column(frequencyHz: frequencyHz, columns: curveColumns) else {
+    /// The dots of `shape` around a band at `frequencyHz` on the curve whose row in each column `curveRows` holds, in
+    /// the display's dot columns and rows. The shape centers on the curve's row at the band's column, so the marker
+    /// lies on the curve wherever the other bands or the high-pass shape it. Dots that would fall left or right of the
+    /// curve or on its bottom axis are left out, so a band at the edge of the range shows the part of its marker that
+    /// fits.
+    static func bandMarkerDots(frequencyHz: Double, curveRows: [Int], shape: [Dot]) -> [Dot] {
+        guard
+            let center = column(frequencyHz: frequencyHz, columns: curveRows.count),
+            curveRows.indices.contains(center)
+        else {
             return []
         }
-        let centerRow = row(decibels: decibels, rows: graphRows)
+        let centerRow = curveRows[center]
         return shape.compactMap { offset in
             let column = center + offset.column
             let row = centerRow + offset.row
             guard
-                (0 ..< curveColumns).contains(column),
+                curveRows.indices.contains(column),
                 (0 ..< graphRows - 1).contains(row)
             else {
                 return nil
