@@ -118,6 +118,83 @@ struct FrontPanelDisplayLayoutTests {
         #expect(FrontPanelDisplayLayout.graphColumns(displayColumns: 500, statusShift: reserved) == 500)
         #expect(FrontPanelDisplayLayout.statusColumn(displayColumns: 500, statusShift: reserved) >= 500)
     }
+
+    /// A message's card wraps it with its marker and a hanging indent, keeps at most four lines of at most 48 cells,
+    /// holds its text inside the padding, and centers on the display.
+    @Test func theMessageCardCentersOnTheDisplayAroundItsText() {
+        let layout = FrontPanelDisplayLayout.self
+        let columns = Self.frontPanelDisplayColumns
+        let short = layout.messageCard(FrontPanelMessage(text: "Settings saved"), displayColumns: columns)
+        #expect(short.lines == ["> Settings saved"])
+        let long = layout.messageCard(
+            FrontPanelMessage(text: String(repeating: "word ", count: 80), isError: true),
+            displayColumns: columns
+        )
+        #expect(long.lines.count == layout.messageCardLineLimit)
+        #expect(long.lines[0].hasPrefix(layout.errorMarker) && long.lines[1].hasPrefix(layout.messageIndent))
+        #expect(long.lines.allSatisfy { $0.count <= layout.messageCardTextCells })
+        for card in [short, long] {
+            #expect(abs(card.columns.lowerBound - (columns - 1 - card.columns.upperBound)) <= 1)
+            #expect(abs(card.rows.lowerBound - (layout.rows - 1 - card.rows.upperBound)) <= 1)
+            let lastTextColumn = card.textColumn + DotMatrixMetrics.columns(forCells: card.lines.map(\.count).max() ?? 0) - 1
+            let lastTextRow = card.textRow(index: card.lines.count - 1) + DotMatrixFont.glyphRows - 1
+            #expect(card.textColumn - card.columns.lowerBound == layout.messageCardPadding + 1)
+            #expect(card.columns.upperBound - lastTextColumn == layout.messageCardPadding + 1)
+            #expect(card.textRow(index: 0) - card.rows.lowerBound == layout.messageCardPadding + 1)
+            #expect(card.rows.upperBound - lastTextRow == layout.messageCardPadding + 1)
+            #expect(card.clearedRows
+                .allSatisfy { card.clearedColumns(row: $0).lowerBound >= 0 && card.clearedColumns(row: $0).upperBound < columns })
+        }
+    }
+
+    /// The card's frame leaves out each corner and the dot beside it on either edge, and joins the edges with a dot on
+    /// the diagonal, so its corners read as rounded.
+    @Test func theMessageCardsFrameRoundsItsCorners() {
+        typealias Dot = FrontPanelDisplayLayout.Dot
+        let card = FrontPanelDisplayLayout.messageCard(
+            FrontPanelMessage(text: "Settings saved"),
+            displayColumns: Self.frontPanelDisplayColumns
+        )
+        let frame = Set(card.frameDots)
+        let left = card.columns.lowerBound
+        let bottom = card.rows.upperBound
+        #expect(frame.count == card.frameDots.count)
+        #expect(frame.allSatisfy { card.columns.contains($0.column) && card.rows.contains($0.row) })
+        #expect(![Dot(column: left, row: bottom), Dot(column: left + 1, row: bottom), Dot(column: left, row: bottom - 1)]
+            .contains(where: frame.contains))
+        #expect([Dot(column: left + 1, row: bottom - 1), Dot(column: left + 2, row: bottom), Dot(column: left, row: bottom - 2)]
+            .allSatisfy(frame.contains))
+    }
+
+    /// The unlit ring around the card follows its rounded frame: every dot beside a frame dot, above, below, left or
+    /// right of it, stays unlit, and the dots beyond each rounded corner keep showing what lies beneath the card.
+    @Test func theMessageCardsUnlitRingFollowsItsRoundedCorners() {
+        typealias Dot = FrontPanelDisplayLayout.Dot
+        let card = FrontPanelDisplayLayout.messageCard(
+            FrontPanelMessage(text: "Settings saved"),
+            displayColumns: Self.frontPanelDisplayColumns
+        )
+        func isCleared(_ dot: Dot) -> Bool {
+            card.clearedRows.contains(dot.row) && card.clearedColumns(row: dot.row).contains(dot.column)
+        }
+        let neighbors = card.frameDots.flatMap { dot in
+            [(0, -1), (0, 1), (-1, 0), (1, 0)].map { step in Dot(column: dot.column + step.0, row: dot.row + step.1) }
+        }
+        #expect((card.frameDots + neighbors).allSatisfy(isCleared))
+        let left = card.columns.lowerBound
+        let right = card.columns.upperBound
+        let top = card.rows.lowerBound
+        let bottom = card.rows.upperBound
+        let beyondCorners = [
+            Dot(column: left, row: top),
+            Dot(column: left - 1, row: top - 1),
+            Dot(column: left + 1, row: top - 1),
+            Dot(column: left - 1, row: top + 1),
+            Dot(column: right, row: bottom),
+            Dot(column: right + 1, row: bottom + 1),
+        ]
+        #expect(!beyondCorners.contains(where: isCleared))
+    }
 }
 
 private extension FrontPanelDisplayLayoutTests {

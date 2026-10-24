@@ -58,6 +58,12 @@ enum FrontPanelDisplayLayout {
     static let infoMarker = "> "
     /// The indent of a message's later lines, as wide as its marker.
     static let messageIndent = "  "
+    /// The most character cells a line of the message card holds.
+    static let messageCardTextCells = 48
+    /// The most lines a message takes in its card.
+    static let messageCardLineLimit = 4
+    /// The unlit dots between the message card's frame and its text, on every side.
+    static let messageCardPadding = 6
     /// The dot columns that the status column takes from the curve, the gap before it included. The column slides
     /// this far to the right to leave the display.
     static let statusReservedColumns = DotMatrixMetrics.columns(forCells: statusCells) + statusGapColumns
@@ -170,6 +176,27 @@ extension FrontPanelDisplayLayout {
         return Int(((1 - clamped) * Double(statusReservedColumns)).rounded())
     }
 
+    /// The card that shows `message` on a display of `displayColumns` columns. Its lines break between words, with the
+    /// marker before the first line and a hanging indent after it, at most `messageCardTextCells` cells wide or as many
+    /// as the display leaves, and at most `messageCardLineLimit` of them, so a longer message keeps its first lines. The
+    /// card is as wide as its longest line with the padding and the frame around it, and centers on the display.
+    static func messageCard(_ message: FrontPanelMessage, displayColumns: Int) -> MessageCard {
+        // The padding, the frame and the unlit ring around it on either side of the text.
+        let edgeColumns = 2 * (messageCardPadding + 2)
+        let cells = min(messageCardTextCells, DotMatrixMetrics.cells(inColumns: displayColumns - edgeColumns))
+        let lines = DotMatrixWrap.lines(
+            of: message.text,
+            width: max(cells, 1),
+            firstPrefix: message.isError ? errorMarker : infoMarker,
+            laterPrefix: messageIndent
+        ).prefix(messageCardLineLimit)
+        let width = DotMatrixMetrics.columns(forCells: lines.map(\.count).max() ?? 0) + 2 * (messageCardPadding + 1)
+        let height = DotMatrixMetrics.rows(forLines: lines.count) + 2 * (messageCardPadding + 1)
+        let firstColumn = (displayColumns - width) / 2
+        let firstRow = (rows - height) / 2
+        return MessageCard(lines: Array(lines), columns: firstColumn ... firstColumn + width - 1, rows: firstRow ... firstRow + height - 1)
+    }
+
     /// The dot row a gain falls on among `rows` rows, with 0 dB in the middle row and every gain beyond the range on
     /// an edge row.
     static func row(decibels: Double, rows: Int) -> Int {
@@ -194,5 +221,74 @@ extension FrontPanelDisplayLayout {
     struct Dot: Hashable {
         let column: Int
         let row: Int
+    }
+
+    /// The card a message shows in, over the middle of the display: a frame with rounded corners around the message's
+    /// lines, and a ring of unlit dots around the frame that sets the card apart from the curve and the status column.
+    struct MessageCard {
+        /// The dots each edge of the frame leaves out toward a corner. A dot on the corner's diagonal joins the two
+        /// edges, so the corner reads as rounded.
+        static let cornerInset = 2
+
+        /// The message's lines, the first with its marker.
+        let lines: [String]
+        /// The dot columns the frame spans, its side edges included.
+        let columns: ClosedRange<Int>
+        /// The dot rows the frame spans, its top and bottom edges included.
+        let rows: ClosedRange<Int>
+    }
+}
+
+extension FrontPanelDisplayLayout.MessageCard {
+    /// The first dot column of the card's text, inside the frame and its padding.
+    var textColumn: Int {
+        columns.lowerBound + 1 + FrontPanelDisplayLayout.messageCardPadding
+    }
+
+    /// The dot columns the card keeps unlit beneath it on `row`, one of `clearedRows`: the frame, what it holds, and
+    /// every dot beside it, above, below, left or right. The ring around the frame follows its rounded corners, so the
+    /// dots beyond each corner keep showing what lies beneath the card.
+    func clearedColumns(row: Int) -> ClosedRange<Int> {
+        // The row's distance from the nearer of the top and bottom edges, -1 on the unlit rows outside them. The frame
+        // stands in `cornerInset` dots on an edge row and one dot less on each row toward the middle, and its ring
+        // reaches one dot further out than that.
+        let edgeDistance = min(row - rows.lowerBound, rows.upperBound - row)
+        let inset = max(Self.cornerInset - 1 - edgeDistance, -1)
+        return columns.lowerBound + inset ... columns.upperBound - inset
+    }
+
+    /// The dot rows the card keeps unlit beneath it: its frame and one unlit row above and below it.
+    var clearedRows: ClosedRange<Int> {
+        rows.lowerBound - 1 ... rows.upperBound + 1
+    }
+
+    /// The frame's dots: its four edges, each stopping `cornerInset` dots short of a corner, and the dot on each
+    /// corner's diagonal that joins two of them.
+    var frameDots: [FrontPanelDisplayLayout.Dot] {
+        typealias Dot = FrontPanelDisplayLayout.Dot
+        let inset = Self.cornerInset
+        let left = columns.lowerBound
+        let right = columns.upperBound
+        let top = rows.lowerBound
+        let bottom = rows.upperBound
+        let horizontal = (left + inset ... right - inset).flatMap { column in
+            [Dot(column: column, row: top), Dot(column: column, row: bottom)]
+        }
+        let vertical = (top + inset ... bottom - inset).flatMap { row in
+            [Dot(column: left, row: row), Dot(column: right, row: row)]
+        }
+        let diagonal = inset - 1
+        let corners = [
+            Dot(column: left + diagonal, row: top + diagonal),
+            Dot(column: right - diagonal, row: top + diagonal),
+            Dot(column: left + diagonal, row: bottom - diagonal),
+            Dot(column: right - diagonal, row: bottom - diagonal),
+        ]
+        return horizontal + vertical + corners
+    }
+
+    /// The first dot row of the line at `index`, inside the frame and its padding.
+    func textRow(index: Int) -> Int {
+        rows.lowerBound + 1 + FrontPanelDisplayLayout.messageCardPadding + index * DotMatrixMetrics.linePitch
     }
 }

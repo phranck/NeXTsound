@@ -15,7 +15,7 @@ struct FrontPanelMessageTests {
         sources.saveSucceeded = true
         #expect(sources.message == FrontPanelMessage(text: "Settings saved"))
         sources.saveInProgress = "Saving to the SoundBox…"
-        #expect(sources.message == FrontPanelMessage(text: "Saving to the SoundBox…"))
+        #expect(sources.message == FrontPanelMessage(text: "Saving to the SoundBox…", isLasting: true))
     }
 
     @Test func aMismatchShowsItsReasonAsAnError() {
@@ -86,18 +86,14 @@ struct FrontPanelStatusTests {
         #expect(partial.fields.map(\.label).suffix(2) == ["Flash", "Unit"])
     }
 
-    /// Only an error's text brings a hidden status column back, so a message that reports progress or a hint leaves
-    /// the column where it is.
-    @Test func onlyAnErrorBringsTheStatusColumnBack() {
-        func status(_ message: FrontPanelMessage?) -> FrontPanelStatus {
-            FrontPanelStatus(connection: "SoundBox connected", fields: [], message: message)
-        }
-        #expect(status(FrontPanelMessage(text: "Save failed.", isError: true)).errorText == "Save failed.")
-        #expect(status(FrontPanelMessage(text: "Edits play live", tone: .normal)).errorText == nil)
-        #expect(status(nil).errorText == nil)
+    /// A save to the SoundBox stays in the overlay while it runs, and the messages after it leave after a while.
+    @Test func onlyASaveInProgressLasts() {
+        #expect(FrontPanelMessageSources(saveInProgress: "Saving to the SoundBox…").message?.isLasting == true)
+        #expect(FrontPanelMessageSources(saveSucceeded: true).message?.isLasting == false)
+        #expect(FrontPanelMessageSources(error: "Save failed.").message?.isLasting == false)
     }
 
-    /// The column reads the model's board and news, so a board error reaches the message line, and a save that has
+    /// The column reads the model's board and news, so a board error becomes the current message, and a save that has
     /// just finished outranks it.
     @MainActor
     @Test func theColumnReadsTheModelsBoardAndNews() {
@@ -115,7 +111,7 @@ struct FrontPanelStatusTests {
             fields: [FrontPanelStatusField(label: "Name", value: "Bedroom")],
             message: FrontPanelMessage(text: "Edits play live", tone: .normal)
         )
-        #expect(status.spokenDescription(profileName: "Warm", showsStatus: false) == "Warm")
+        #expect(status.spokenDescription(profileName: "Warm", showsStatus: false) == "Warm. Edits play live")
         let spoken = status.spokenDescription(profileName: "Warm", showsStatus: true)
         #expect(spoken == "Warm. SoundBox connected. Name Bedroom. Edits play live")
     }
