@@ -87,6 +87,8 @@ The [observations of October 24](Verification/Diagnostics-2026-10-24.json) insta
 
 Every boot in that session exceeds the 1000 µs block deadline once before any stream, with two I2S stalls: 1183 µs with the unmuted profile and 1162 µs with its muted copy. The cause is open in [issue 167](https://github.com/phranck/NeXTsound/issues/167).
 
+The [owner-metadata observations](Verification/Metadata-2026-10-24.json) installed firmware 0.2.0 over 0.1.0 on the same specimen. Its format-1 record loads with the same name, generation and snapshot. Metadata written in two parts reads back identically after a reboot, and clearing it again leaves the snapshot byte-identical to the state before the update.
+
 Earlier datasets retain [storage/corruption recovery](Verification/Storage-2026-10-18.json), [format restart](Verification/AudioFormats-2026-10-18.json), [streaming storage](Verification/AudioStorageStress-2026-10-18.json), and the [unusable post-BOOTSEL SRAM counter method](Verification/RuntimeFollowup-2026-10-18.json). The SRAM zero words are not evidence of zero live counters.
 
 Unmuted processing timing, runtime stack high-water use, I2S signals, wiring, and speaker safety remain unmeasured. Physical USB suspend and resume remain open in [issue 166](https://github.com/phranck/NeXTsound/issues/166).

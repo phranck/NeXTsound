@@ -1,0 +1,48 @@
+{
+  "schema_version": 1,
+  "date": "2026-10-24",
+  "specimen_serial": "D4CDD489AFE28CC5",
+  "host": "macOS 27.2",
+  "image": {
+    "source_commit": "9007f7dc5c715c166e299f2e523bdec85fa53aa1",
+    "firmware_version": "0.2.0",
+    "picotool_program_version": "0.2.0 (9007f7dc)",
+    "uf2_bytes": 129536,
+    "uf2_sha256": "83ee44229e9faac083ceef0810444f3dc2db95cdcb47894556ad9cd444a1ab0f"
+  },
+  "previous_state": {
+    "firmware_version": "0.1.0",
+    "storage_format": 1,
+    "device_name": "NeXT SoundBox mini",
+    "active_generation": 99,
+    "persisted_generation": 99,
+    "feature_flags_minor_0": 3,
+    "feature_flags_minor_1": 7,
+    "read_metadata": "no reply, as firmware 0.1.0 does not know operation 8"
+  },
+  "installation": {
+    "method": "picotool 2.3.1 reboot -u -f filtered by VID 0xcafe, PID 0x4014 and the serial, load -v filtered by VID 0x2e8a, PID 0x000f and the serial, then reboot",
+    "verify": "OK",
+    "after_installation": "firmware 0.2.0, same device name, active and persisted generation 99, active snapshot byte-identical to the previous state, metadata empty",
+    "feature_flags_minor_0": 3,
+    "feature_flags_minor_1": 15
+  },
+  "metadata_write": {
+    "written": "date 2026-10-24, serial number 16777215, owner \"Bench test, Österreich\", a two-line note",
+    "replies": "part 0 ok at generation 99, part 1 ok with generation 100",
+    "read_back": "both parts at generation 100, every field identical"
+  },
+  "reboot": {
+    "method": "picotool reboot -f through the reset interface, filtered by the serial",
+    "observed": "generation 100, metadata and snapshot unchanged"
+  },
+  "restoration": {
+    "method": "write empty metadata",
+    "observed": "generation 101, metadata empty, active snapshot byte-identical to the state before installation"
+  },
+  "limits": [
+    "A half-written update and the session and generation rules are covered by the host tests, not exercised on the specimen.",
+    "The writes are not physical power-loss tests.",
+    "The boot processing maximum stayed above the 1000 us deadline, at 1133 to 1141 us; issue 167 tracks it."
+  ]
+}
