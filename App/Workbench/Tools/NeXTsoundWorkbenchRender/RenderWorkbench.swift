@@ -117,6 +117,12 @@ private struct PreviewBoardTransport: BoardTransport {
         runtime.storageIsAvailable = true
         return BoardStatusReading(runtime: runtime, storage: .unsaved)
     }
+
+    func requestMetadata() async throws -> OwnerMetadata {
+        OwnerMetadata()
+    }
+
+    func writeMetadata(_: OwnerMetadata) async throws {}
 }
 
 private final class PreviewBoardDiscovery: BoardDiscovery, @unchecked Sendable {

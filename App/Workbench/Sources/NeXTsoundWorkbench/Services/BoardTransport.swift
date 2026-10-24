@@ -17,6 +17,10 @@ public protocol BoardTransport: Sendable {
     /// Sends the non-mutating runtime-status request and returns the board's live values together with whether it
     /// plays the settings it saved, both from the one validated reply. Never applies, persists, or resets.
     func requestStatus() async throws -> BoardStatusReading
+    /// Reads the owner metadata in its two parts. Never writes.
+    func requestMetadata() async throws -> OwnerMetadata
+    /// Writes new owner metadata. Returns once the board saved it to flash, which advances its generation once.
+    func writeMetadata(_ metadata: OwnerMetadata) async throws
 }
 
 public extension BoardTransport {

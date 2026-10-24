@@ -399,6 +399,171 @@ static void test_set_name(void) {
     CHECK(device.generation == 3 && strcmp(device.capabilities.device_name, "Bedroom SoundBox") == 0);
 }
 
+static void send_message(nxs_device_t *device, nxs_operation_t operation, uint32_t identifier, uint32_t generation, const uint8_t *payload,
+                         uint16_t length) {
+    nxs_message_t request = {.operation = operation,
+                             .protocol_minor = NXS_METADATA_PROTOCOL_MINOR,
+                             .request_id = identifier,
+                             .generation = generation,
+                             .payload_length = length};
+    memcpy(request.payload, payload, length);
+    uint8_t report[NXS_REPORT_SIZE];
+    CHECK(nxs_message_encode(&request, report, sizeof(report)) == NXS_RESULT_OK);
+    CHECK(nxs_device_receive(device, report, sizeof(report)));
+}
+
+static void send_metadata_part(nxs_device_t *device, uint32_t identifier, uint32_t generation, uint8_t part,
+                               const uint8_t block[NXS_METADATA_SIZE]) {
+    uint8_t payload[NXS_METADATA_WRITE_SIZE] = {part};
+    memcpy(payload + 4, block + part * NXS_METADATA_PART_SIZE, NXS_METADATA_PART_SIZE);
+    send_message(device, NXS_OPERATION_WRITE_METADATA, identifier, generation, payload, sizeof(payload));
+}
+
+/** Reads both parts with the identifiers `first_identifier` and the one after it, and decodes the block. */
+static nxs_owner_metadata_t read_metadata(nxs_device_t *device, uint32_t first_identifier) {
+    uint8_t block[NXS_METADATA_SIZE];
+    for (uint8_t part = 0; part < NXS_METADATA_PART_COUNT; ++part) {
+        send_message(device, NXS_OPERATION_READ_METADATA, first_identifier + part, 0, &part, 1);
+        nxs_message_t reply = response(device, first_identifier + part, NXS_RESULT_OK);
+        CHECK(reply.payload_length == NXS_METADATA_PART_SIZE);
+        memcpy(block + part * NXS_METADATA_PART_SIZE, reply.payload, NXS_METADATA_PART_SIZE);
+    }
+    nxs_owner_metadata_t metadata;
+    CHECK(nxs_owner_metadata_decode(block, sizeof(block), &metadata) == NXS_RESULT_OK);
+    return metadata;
+}
+
+static uint16_t feature_flags(nxs_device_t *device, uint32_t identifier, uint8_t protocol_minor) {
+    nxs_message_t request = {.operation = NXS_OPERATION_CAPABILITIES, .protocol_minor = protocol_minor, .request_id = identifier};
+    uint8_t report[NXS_REPORT_SIZE];
+    CHECK(nxs_message_encode(&request, report, sizeof(report)) == NXS_RESULT_OK);
+    CHECK(nxs_device_receive(device, report, sizeof(report)));
+    nxs_message_t reply = response(device, identifier, NXS_RESULT_OK);
+    nxs_capabilities_t capabilities;
+    CHECK(nxs_capabilities_decode(reply.payload, reply.payload_length, &capabilities) == NXS_RESULT_OK);
+    return capabilities.feature_flags;
+}
+
+static nxs_owner_metadata_t sample_metadata(uint32_t serial_number) {
+    nxs_owner_metadata_t metadata = {.date = 20261024u, .serial_number = serial_number};
+    memcpy(metadata.owner, "Bench owner", strlen("Bench owner"));
+    memcpy(metadata.note, "First line\nSecond line", strlen("First line\nSecond line"));
+    return metadata;
+}
+
+static void test_owner_metadata_boot_and_refusals(void) {
+    nxs_device_t device;
+    init(&device);
+    nxs_owner_metadata_t empty = {0}, metadata = sample_metadata(1);
+    uint8_t block[NXS_METADATA_SIZE];
+    CHECK(nxs_owner_metadata_encode(&metadata, block, sizeof(block)) == NXS_RESULT_OK);
+    send_metadata_part(&device, 1, 1, 0, block);
+    response(&device, 1, NXS_RESULT_STORAGE_UNAVAILABLE);
+    nxs_owner_metadata_t current = read_metadata(&device, 2);
+    CHECK(memcmp(&current, &empty, sizeof(current)) == 0);
+    nxs_device_reset_session(&device);
+    CHECK(nxs_device_configure_storage(&device, NXS_FLASH_SUPPORTED_BYTES, true, NULL));
+    CHECK(feature_flags(&device, 4, 1) & NXS_FEATURE_METADATA);
+    CHECK(!(feature_flags(&device, 5, 0) & NXS_FEATURE_METADATA));
+
+    send_metadata_part(&device, 10, 1, 1, block);
+    response(&device, 10, NXS_RESULT_INVALID_PARAMETERS);
+    send_metadata_part(&device, 11, 1, 0, block);
+    response(&device, 11, NXS_RESULT_OK);
+    CHECK(device.generation == 1 && !device.metadata_pending);
+    current = read_metadata(&device, 12);
+    CHECK(memcmp(&current, &empty, sizeof(current)) == 0);
+    nxs_device_reset_session(&device);
+    send_metadata_part(&device, 14, 1, 1, block);
+    response(&device, 14, NXS_RESULT_INVALID_PARAMETERS);
+
+    send_metadata_part(&device, 15, 1, 0, block);
+    response(&device, 15, NXS_RESULT_OK);
+    nxs_snapshot_t next = nxs_default_snapshot();
+    next.attenuation_db = -12;
+    send(&device, NXS_OPERATION_APPLY_STATE, 16, 1, &next);
+    CHECK(nxs_device_complete_apply(&device, NXS_RESULT_OK));
+    response(&device, 16, NXS_RESULT_OK);
+    send_metadata_part(&device, 17, 2, 1, block);
+    response(&device, 17, NXS_RESULT_INVALID_PARAMETERS);
+    send_metadata_part(&device, 18, 1, 1, block);
+    response(&device, 18, NXS_RESULT_STALE_GENERATION);
+
+    uint8_t invalid[NXS_METADATA_SIZE];
+    memcpy(invalid, block, sizeof(invalid));
+    invalid[8] = 0x80;
+    send_metadata_part(&device, 19, 2, 0, invalid);
+    response(&device, 19, NXS_RESULT_OK);
+    send_metadata_part(&device, 20, 2, 1, invalid);
+    response(&device, 20, NXS_RESULT_INVALID_PARAMETERS);
+    CHECK(!device.metadata_pending && device.generation == 2);
+
+    uint8_t payload[NXS_METADATA_WRITE_SIZE] = {2};
+    send_message(&device, NXS_OPERATION_WRITE_METADATA, 21, 2, payload, sizeof(payload));
+    response(&device, 21, NXS_RESULT_INVALID_PARAMETERS);
+    payload[0] = 0;
+    payload[1] = 1;
+    send_message(&device, NXS_OPERATION_WRITE_METADATA, 22, 2, payload, sizeof(payload));
+    response(&device, 22, NXS_RESULT_INVALID_PARAMETERS);
+    payload[1] = 0;
+    send_message(&device, NXS_OPERATION_WRITE_METADATA, 23, 2, payload, sizeof(payload) - 1);
+    response(&device, 23, NXS_RESULT_INVALID_PARAMETERS);
+    uint8_t part = NXS_METADATA_PART_COUNT;
+    send_message(&device, NXS_OPERATION_READ_METADATA, 24, 0, &part, 1);
+    response(&device, 24, NXS_RESULT_INVALID_PARAMETERS);
+    send_message(&device, NXS_OPERATION_READ_METADATA, 25, 0, &part, 0);
+    response(&device, 25, NXS_RESULT_INVALID_PARAMETERS);
+    CHECK(!device.metadata_pending && device.generation == 2);
+
+    init(&device);
+    nxs_stored_state_t restored = {.snapshot = nxs_default_snapshot(), .generation = 7, .metadata = metadata};
+    CHECK(nxs_device_configure_storage(&device, NXS_FLASH_SUPPORTED_BYTES, true, &restored));
+    current = read_metadata(&device, 30);
+    CHECK(memcmp(&current, &metadata, sizeof(current)) == 0);
+}
+
+static void test_owner_metadata_write(void) {
+    nxs_device_t device;
+    init(&device);
+    CHECK(nxs_device_configure_storage(&device, NXS_FLASH_SUPPORTED_BYTES, true, NULL));
+    nxs_owner_metadata_t metadata = sample_metadata(1);
+    uint8_t block[NXS_METADATA_SIZE];
+    CHECK(nxs_owner_metadata_encode(&metadata, block, sizeof(block)) == NXS_RESULT_OK);
+    send_metadata_part(&device, 1, 1, 0, block);
+    response(&device, 1, NXS_RESULT_OK);
+    send_metadata_part(&device, 2, 1, 1, block);
+    CHECK(device.metadata_pending);
+    nxs_stored_state_t pending;
+    CHECK(nxs_device_pending_persistence(&device, &pending));
+    CHECK(pending.generation == 2 && memcmp(&pending.metadata, &metadata, sizeof(metadata)) == 0);
+    send_name(&device, 3, 1, "Bedroom SoundBox");
+    response(&device, 3, NXS_RESULT_BUSY);
+    send_metadata_part(&device, 2, 1, 1, block);
+    CHECK(nxs_device_complete_persistence(&device, NXS_RESULT_OK));
+    nxs_message_t reply = response(&device, 2, NXS_RESULT_OK);
+    CHECK(reply.generation == 2 && device.generation == 2 && device.status.persisted_generation == 2 && !device.metadata_pending);
+    nxs_owner_metadata_t current = read_metadata(&device, 4);
+    CHECK(memcmp(&current, &metadata, sizeof(current)) == 0);
+
+    send_name(&device, 6, 2, "Bedroom SoundBox");
+    CHECK(nxs_device_pending_persistence(&device, &pending));
+    CHECK(memcmp(&pending.metadata, &metadata, sizeof(metadata)) == 0);
+    CHECK(nxs_device_complete_persistence(&device, NXS_RESULT_OK));
+    response(&device, 6, NXS_RESULT_OK);
+    CHECK(device.generation == 3);
+
+    nxs_owner_metadata_t next = sample_metadata(2);
+    CHECK(nxs_owner_metadata_encode(&next, block, sizeof(block)) == NXS_RESULT_OK);
+    send_metadata_part(&device, 7, 3, 0, block);
+    response(&device, 7, NXS_RESULT_OK);
+    send_metadata_part(&device, 8, 3, 1, block);
+    CHECK(nxs_device_complete_persistence(&device, NXS_RESULT_STORAGE_FAILED));
+    response(&device, 8, NXS_RESULT_STORAGE_FAILED);
+    CHECK(device.generation == 3);
+    current = read_metadata(&device, 9);
+    CHECK(memcmp(&current, &metadata, sizeof(current)) == 0);
+}
+
 int main(void) {
     test_discovery();
     test_apply_acknowledgement_and_duplicates();
@@ -410,5 +575,7 @@ int main(void) {
     test_diagnostics_are_read_only_and_versioned();
     test_deferred_replies_echo_protocol_revision();
     test_set_name();
+    test_owner_metadata_boot_and_refusals();
+    test_owner_metadata_write();
     return nxs_test_finish("Device control");
 }

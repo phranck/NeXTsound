@@ -235,6 +235,114 @@ static void test_operation_numbers(void) {
     CHECK(NXS_OPERATION_STATUS == 5);
     CHECK(NXS_OPERATION_SET_NAME == 6);
     CHECK(NXS_OPERATION_DIAGNOSTICS == 7);
+    CHECK(NXS_OPERATION_READ_METADATA == 8);
+    CHECK(NXS_OPERATION_WRITE_METADATA == 9);
+}
+
+static void test_metadata_operations_require_minor_one(void) {
+    const nxs_operation_t operations[] = {NXS_OPERATION_READ_METADATA, NXS_OPERATION_WRITE_METADATA};
+    for (size_t index = 0; index < sizeof(operations) / sizeof(operations[0]); ++index) {
+        nxs_message_t request = {.operation = operations[index], .request_id = 5, .protocol_minor = 1};
+        uint8_t report[NXS_REPORT_SIZE];
+        CHECK(nxs_message_encode(&request, report, sizeof(report)) == NXS_RESULT_OK);
+        nxs_message_t decoded;
+        CHECK(nxs_message_decode(report, sizeof(report), &decoded) == NXS_RESULT_OK && decoded.operation == operations[index]);
+        report[2] = 0;
+        CHECK(nxs_message_decode(report, sizeof(report), &decoded) == NXS_RESULT_UNSUPPORTED_VERSION);
+        request.protocol_minor = 0;
+        CHECK(nxs_message_encode(&request, report, sizeof(report)) == NXS_RESULT_UNSUPPORTED_VERSION);
+    }
+}
+
+static void test_unknown_feature_bits_are_dropped(void) {
+    nxs_capabilities_t original = test_capabilities();
+    original.flash_size_bytes = 4 * 1024 * 1024;
+    original.feature_flags = NXS_FEATURE_FLASH_VERIFIED | NXS_FEATURE_PERSISTENCE | NXS_FEATURE_METADATA;
+    uint8_t payload[NXS_CAPABILITIES_SIZE];
+    CHECK(nxs_capabilities_encode(&original, payload, sizeof(payload)) == NXS_RESULT_OK);
+    payload[15] |= 0x80;
+    nxs_capabilities_t decoded;
+    CHECK(nxs_capabilities_decode(payload, sizeof(payload), &decoded) == NXS_RESULT_OK);
+    CHECK(decoded.feature_flags == original.feature_flags);
+    original.feature_flags = 0x8000u;
+    CHECK(nxs_capabilities_encode(&original, payload, sizeof(payload)) == NXS_RESULT_INVALID_PARAMETERS);
+    original.feature_flags = NXS_FEATURE_FLASH_VERIFIED | NXS_FEATURE_METADATA;
+    CHECK(nxs_capabilities_encode(&original, payload, sizeof(payload)) == NXS_RESULT_INVALID_PARAMETERS);
+}
+
+static void set_text(uint8_t *field, const char *text) {
+    memcpy(field, text, strlen(text));
+}
+
+static void test_owner_metadata(void) {
+    nxs_owner_metadata_t original = {.date = 20261024u, .serial_number = 0x0a0b0cu};
+    set_text(original.owner, "J\xc3\xbcrgen \xe2\x82\xac \xf0\x9f\x8e\xb5");
+    set_text(original.note, "Line one\nLine two");
+    CHECK(nxs_owner_metadata_is_valid(&original));
+    uint8_t block[NXS_METADATA_SIZE];
+    CHECK(nxs_owner_metadata_encode(&original, block, sizeof(block)) == NXS_RESULT_OK);
+    CHECK(block[0] == 0xa0 && block[1] == 0x28 && block[2] == 0x35 && block[3] == 0x01);
+    CHECK(block[4] == 0x0c && block[5] == 0x0b && block[6] == 0x0a && block[7] == 0);
+    CHECK(memcmp(block + 8, original.owner, NXS_OWNER_NAME_LENGTH) == 0);
+    CHECK(memcmp(block + 8 + NXS_OWNER_NAME_LENGTH, original.note, NXS_OWNER_NOTE_LENGTH) == 0);
+    nxs_owner_metadata_t decoded;
+    CHECK(nxs_owner_metadata_decode(block, sizeof(block), &decoded) == NXS_RESULT_OK);
+    CHECK(memcmp(&decoded, &original, sizeof(decoded)) == 0);
+
+    nxs_owner_metadata_t empty = {0};
+    CHECK(nxs_owner_metadata_is_valid(&empty));
+    nxs_owner_metadata_t full = {.date = 99991231u, .serial_number = NXS_SERIAL_NUMBER_MAX};
+    memset(full.owner, 'o', sizeof(full.owner));
+    memset(full.note, 'n', sizeof(full.note));
+    full.owner[62] = 0xc3;
+    full.owner[63] = 0xa4;
+    CHECK(nxs_owner_metadata_is_valid(&full));
+
+    const uint32_t valid_dates[] = {10101u, 20000229u, 20240229u, 20261231u};
+    const uint32_t invalid_dates[] = {20261301u, 20260001u, 20260100u, 20260230u, 21000229u, 20230229u, 20260431u, 101u, 100000101u};
+    for (size_t index = 0; index < sizeof(valid_dates) / sizeof(valid_dates[0]); ++index) {
+        nxs_owner_metadata_t dated = {.date = valid_dates[index]};
+        CHECK(nxs_owner_metadata_is_valid(&dated));
+    }
+    for (size_t index = 0; index < sizeof(invalid_dates) / sizeof(invalid_dates[0]); ++index) {
+        nxs_owner_metadata_t dated = {.date = invalid_dates[index]};
+        CHECK(!nxs_owner_metadata_is_valid(&dated));
+    }
+    nxs_owner_metadata_t numbered = {.serial_number = NXS_SERIAL_NUMBER_MAX + 1u};
+    CHECK(!nxs_owner_metadata_is_valid(&numbered));
+
+    const char *invalid_owners[] = {"\xc0\x80", "\x80",       "\xed\xa0\x80", "\xf4\x90\x80\x80", "\xf5\x80\x80\x80",
+                                    "\xe2\x82", "line\nfeed", "tab\t",        "delete\x7f"};
+    for (size_t index = 0; index < sizeof(invalid_owners) / sizeof(invalid_owners[0]); ++index) {
+        nxs_owner_metadata_t named = {0};
+        set_text(named.owner, invalid_owners[index]);
+        CHECK(!nxs_owner_metadata_is_valid(&named));
+    }
+    nxs_owner_metadata_t noted = {0};
+    set_text(noted.note, "tab\t");
+    CHECK(!nxs_owner_metadata_is_valid(&noted));
+    nxs_owner_metadata_t gap = {0};
+    set_text(gap.owner, "A");
+    gap.owner[2] = 'B';
+    CHECK(!nxs_owner_metadata_is_valid(&gap));
+    nxs_owner_metadata_t cut = {0};
+    memset(cut.owner, 'o', sizeof(cut.owner));
+    cut.owner[63] = 0xc3;
+    CHECK(!nxs_owner_metadata_is_valid(&cut));
+
+    memset(&decoded, 0xa5, sizeof(decoded));
+    nxs_owner_metadata_t unchanged;
+    memcpy(&unchanged, &decoded, sizeof(unchanged));
+    block[7] = 1;
+    CHECK(nxs_owner_metadata_decode(block, sizeof(block), &decoded) == NXS_RESULT_INVALID_REPORT);
+    block[7] = 0;
+    block[8] = 0x80;
+    CHECK(nxs_owner_metadata_decode(block, sizeof(block), &decoded) == NXS_RESULT_INVALID_PARAMETERS);
+    CHECK(nxs_owner_metadata_decode(block, sizeof(block) - 1, &decoded) == NXS_RESULT_INVALID_REPORT);
+    CHECK(memcmp(&decoded, &unchanged, sizeof(decoded)) == 0);
+    CHECK(nxs_owner_metadata_encode(&numbered, block, sizeof(block)) == NXS_RESULT_INVALID_PARAMETERS);
+    CHECK(nxs_owner_metadata_encode(&original, block, sizeof(block) - 1) == NXS_RESULT_INVALID_REPORT);
+    CHECK(!nxs_owner_metadata_is_valid(NULL));
 }
 
 static void test_device_name(void) {
@@ -277,7 +385,10 @@ int main(int argument_count, char **arguments) {
     test_runtime_status();
     test_optional_protocol_revision();
     test_operation_numbers();
+    test_metadata_operations_require_minor_one();
+    test_unknown_feature_bits_are_dropped();
     test_diagnostic_payload();
     test_device_name();
+    test_owner_metadata();
     return nxs_test_finish("Protocol");
 }

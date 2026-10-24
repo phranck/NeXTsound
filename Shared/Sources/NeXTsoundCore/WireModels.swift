@@ -21,6 +21,8 @@ public enum WireOperation: CaseIterable, Equatable, Sendable {
     case status
     case setName
     case diagnostics
+    case readMetadata
+    case writeMetadata
 }
 
 extension WireOperation {
@@ -33,6 +35,8 @@ extension WireOperation {
         case .status: NXS_OPERATION_STATUS
         case .setName: NXS_OPERATION_SET_NAME
         case .diagnostics: NXS_OPERATION_DIAGNOSTICS
+        case .readMetadata: NXS_OPERATION_READ_METADATA
+        case .writeMetadata: NXS_OPERATION_WRITE_METADATA
         }
     }
 
@@ -124,6 +128,11 @@ public struct DeviceCapabilities: Equatable, Sendable {
         featureFlags & UInt16(NXS_FEATURE_DIAGNOSTICS) != 0
     }
 
+    /// Whether the board reads and writes owner metadata; see `OwnerMetadata`.
+    public var supportsMetadata: Bool {
+        featureFlags & UInt16(NXS_FEATURE_METADATA) != 0
+    }
+
     public var flashIsVerified: Bool {
         featureFlags & UInt16(NXS_FEATURE_FLASH_VERIFIED) != 0
     }
@@ -194,5 +203,38 @@ public struct DeviceRuntimeDiagnostics: Equatable, Sendable {
         deadlineMissCount = 0
         usbSuspendCount = 0
         usbResumeCount = 0
+    }
+}
+
+/// A calendar day as the board stores it: year, month and day, without a time or a time zone.
+public struct CalendarDay: Equatable, Hashable, Sendable {
+    public var year: Int
+    public var month: Int
+    public var day: Int
+
+    public init(year: Int, month: Int, day: Int) {
+        self.year = year
+        self.month = month
+        self.day = day
+    }
+}
+
+/// The owner's metadata about one board, which the board keeps in flash beside its profile and name. The shared C codec
+/// decides what is valid, so the app and the firmware refuse the same values.
+public struct OwnerMetadata: Equatable, Sendable {
+    /// A day the owner chose, or nil when unset.
+    public var date: CalendarDay?
+    /// The number the app shows after the prefix NXSB, from 1 to `NXS_SERIAL_NUMBER_MAX`, or nil when unset.
+    public var serialNumber: UInt32?
+    /// The owner's name, at most 64 bytes of UTF-8 without control characters.
+    public var owner: String
+    /// A free-text note, at most 256 bytes of UTF-8; line feeds are its only control characters.
+    public var note: String
+
+    public init(date: CalendarDay? = nil, serialNumber: UInt32? = nil, owner: String = "", note: String = "") {
+        self.date = date
+        self.serialNumber = serialNumber
+        self.owner = owner
+        self.note = note
     }
 }

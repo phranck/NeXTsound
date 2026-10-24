@@ -161,6 +161,8 @@ struct FakeBoardTransport: BoardTransport {
     /// The live values every status request reports.
     var runtime = DeviceRuntimeStatus()
     var statusCalls: CallCounter?
+    /// The owner metadata every metadata request reports.
+    var metadata = OwnerMetadata()
 
     func requestCapabilities() async throws -> DeviceCapabilities {
         switch behavior {
@@ -213,6 +215,12 @@ struct FakeBoardTransport: BoardTransport {
         writes?.record(.persist)
         storage.state = .saved
     }
+
+    func requestMetadata() async throws -> OwnerMetadata {
+        metadata
+    }
+
+    func writeMetadata(_: OwnerMetadata) async throws {}
 }
 
 func fixtureCapabilities(serial: String = "D4CDD489AFE28CC5") -> DeviceCapabilities {

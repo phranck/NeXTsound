@@ -221,6 +221,63 @@ public extension WireCodec {
         }
         return decoded
     }
+
+    /// How many parts the metadata block travels in, each in its own request.
+    static let metadataPartCount = Int(NXS_METADATA_PART_COUNT)
+
+    /// Encodes metadata into the `NXS_METADATA_SIZE` block, refusing what the C codec refuses: an impossible date, a serial
+    /// number of zero or above `NXS_SERIAL_NUMBER_MAX`, text that does not fit, and control characters.
+    static func encodeOwnerMetadata(_ metadata: OwnerMetadata) throws -> Data {
+        var value = nxs_owner_metadata_t()
+        if let date = metadata.date {
+            guard
+                (1 ... 9999).contains(date.year),
+                (1 ... 12).contains(date.month),
+                (1 ... 31).contains(date.day)
+            else {
+                throw WireError(result: NXS_RESULT_INVALID_PARAMETERS)
+            }
+            value.date = UInt32(date.year * 10000 + date.month * 100 + date.day)
+        }
+        if let serialNumber = metadata.serialNumber {
+            guard serialNumber != 0 else {
+                throw WireError(result: NXS_RESULT_INVALID_PARAMETERS)
+            }
+            value.serial_number = serialNumber
+        }
+        try writeString(metadata.owner, to: &value.owner, reservingTerminator: false)
+        try writeString(metadata.note, to: &value.note, reservingTerminator: false)
+        return try encoded(value, size: Int(NXS_METADATA_SIZE), using: nxs_owner_metadata_encode)
+    }
+
+    static func decodeOwnerMetadata(_ block: Data) throws -> OwnerMetadata {
+        let value = try decoded(block, size: Int(NXS_METADATA_SIZE), initial: nxs_owner_metadata_t(), using: nxs_owner_metadata_decode)
+        let date = value.date == 0 ? nil : CalendarDay(
+            year: Int(value.date / 10000),
+            month: Int(value.date / 100 % 100),
+            day: Int(value.date % 100)
+        )
+        return try OwnerMetadata(
+            date: date,
+            serialNumber: value.serial_number == 0 ? nil : value.serial_number,
+            owner: readString(value.owner),
+            note: readString(value.note)
+        )
+    }
+
+    /// The `readMetadata` request payload for one part: its index.
+    static func metadataReadPayload(part: Int) -> Data {
+        Data([UInt8(part)])
+    }
+
+    /// The `writeMetadata` request payloads, part 0 first: each is the part index, three zero bytes, then the part.
+    static func metadataWritePayloads(_ metadata: OwnerMetadata) throws -> [Data] {
+        let block = try encodeOwnerMetadata(metadata)
+        let partSize = Int(NXS_METADATA_PART_SIZE)
+        return (0 ..< metadataPartCount).map { part in
+            Data([UInt8(part), 0, 0, 0]) + block.subdata(in: part * partSize ..< (part + 1) * partSize)
+        }
+    }
 }
 
 private extension WireCodec {
@@ -277,11 +334,13 @@ private extension WireCodec {
         return decoded
     }
 
-    static func writeString(_ text: String, to storage: inout some Any) throws {
+    /// Copies the text's UTF-8 into a fixed field and zeroes the rest. Device strings keep room for a terminator; the
+    /// metadata's text fields may fill their field completely.
+    static func writeString(_ text: String, to storage: inout some Any, reservingTerminator: Bool = true) throws {
         let bytes = Array(text.utf8)
         try withUnsafeMutableBytes(of: &storage) { destination in
             guard
-                bytes.count < destination.count,
+                bytes.count <= destination.count - (reservingTerminator ? 1 : 0),
                 !bytes.contains(0)
             else {
                 throw WireError(result: NXS_RESULT_INVALID_PARAMETERS)

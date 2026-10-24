@@ -179,6 +179,68 @@ struct WireCodecTests {
         #expect(try WireCodec.decode(WireCodec.encode(request)) == request)
     }
 
+    @Test func ownerMetadataRoundTripKeepsEveryField() throws {
+        let metadata = OwnerMetadata(
+            date: CalendarDay(year: 2026, month: 10, day: 24),
+            serialNumber: 1,
+            owner: "Jürgen Österreicher",
+            note: "Built in Bregenz.\nSecond line."
+        )
+        let block = try WireCodec.encodeOwnerMetadata(metadata)
+        #expect(block.count == Int(NXS_METADATA_SIZE))
+        #expect(block.prefix(8) == Data([0xA0, 0x28, 0x35, 0x01, 1, 0, 0, 0]))
+        #expect(try WireCodec.decodeOwnerMetadata(block) == metadata)
+        #expect(try WireCodec.decodeOwnerMetadata(WireCodec.encodeOwnerMetadata(OwnerMetadata())) == OwnerMetadata())
+    }
+
+    @Test func ownerMetadataTextMayFillItsWholeField() throws {
+        let metadata = OwnerMetadata(
+            serialNumber: UInt32(NXS_SERIAL_NUMBER_MAX),
+            owner: String(repeating: "o", count: Int(NXS_OWNER_NAME_LENGTH)),
+            note: String(repeating: "n", count: Int(NXS_OWNER_NOTE_LENGTH))
+        )
+        #expect(try WireCodec.decodeOwnerMetadata(WireCodec.encodeOwnerMetadata(metadata)) == metadata)
+    }
+
+    @Test(arguments: [
+        OwnerMetadata(owner: String(repeating: "o", count: Int(NXS_OWNER_NAME_LENGTH) + 1)),
+        OwnerMetadata(owner: "Line\nfeed"),
+        OwnerMetadata(note: "Tab\t"),
+        OwnerMetadata(note: String(repeating: "n", count: Int(NXS_OWNER_NOTE_LENGTH) - 1) + "ä"),
+        OwnerMetadata(serialNumber: 0),
+        OwnerMetadata(serialNumber: UInt32(NXS_SERIAL_NUMBER_MAX) + 1),
+        OwnerMetadata(date: CalendarDay(year: 2026, month: 2, day: 30)),
+        OwnerMetadata(date: CalendarDay(year: 2026, month: 13, day: 1)),
+        OwnerMetadata(date: CalendarDay(year: 10000, month: 1, day: 1)),
+    ])
+    func ownerMetadataRejectsWhatTheBoardRefuses(_ metadata: OwnerMetadata) {
+        #expect(throws: WireError.self) { try WireCodec.encodeOwnerMetadata(metadata) }
+    }
+
+    @Test func metadataTravelsInTwoParts() throws {
+        let metadata = OwnerMetadata(serialNumber: 42, owner: "Bench owner", note: "Note")
+        let payloads = try WireCodec.metadataWritePayloads(metadata)
+        #expect(payloads.count == WireCodec.metadataPartCount)
+        #expect(payloads.allSatisfy { $0.count == Int(NXS_METADATA_WRITE_SIZE) })
+        #expect(payloads[0].prefix(4) == Data([0, 0, 0, 0]) && payloads[1].prefix(4) == Data([1, 0, 0, 0]))
+        #expect(try WireCodec.decodeOwnerMetadata(payloads[0].dropFirst(4) + payloads[1].dropFirst(4)) == metadata)
+        #expect(WireCodec.metadataReadPayload(part: 1) == Data([1]))
+        for payload in payloads {
+            let request = WireMessage(operation: .writeMetadata, requestID: 3, generation: 2, payload: payload)
+            #expect(try WireCodec.decode(WireCodec.encode(request)) == request)
+        }
+        let legacy = WireMessage(operation: .readMetadata, requestID: 4, payload: Data([0]), protocolMinor: 0)
+        #expect(throws: WireError(result: NXS_RESULT_UNSUPPORTED_VERSION)) { try WireCodec.encode(legacy) }
+    }
+
+    @Test func capabilitiesReportMetadataSupport() throws {
+        var capabilities = DeviceCapabilities(serial: "TESTDEVICE", firmwareVersion: "0.2.0")
+        capabilities.flashSizeBytes = 4 * 1024 * 1024
+        capabilities.featureFlags = UInt16(NXS_FEATURE_PERSISTENCE | NXS_FEATURE_FLASH_VERIFIED | NXS_FEATURE_METADATA)
+        let decoded = try WireCodec.decodeCapabilities(WireCodec.encodeCapabilities(capabilities))
+        #expect(decoded.supportsMetadata && decoded == capabilities)
+    }
+
     @Test func acknowledgementsRequireMatchingRequestAndOperation() throws {
         let request = WireMessage(operation: .applyState, requestID: 7, generation: 3)
         var reply = request

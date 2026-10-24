@@ -9,6 +9,17 @@ _Static_assert(sizeof(float) == 4 && FLT_RADIX == 2 && FLT_MANT_DIG == 24 && FLT
 static const nxs_parameter_range_t parameter_ranges[NXS_PARAMETER_COUNT] = {
     {20.0f, 5000.0f}, {20.0f, 20000.0f}, {-12.0f, 12.0f}, {0.2f, 10.0f}, {-80.0f, 0.0f}, {-36.0f, -1.0f}, {10.0f, 2000.0f}};
 static const uint8_t protocol_magic[] = {'N', 'X', 'S', '1'};
+static const uint16_t known_features =
+    NXS_FEATURE_PERSISTENCE | NXS_FEATURE_FLASH_VERIFIED | NXS_FEATURE_DIAGNOSTICS | NXS_FEATURE_METADATA;
+
+#define NXS_METADATA_SERIAL_OFFSET 4u
+#define NXS_METADATA_SERIAL_BYTES 3u
+#define NXS_METADATA_RESERVED_OFFSET (NXS_METADATA_SERIAL_OFFSET + NXS_METADATA_SERIAL_BYTES)
+#define NXS_METADATA_OWNER_OFFSET (NXS_METADATA_RESERVED_OFFSET + 1u)
+#define NXS_METADATA_NOTE_OFFSET (NXS_METADATA_OWNER_OFFSET + NXS_OWNER_NAME_LENGTH)
+_Static_assert(NXS_METADATA_NOTE_OFFSET + NXS_OWNER_NOTE_LENGTH == NXS_METADATA_SIZE, "The metadata block holds every field");
+_Static_assert(NXS_METADATA_PART_SIZE *NXS_METADATA_PART_COUNT == NXS_METADATA_SIZE, "The parts cover the metadata block");
+_Static_assert(NXS_METADATA_WRITE_SIZE <= NXS_PAYLOAD_CAPACITY, "A metadata part fits one report");
 
 static void write_u16(uint8_t *destination, uint16_t value) {
     destination[0] = (uint8_t)value;
@@ -61,7 +72,20 @@ static bool within_range(float value, nxs_parameter_t parameter) {
 }
 
 static bool operation_is_valid(nxs_operation_t operation) {
-    return operation >= NXS_OPERATION_CAPABILITIES && operation <= NXS_OPERATION_DIAGNOSTICS;
+    return operation >= NXS_OPERATION_CAPABILITIES && operation <= NXS_OPERATION_WRITE_METADATA;
+}
+
+/** Operations added in a later envelope revision require it, so a client of an earlier one never meets them. */
+static uint8_t minimum_minor(nxs_operation_t operation) {
+    switch (operation) {
+    case NXS_OPERATION_DIAGNOSTICS:
+        return NXS_DIAGNOSTICS_PROTOCOL_MINOR;
+    case NXS_OPERATION_READ_METADATA:
+    case NXS_OPERATION_WRITE_METADATA:
+        return NXS_METADATA_PROTOCOL_MINOR;
+    default:
+        return NXS_PROTOCOL_LEGACY_MINOR;
+    }
 }
 
 static nxs_result_t validate_message(const nxs_message_t *message) {
@@ -70,8 +94,7 @@ static nxs_result_t validate_message(const nxs_message_t *message) {
         (!(message->flags & NXS_FLAG_RESPONSE) && message->result != NXS_RESULT_OK)) {
         return NXS_RESULT_INVALID_REPORT;
     }
-    if (message->protocol_minor > NXS_PROTOCOL_MINOR ||
-        (message->operation == NXS_OPERATION_DIAGNOSTICS && message->protocol_minor < NXS_DIAGNOSTICS_PROTOCOL_MINOR)) {
+    if (message->protocol_minor > NXS_PROTOCOL_MINOR || message->protocol_minor < minimum_minor(message->operation)) {
         return NXS_RESULT_UNSUPPORTED_VERSION;
     }
     return operation_is_valid(message->operation) ? NXS_RESULT_OK : NXS_RESULT_UNKNOWN_OPERATION;
@@ -156,8 +179,7 @@ static void encode_device_name(uint8_t *destination, const char source[NXS_DEVIC
 static bool capabilities_are_valid(const nxs_capabilities_t *capabilities) {
     if (!capabilities || capabilities->sample_rate_hz != NXS_SAMPLE_RATE_HZ || capabilities->system_clock_hz != NXS_SYSTEM_CLOCK_HZ ||
         capabilities->eq_band_count != NXS_EQ_BAND_COUNT || capabilities->sample_format_mask == 0 ||
-        (capabilities->sample_format_mask & ~(NXS_FORMAT_PCM16 | NXS_FORMAT_PCM24)) ||
-        (capabilities->feature_flags & ~(NXS_FEATURE_PERSISTENCE | NXS_FEATURE_FLASH_VERIFIED | NXS_FEATURE_DIAGNOSTICS)) ||
+        (capabilities->sample_format_mask & ~(NXS_FORMAT_PCM16 | NXS_FORMAT_PCM24)) || (capabilities->feature_flags & ~known_features) ||
         !text_is_valid(capabilities->device_serial) || !text_is_valid(capabilities->firmware_version) ||
         !device_name_characters_valid(capabilities->device_name)) {
         return false;
@@ -166,6 +188,9 @@ static bool capabilities_are_valid(const nxs_capabilities_t *capabilities) {
         return false;
     }
     if ((capabilities->feature_flags & NXS_FEATURE_PERSISTENCE) && !(capabilities->feature_flags & NXS_FEATURE_FLASH_VERIFIED)) {
+        return false;
+    }
+    if ((capabilities->feature_flags & NXS_FEATURE_METADATA) && !(capabilities->feature_flags & NXS_FEATURE_PERSISTENCE)) {
         return false;
     }
     for (size_t parameter_index = 0; parameter_index < NXS_PARAMETER_COUNT; ++parameter_index) {
@@ -240,6 +265,69 @@ bool nxs_snapshot_is_valid(const nxs_snapshot_t *snapshot) {
 
 bool nxs_device_name_is_valid(const char name[NXS_DEVICE_NAME_LENGTH]) {
     return name && device_name_characters_valid(name);
+}
+
+static bool date_is_valid(uint32_t date) {
+    static const uint8_t days_in_month[] = {31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
+    if (date == 0) {
+        return true;
+    }
+    uint32_t year = date / 10000u;
+    uint32_t month = date / 100u % 100u;
+    uint32_t day = date % 100u;
+    if (year == 0 || year > 9999u || month == 0 || month > 12u || day == 0) {
+        return false;
+    }
+    bool leap_year = (year % 4u == 0 && year % 100u != 0) || year % 400u == 0;
+    return day <= days_in_month[month - 1u] + (month == 2u && leap_year ? 1u : 0u);
+}
+
+/** Well-formed UTF-8 up to the first zero byte, without control characters except a permitted line feed, then zeros. */
+static bool padded_text_is_valid(const uint8_t *text, size_t length, bool allows_line_feed) {
+    size_t index = 0;
+    while (index < length && text[index] != 0) {
+        uint8_t lead = text[index];
+        if (lead < 0x80) {
+            if ((lead < 0x20 && !(allows_line_feed && lead == '\n')) || lead == 0x7f) {
+                return false;
+            }
+            ++index;
+            continue;
+        }
+        size_t continuation;
+        uint8_t first_minimum = 0x80;
+        uint8_t first_maximum = 0xbf;
+        if (lead >= 0xc2 && lead <= 0xdf) {
+            continuation = 1;
+        } else if (lead >= 0xe0 && lead <= 0xef) {
+            continuation = 2;
+            first_minimum = lead == 0xe0 ? 0xa0 : 0x80;
+            first_maximum = lead == 0xed ? 0x9f : 0xbf;
+        } else if (lead >= 0xf0 && lead <= 0xf4) {
+            continuation = 3;
+            first_minimum = lead == 0xf0 ? 0x90 : 0x80;
+            first_maximum = lead == 0xf4 ? 0x8f : 0xbf;
+        } else {
+            return false;
+        }
+        if (continuation >= length - index) {
+            return false;
+        }
+        for (size_t offset = 1; offset <= continuation; ++offset) {
+            uint8_t byte = text[index + offset];
+            if (byte < (offset == 1 ? first_minimum : 0x80) || byte > (offset == 1 ? first_maximum : 0xbf)) {
+                return false;
+            }
+        }
+        index += continuation + 1;
+    }
+    return all_zero(text + index, length - index);
+}
+
+bool nxs_owner_metadata_is_valid(const nxs_owner_metadata_t *metadata) {
+    return metadata && date_is_valid(metadata->date) && metadata->serial_number <= NXS_SERIAL_NUMBER_MAX &&
+           padded_text_is_valid(metadata->owner, NXS_OWNER_NAME_LENGTH, false) &&
+           padded_text_is_valid(metadata->note, NXS_OWNER_NOTE_LENGTH, true);
 }
 
 const char *nxs_result_description(nxs_result_t result) {
@@ -408,7 +496,8 @@ nxs_result_t nxs_capabilities_decode(const uint8_t *payload, size_t length, nxs_
     candidate.flash_size_bytes = read_u32(payload + 8);
     candidate.eq_band_count = payload[12];
     candidate.sample_format_mask = payload[13];
-    candidate.feature_flags = read_u16(payload + 14);
+    /* Bits a later firmware adds are dropped rather than refused, so a newer board never locks out this app. */
+    candidate.feature_flags = read_u16(payload + 14) & known_features;
     if (!decode_text(payload + 16, candidate.device_serial) || !decode_text(payload + 32, candidate.firmware_version)) {
         return NXS_RESULT_INVALID_PARAMETERS;
     }
@@ -447,6 +536,40 @@ nxs_result_t nxs_device_name_decode(const uint8_t *payload, size_t length, char 
         return NXS_RESULT_INVALID_PARAMETERS;
     }
     memcpy(name, candidate, NXS_DEVICE_NAME_LENGTH);
+    return NXS_RESULT_OK;
+}
+
+nxs_result_t nxs_owner_metadata_encode(const nxs_owner_metadata_t *metadata, uint8_t *block, size_t length) {
+    if (!block || length != NXS_METADATA_SIZE) {
+        return NXS_RESULT_INVALID_REPORT;
+    }
+    if (!nxs_owner_metadata_is_valid(metadata)) {
+        return NXS_RESULT_INVALID_PARAMETERS;
+    }
+    write_u32(block, metadata->date);
+    for (size_t byte_index = 0; byte_index < NXS_METADATA_SERIAL_BYTES; ++byte_index) {
+        block[NXS_METADATA_SERIAL_OFFSET + byte_index] = (uint8_t)(metadata->serial_number >> (byte_index * 8));
+    }
+    block[NXS_METADATA_RESERVED_OFFSET] = 0;
+    memcpy(block + NXS_METADATA_OWNER_OFFSET, metadata->owner, NXS_OWNER_NAME_LENGTH);
+    memcpy(block + NXS_METADATA_NOTE_OFFSET, metadata->note, NXS_OWNER_NOTE_LENGTH);
+    return NXS_RESULT_OK;
+}
+
+nxs_result_t nxs_owner_metadata_decode(const uint8_t *block, size_t length, nxs_owner_metadata_t *metadata) {
+    if (!block || !metadata || length != NXS_METADATA_SIZE || block[NXS_METADATA_RESERVED_OFFSET] != 0) {
+        return NXS_RESULT_INVALID_REPORT;
+    }
+    nxs_owner_metadata_t candidate = {.date = read_u32(block)};
+    for (size_t byte_index = 0; byte_index < NXS_METADATA_SERIAL_BYTES; ++byte_index) {
+        candidate.serial_number |= (uint32_t)block[NXS_METADATA_SERIAL_OFFSET + byte_index] << (byte_index * 8);
+    }
+    memcpy(candidate.owner, block + NXS_METADATA_OWNER_OFFSET, NXS_OWNER_NAME_LENGTH);
+    memcpy(candidate.note, block + NXS_METADATA_NOTE_OFFSET, NXS_OWNER_NOTE_LENGTH);
+    if (!nxs_owner_metadata_is_valid(&candidate)) {
+        return NXS_RESULT_INVALID_PARAMETERS;
+    }
+    *metadata = candidate;
     return NXS_RESULT_OK;
 }
 

@@ -144,6 +144,40 @@ public final class USBHostBoardTransport: BoardTransport, @unchecked Sendable {
         let runtime = try WireCodec.decodeRuntimeStatus(message.payload)
         return BoardStatusReading(runtime: runtime, storage: BoardStorageState(activeGeneration: message.generation, status: runtime))
     }
+
+    /// Both parts have to come from the same generation, because a write between the two reads would tear the block.
+    public func requestMetadata() async throws -> OwnerMetadata {
+        var block = Data()
+        var generations = Set<UInt32>()
+        for part in 0 ..< WireCodec.metadataPartCount {
+            let request = WireMessage(
+                operation: .readMetadata,
+                requestID: .random(in: 1 ... .max),
+                payload: WireCodec.metadataReadPayload(part: part)
+            )
+            let reply = try await exchange(request)
+            block += reply.payload
+            generations.insert(reply.generation)
+        }
+        guard generations.count == 1 else {
+            throw BoardTransportError.invalidReport
+        }
+        return try WireCodec.decodeOwnerMetadata(block)
+    }
+
+    /// Part 0 replies at once; part 1 replies after the save, so both go through the polling exchange.
+    public func writeMetadata(_ metadata: OwnerMetadata) async throws {
+        let generation = try await currentGeneration()
+        for payload in try WireCodec.metadataWritePayloads(metadata) {
+            let request = WireMessage(
+                operation: .writeMetadata,
+                requestID: .random(in: 1 ... .max),
+                generation: generation,
+                payload: payload
+            )
+            _ = try await exchangeUntilComplete(request)
+        }
+    }
 }
 
 private extension USBHostBoardTransport {

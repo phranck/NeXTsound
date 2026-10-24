@@ -95,7 +95,7 @@ static const uint8_t *page_bytes(const nxs_storage_record_t *record, unsigned in
 
 bool nxs_storage_record_encode(const nxs_stored_state_t *state, nxs_storage_record_t *record) {
     if (!state || !record || state->generation == 0 || !nxs_snapshot_is_valid(&state->snapshot) ||
-        state->metadata.serial_number > NXS_SERIAL_NUMBER_MAX) {
+        !nxs_owner_metadata_is_valid(&state->metadata)) {
         return false;
     }
     nxs_storage_record_t candidate;
@@ -160,6 +160,9 @@ bool nxs_storage_record_decode(const nxs_storage_record_t *record, nxs_stored_st
         candidate.metadata.serial_number = read_unsigned(bytes + NXS_STORAGE_SERIAL_OFFSET, NXS_STORAGE_SERIAL_BYTES);
         memcpy(candidate.metadata.owner, bytes + NXS_STORAGE_OWNER_OFFSET, NXS_OWNER_NAME_LENGTH);
         memcpy(candidate.metadata.note, note, NXS_OWNER_NOTE_LENGTH);
+        if (!nxs_owner_metadata_is_valid(&candidate.metadata)) {
+            return false;
+        }
     }
     *state = candidate;
     return true;
