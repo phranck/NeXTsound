@@ -31,6 +31,19 @@ struct PanelWindowTests {
         let hidden = await waitUntil { buttons.allSatisfy(\.isHidden) }
         #expect(hidden, "Visible buttons: \(buttons.filter { !$0.isHidden }.count)")
     }
+
+    /// A window that closes runs the close action of the view standing in it, once.
+    @Test func closingTheWindowRunsItsCloseAction() async throws {
+        var closes = 0
+        let hosted = hostingWindow(
+            for: Color.clear.frame(width: 100, height: 100).onWindowClose { closes += 1 },
+            styleMask: [.titled, .closable]
+        )
+        let laidOut = await waitUntil { hosted.controller.preferredContentSize != .zero }
+        try #require(laidOut, "The window never laid out its content.")
+        hosted.window.close()
+        #expect(closes == 1)
+    }
 }
 
 /// Hosts a panel the way a scene with a hidden title bar and content-sized resizability does, and expects the window
