@@ -14,6 +14,12 @@ struct PanelWindowTests {
         try await expectWindowFits(FrontPanelView(model: model, driverLibrary: DriverLibraryModel()))
     }
 
+    /// The About panel reaches under its window's hidden title bar as the front panel does.
+    @Test func theWindowIsAsTallAsTheAboutPanel() async throws {
+        let info = AboutInfo(version: "1.2.0", build: "34", copyright: "© 2026 LAYERED.work")
+        try await expectWindowFits(AboutPanel(info: info, icon: NSImage()))
+    }
+
     /// A window that closes runs the close action of the view standing in it, once.
     @Test func closingTheWindowRunsItsCloseAction() async throws {
         var closes = 0
