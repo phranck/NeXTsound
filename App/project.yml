@@ -8,8 +8,9 @@ settings:
     SWIFT_VERSION: "6.0"
     SWIFT_STRICT_CONCURRENCY: complete
     CODE_SIGNING_ALLOWED: NO
-    MARKETING_VERSION: "0.1.0"
-    CURRENT_PROJECT_VERSION: "1"
+    # Scripts/app-version.sh derives both from the git history, and Scripts/app.sh exports them.
+    MARKETING_VERSION: "${NXS_APP_VERSION}"
+    CURRENT_PROJECT_VERSION: "${NXS_BUILD_NUMBER}"
     # NXSUSBHostShim links Homebrew's libusb, which Homebrew only ships for arm64 on Apple Silicon.
     ARCHS: arm64
     VALID_ARCHS: arm64
