@@ -2,9 +2,16 @@ import Foundation
 import NeXTsoundCore
 
 extension DSPSettings {
-    /// How loud the output is next to full scale, a perceptual anchor beside the decibels, because -24 dB on its own
-    /// says little before the scale is learned.
+    /// How loud the output is next to full scale, a perceptual anchor beside the decibels, because a value in decibels
+    /// on its own says little before the scale is learned. Above 0 dB the limiter holds every peak at its ceiling, so
+    /// the text says that instead of a share above 100 %.
     var shareOfFullVolumeText: String {
+        guard attenuationDb <= 0 else {
+            return String(
+                localized: "above full volume, the limiter holds the peaks",
+                comment: "What VoiceOver reads after the Master Volume when it raises the level above full volume."
+            )
+        }
         let amplitudePercent = pow(10, attenuationDb / 20) * 100
         return String(localized: "\(amplitudePercent.formatted(.number.precision(.fractionLength(0 ... 1)))) % of full volume")
     }

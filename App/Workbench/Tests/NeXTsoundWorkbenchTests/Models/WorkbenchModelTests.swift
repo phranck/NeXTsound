@@ -198,6 +198,28 @@ struct WorkbenchModelTests {
         #expect(sent.settings.attenuationDb == -6)
     }
 
+    /// A board that reports Master Volume up to 0 dB, as older firmware does, receives 0 dB for a profile above it,
+    /// and the profile keeps its own value.
+    @Test func applyingToABoardWithANarrowerRangeKeepsTheSettingsWithinIt() async throws {
+        let appliedSnapshots = SnapshotRecorder()
+        var capabilities = fixtureCapabilities()
+        capabilities.parameterRanges[.attenuation] = -80 ... 0
+        let model = try await WorkbenchModel(boards: verifiedMonitor(FakeBoardTransport(
+            behavior: .success(capabilities),
+            appliedSnapshots: appliedSnapshots
+        )))
+        var profile = model.profile
+        profile.settings.isMuted = false
+        profile.settings.attenuationDb = 6
+        model.updateProfile(profile)
+
+        await model.applyToBoard()
+
+        let sent = try #require(appliedSnapshots.snapshots.last)
+        #expect(sent.settings.attenuationDb == 0)
+        #expect(model.profile.settings.attenuationDb == 6)
+    }
+
     @Test func applyingToTheBoardWithoutAConnectionIsASilentNoOp() async {
         let model = WorkbenchModel()
         await model.applyToBoard()

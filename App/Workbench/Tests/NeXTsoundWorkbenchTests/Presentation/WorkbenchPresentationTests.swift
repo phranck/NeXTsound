@@ -53,3 +53,17 @@ struct BoardConnectionStatePresentationTests {
         #expect(BoardConnectionState.mismatched("Wrong firmware").verifiedCapabilities == nil)
     }
 }
+
+struct VolumePresentationTests {
+    /// VoiceOver reads a share of full volume up to 0 dB, and above it that the limiter holds the peaks, rather than a
+    /// share above 100 %.
+    @Test func aGainAboveFullVolumeReadsWithoutAShare() {
+        var settings = DSPSettings()
+        settings.attenuationDb = -6
+        #expect(settings.shareOfFullVolumeText.contains("%"))
+        settings.attenuationDb = 0
+        #expect(settings.shareOfFullVolumeText.contains("%"))
+        settings.attenuationDb = 6
+        #expect(!settings.shareOfFullVolumeText.contains("%"))
+    }
+}
