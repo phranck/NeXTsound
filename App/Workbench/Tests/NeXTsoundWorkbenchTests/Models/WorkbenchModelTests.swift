@@ -264,18 +264,22 @@ struct WorkbenchModelTests {
 
     @Test func rapidEditsWhileAnApplyIsInFlightCollapseIntoOneFollowUpCall() async throws {
         let calls = CallCounter()
+        let (applyRelease, release) = AsyncStream<Void>.makeStream()
         let model = try await WorkbenchModel(boards: verifiedMonitor(FakeBoardTransport(
             behavior: .success(fixtureCapabilities()),
             applyStateCalls: calls,
-            applyDelay: .milliseconds(200)
+            applyRelease: applyRelease
         )))
 
         async let first: Void = model.applyToBoard()
         await waitUntil { calls.total == 1 }
         try #require(calls.total == 1, "The first apply is on the wire before the next edits arrive.")
-        async let second: Void = model.applyToBoard()
-        async let third: Void = model.applyToBoard()
-        _ = await (first, second, third)
+        // The first apply lasts until `release` finishes, however busy the main actor is, and an edit that finds an
+        // apply on the wire returns without suspending, so both edits arrive while it runs.
+        await model.applyToBoard()
+        await model.applyToBoard()
+        release.finish()
+        await first
 
         #expect(calls.total == 2, "Three overlapping edits must collapse into the in-flight call plus one coalesced follow-up.")
     }
