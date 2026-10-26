@@ -50,7 +50,7 @@ enum SoundBoxAudio {
 
     /// Averages every channel of every buffer in `buffers` into one sample per frame, as the SoundBox's DSP averages
     /// its stereo input, whether the channels come interleaved in one buffer or in a buffer each. `mono` keeps its
-    /// storage, so the IO block allocates nothing once its first buffer has passed.
+    /// storage, so the mixdown allocates nothing once its first buffer has passed.
     static func mixDown(_ buffers: UnsafeMutableAudioBufferListPointer, into mono: inout [Float]) {
         mono.removeAll(keepingCapacity: true)
         let channelCount = buffers.reduce(0) { total, buffer in total + Int(buffer.mNumberChannels) }
@@ -114,6 +114,10 @@ private final class SpectrumCapture: @unchecked Sendable {
 extension SpectrumCapture {
     /// The name the tap and the aggregate device carry, so a leftover of an interrupted run can be told apart.
     static let objectName = "NeXTsound Spectrum"
+    /// The reason the display shows when Core Audio returns no object and no error for a tap or an aggregate device.
+    static var unspecifiedFailureReason: String {
+        AudioHardwareError(kAudioHardwareUnspecifiedError).localizedDescription
+    }
 
     /// Taps the output of the SoundBox with USB serial `serial` and starts the IO block on `ioQueue`, which hands every
     /// update of the bands' levels to `onLevels`. A start that fails part of the way destroys what it created.
@@ -127,7 +131,7 @@ extension SpectrumCapture {
         let system = AudioHardwareSystem.shared
         let deviceUID = try soundBoxOutputUID(serial: serial)
         guard let tap = try coreAudio({ try system.makeProcessTap(description: tapDescription(deviceUID: deviceUID)) }) else {
-            throw SpectrumError.captureFailed(AudioHardwareError(kAudioHardwareUnspecifiedError).localizedDescription)
+            throw SpectrumError.captureFailed(unspecifiedFailureReason)
         }
         let aggregate: AudioHardwareAggregateDevice
         let analyzer: SpectrumAnalyzer
@@ -138,7 +142,7 @@ extension SpectrumCapture {
             }
             analyzer = try SpectrumAnalyzer(sampleRate: format.mSampleRate)
             guard let made = try coreAudio({ try system.makeAggregateDevice(description: aggregateDescription()) }) else {
-                throw SpectrumError.captureFailed(AudioHardwareError(kAudioHardwareUnspecifiedError).localizedDescription)
+                throw SpectrumError.captureFailed(unspecifiedFailureReason)
             }
             aggregate = made
         } catch {

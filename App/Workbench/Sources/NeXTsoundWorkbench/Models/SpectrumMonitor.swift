@@ -1,4 +1,5 @@
 import Foundation
+import NeXTsoundCore
 import Observation
 
 /// The live spectrum of the SoundBox's audio, which the front panel's display shows while its SPECTRUM key is down.
@@ -26,6 +27,18 @@ final class SpectrumMonitor {
 }
 
 extension SpectrumMonitor {
+    /// The USB serial of the board whose spectrum the display shows: the verified board's while the display shows the
+    /// spectrum, and nil otherwise, which stops the measurement.
+    static func serial(showsSpectrum: Bool, board: BoardConnectionState) -> String? {
+        guard
+            showsSpectrum,
+            case let .verified(capabilities) = board
+        else {
+            return nil
+        }
+        return capabilities.serial
+    }
+
     /// Shows the levels of the SoundBox with USB serial `serial` until the calling task is cancelled, and silence for a
     /// nil serial, which stands for no verified board or a released key.
     func follow(serial: String?) async {

@@ -10,7 +10,8 @@ import Foundation
 /// At 48 kHz the transform's bins lie 5.9 Hz apart, which is wider than the lowest bands. Such a band takes its width's
 /// share of the nearest bin's power, so a low tone also lights the bands beside it.
 ///
-/// An analyzer is not thread-safe: the audio queue that feeds it owns it, and it allocates nothing after `init`.
+/// An analyzer is not thread-safe: the audio queue that feeds it owns it. Its buffers come from `init`, so an update
+/// allocates only the levels it returns.
 final class SpectrumAnalyzer {
     /// The samples each transform covers, 171 ms at 48 kHz.
     static let transformLength = 8192

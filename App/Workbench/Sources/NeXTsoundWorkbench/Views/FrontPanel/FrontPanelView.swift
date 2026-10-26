@@ -129,16 +129,9 @@ private extension FrontPanelView {
         FrontPanelStatus(model: model, saveSucceeded: saveFeedback.showsSuccess, spectrumProblem: spectrum.problem?.localizedDescription)
     }
 
-    /// The USB serial of the board whose spectrum the display shows: the verified board's while the SPECTRUM key is
-    /// down, and nil otherwise, which stops the measurement.
+    /// The USB serial of the board whose spectrum the display shows, which `SpectrumMonitor` decides.
     var spectrumSerial: String? {
-        guard
-            showsSpectrum,
-            case let .verified(capabilities) = model.boards.state
-        else {
-            return nil
-        }
-        return capabilities.serial
+        SpectrumMonitor.serial(showsSpectrum: showsSpectrum, board: model.boards.state)
     }
 
     /// Shows a new message in the overlay after it settles, and hides it once its time is up. A newer message cancels

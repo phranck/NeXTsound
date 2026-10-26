@@ -1,4 +1,5 @@
 import Foundation
+import NeXTsoundCore
 import Synchronization
 import Testing
 @testable import NeXTsoundWorkbench
@@ -38,6 +39,16 @@ struct SpectrumMonitorTests {
         #expect(monitor.levels == .silent)
         await monitor.follow(serial: nil)
         #expect(monitor.problem == nil)
+    }
+
+    /// The display measures the verified board while it shows the spectrum, and nothing while it shows the curve or no
+    /// board is verified.
+    @Test func onlyAVerifiedBoardIsMeasuredWhileTheSpectrumShows() {
+        let verified = BoardConnectionState.verified(DeviceCapabilities(serial: "D4CDD489AFE28CC5", firmwareVersion: "0.2.0"))
+        #expect(SpectrumMonitor.serial(showsSpectrum: true, board: verified) == "D4CDD489AFE28CC5")
+        #expect(SpectrumMonitor.serial(showsSpectrum: false, board: verified) == nil)
+        #expect(SpectrumMonitor.serial(showsSpectrum: true, board: .detected) == nil)
+        #expect(SpectrumMonitor.serial(showsSpectrum: true, board: .mismatched("The serial does not match.")) == nil)
     }
 }
 
