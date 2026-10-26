@@ -4,11 +4,11 @@ import Testing
 
 struct CoreAudioSpectrumSourceTests {
     /// macOS gives a USB audio device a UID that holds its serial and a model UID that ends in its vendor and product
-    /// ID, so the SoundBox with the verified serial is found among other USB devices and other SoundBoxes. The UIDs
-    /// follow the form macOS gave another USB audio device on the bench.
+    /// ID, so the SoundBox with the verified serial is found among other USB devices and other SoundBoxes. The UIDs are
+    /// the ones macOS gave the bench specimen on 2026-10-26.
     @Test func theSoundBoxIsFoundByItsSerialAndUSBIdentity() {
-        let uid = "AppleUSBAudioEngine:LAYERED.work:NeXTsound:D4CDD489AFE28CC5:1"
-        let modelUID = "NeXTsound:CAFE:4014"
+        let uid = "AppleUSBAudioEngine:Layered:NeXT SoundBox mini:D4CDD489AFE28CC5:1"
+        let modelUID = "NeXT SoundBox mini:CAFE:4014"
         #expect(SoundBoxAudio.matches(uid: uid, modelUID: modelUID, serial: "D4CDD489AFE28CC5"))
         #expect(!SoundBoxAudio.matches(uid: uid, modelUID: modelUID, serial: "0123456789ABCDEF"))
         #expect(!SoundBoxAudio.matches(uid: uid, modelUID: "Anker PowerConf C200:291A:3369", serial: "D4CDD489AFE28CC5"))
