@@ -28,12 +28,52 @@ extension DSPParameter {
             FaderLawPoint(position: 1, value: bounds.upperBound),
         ]
     }
+
+    /// The values a fader's ticks stand on, rising: round values of the parameter, such as the 1, 2 and 5 of every
+    /// decade of a frequency or a time and whole steps of a level, so the scale beside a fader reads like a device's.
+    var tickValues: [Float] {
+        switch self {
+        case .highPassFrequency: [20, 50, 100, 200, 500, 1000, 2000, 5000]
+        case .bandFrequency: [20, 50, 100, 200, 500, 1000, 2000, 5000, 10000, 20000]
+        case .bandGain: stride(from: -12, through: 12, by: 3).map(Float.init)
+        case .bandQuality: [0.2, 0.5, 1, 2, 5, 10]
+        case .attenuation: [-80, -60, -40, -30, -20, -10, 0, 6, 12]
+        case .limiterThreshold: stride(from: -36, through: -3, by: 3).map(Float.init)
+        case .limiterRelease: [10, 20, 50, 100, 200, 500, 1000, 2000]
+        }
+    }
+
+    /// The value whose tick is longer than the others: 0 dB on the faders whose range passes it, or nil.
+    var referenceTickValue: Float? {
+        switch self {
+        case .bandGain, .attenuation: 0
+        case .highPassFrequency, .bandFrequency, .bandQuality, .limiterThreshold, .limiterRelease: nil
+        }
+    }
+
+    /// The ticks of the parameter's fader over `range`, or over its whole range without one: one on every tick value
+    /// inside the range, where the fader's scale places that value, so a tick and the cap agree on it. A value beyond
+    /// the range the verified board reports gets no tick.
+    func faderTicks(range: ClosedRange<Float>? = nil) -> [FaderTick] {
+        let faderRange = range ?? bounds
+        let scale = FaderScale(parameter: self, range: faderRange)
+        return tickValues.filter(faderRange.contains).map { value in
+            FaderTick(position: scale.position(for: value), isReference: value == referenceTickValue)
+        }
+    }
 }
 
 /// A point of a fader law: a share of the travel, and the value that falls on it.
 struct FaderLawPoint: Equatable, Sendable {
     let position: Double
     let value: Float
+}
+
+/// A tick beside a fader's track: where it stands along the travel, with 0 at the bottom and 1 at the top, and whether
+/// it marks the parameter's reference value, which gets the longer tick.
+struct FaderTick: Equatable, Sendable {
+    let position: Double
+    let isReference: Bool
 }
 
 /// How a fader's travel maps onto its parameter's range, with position 0 at the bottom and 1 at the top.

@@ -26,6 +26,7 @@ struct PanelFader: View {
             FaderControl(
                 label: label,
                 scale: FaderScale(parameter: parameter, range: range),
+                ticks: parameter.faderTicks(range: range),
                 unit: unit,
                 value: $value,
                 spokenDetail: spokenDetail
@@ -53,6 +54,7 @@ extension PanelFader {
 private struct FaderControl: View {
     let label: LocalizedStringKey
     let scale: FaderScale
+    let ticks: [FaderTick]
     let unit: FaderUnit
     @Binding var value: Float
     let spokenDetail: String?
@@ -62,7 +64,7 @@ private struct FaderControl: View {
 
     var body: some View {
         ZStack(alignment: .top) {
-            FaderTicks()
+            FaderTicks(ticks: ticks)
             FaderTrack()
             FaderCap()
                 .offset(y: (1 - position) * PanelFaderMetrics.travel)
@@ -130,19 +132,23 @@ private extension FaderControl {
     }
 }
 
-/// The scale beside the track on both sides, a tick at both ends of the cap's travel and an even count of intervals
-/// between them, so one tick marks the middle.
-private struct FaderTicks: View {
+/// The scale beside the track on both sides, a tick level with the cap's grip line wherever the cap stands on one of
+/// the parameter's tick values. Every tick ends the same distance from the track, and the reference tick reaches
+/// further out than the others.
+struct FaderTicks: View {
+    let ticks: [FaderTick]
+
     var body: some View {
         Canvas { context, size in
             let metrics = PanelFaderMetrics.self
-            var ticks = Path()
-            for index in 0 ... metrics.tickIntervals {
-                let top = metrics.capHeight / 2 + CGFloat(index) * metrics.travel / CGFloat(metrics.tickIntervals)
-                ticks.addRect(CGRect(x: 0, y: top, width: metrics.tickLength, height: 1))
-                ticks.addRect(CGRect(x: size.width - metrics.tickLength, y: top, width: metrics.tickLength, height: 1))
+            var path = Path()
+            for tick in ticks {
+                let top = metrics.capHeight / 2 + CGFloat(1 - tick.position) * metrics.travel
+                let length = tick.isReference ? metrics.referenceTickLength : metrics.tickLength
+                path.addRect(CGRect(x: metrics.referenceTickLength - length, y: top, width: length, height: 1))
+                path.addRect(CGRect(x: size.width - metrics.referenceTickLength, y: top, width: length, height: 1))
             }
-            context.fill(ticks, with: .color(metrics.tickColor))
+            context.fill(path, with: .color(metrics.tickColor))
         }
         .accessibilityHidden(true)
     }
@@ -209,7 +215,7 @@ private struct FaderGripLine: View {
 }
 
 /// A fader's measurements and keys.
-private enum PanelFaderMetrics {
+enum PanelFaderMetrics {
     static let width: CGFloat = 30
     static let height: CGFloat = 108
     static let capWidth = width
@@ -221,10 +227,11 @@ private enum PanelFaderMetrics {
     static let wrapSpacing: CGFloat = 5
     /// A readout of five character cells, right-justified like a numeric display.
     static let readoutLayout = DotMatrixLinesLayout(cells: 5)
+    /// The space between a tick's inner end and the track.
     static let tickGap: CGFloat = 2
-    static let tickLength = (capWidth - trackWidth) / 2 - tickGap
-    /// About ten points between ticks, in an even count of intervals.
-    static let tickIntervals = 2 * max(1, Int((travel / 20).rounded()))
+    /// The reference tick fills the room between the fader's edge and the gap at the track.
+    static let referenceTickLength = (capWidth - trackWidth) / 2 - tickGap
+    static let tickLength: CGFloat = 6
     static let tickColor = Color(red: 207 / 255, green: 203 / 255, blue: 189 / 255).opacity(0.35)
     /// One arrow key's step, a share of the travel.
     static let step = 0.01
