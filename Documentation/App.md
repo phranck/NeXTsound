@@ -108,6 +108,10 @@ The Speaker section shows the selected profile's speaker on two lines. A click, 
 
 The SoundBox section shows the verified board's name on two lines, broken between its words as the speaker's name is, or No SoundBox and Not verified otherwise. The CONNECTED LED stands at the right end of the section's title, on its baseline, with its caption to its left. It is lit while a board is verified, and only then does the key under the readout open the board's form. A board whose owner details the app read gets the EDIT key and the form for its name and owner details, described under [owner details](#owner-details-and-serial-numbers). Any other board gets the RENAME key and the rename form.
 
+## Edit menu
+
+Every text field of the app cuts, copies, pastes, deletes and selects all through the Edit menu and its shortcuts ⌘X, ⌘C, ⌘V and ⌘A. The front panel and About windows remove their scenes' commands to stay out of the Window menu, and that removal also takes SwiftUI's own Cut, Copy and Paste. `PasteboardCommands` puts the five items back, and each sends the standard AppKit action to the field with the focus.
+
 ## About window
 
 About NeXTsound in the app menu opens the app's own About window in place of the standard panel. It stands on the panels' metal and shows the app's icon, which casts a shadow onto the metal, the front panel's header with its pressed stripes and wordmark, the version with its build in a readout in the display color, and the copyright as a caption. Version, build and copyright come from the app's Info.plist. Its metal reaches under the hidden title bar, as the front panel's does, and a drag anywhere on it moves the window. Escape closes it. The window opens from the app menu alone, so it has no item in the Window menu, and it does not come back when the app starts again.

@@ -15,7 +15,8 @@ struct NeXTsoundApp: App {
         // The front panel is the app's one main window, so closing it quits the app, and the window needs no item in
         // the Window menu. With the Driver Models and About windows declared beside it, SwiftUI no longer quits by
         // itself, so the panel quits the app when its window closes. Removing the scene's commands takes the menu item
-        // away, so the app's own commands are added after the removal. The Library is a sheet on this window.
+        // away, so the app's own commands are added after the removal. The removal also takes the Edit menu's Cut, Copy
+        // and Paste, which PasteboardCommands puts back. The Library is a sheet on this window.
         Window(WorkbenchWindows.frontPanelWindowTitle, id: WorkbenchWindows.frontPanelWindowID) {
             FrontPanelView(model: model, driverLibrary: driverLibrary)
                 .task { await model.start() }
@@ -28,6 +29,7 @@ struct NeXTsoundApp: App {
         .commandsRemoved()
         .commands {
             AboutCommands()
+            PasteboardCommands()
             FrontPanelCommands()
             LibraryCommands()
             LibrarySheetCommands()
