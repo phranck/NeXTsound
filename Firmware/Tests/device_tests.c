@@ -61,7 +61,7 @@ static void test_apply_acknowledgement_and_duplicates(void) {
     nxs_snapshot_t snapshot = nxs_default_snapshot();
     snapshot.attenuation_db = -12;
     send(&device, NXS_OPERATION_APPLY_STATE, 2, 1, &snapshot);
-    CHECK(device.generation == 1 && device.active.attenuation_db == -24);
+    CHECK(device.generation == 1 && device.active.attenuation_db == nxs_default_snapshot().attenuation_db);
     CHECK(nxs_device_pending_configuration(&device) != NULL);
     response(&device, 1, NXS_RESULT_OK);
     send(&device, NXS_OPERATION_APPLY_STATE, 2, 1, &snapshot);
@@ -87,6 +87,21 @@ static void test_apply_acknowledgement_and_duplicates(void) {
     CHECK(device.generation == 2);
 }
 
+/* The board takes a Master Volume above full scale, up to the end of the shared range, which the limiter then catches. */
+static void test_apply_gain_above_full_scale(void) {
+    nxs_device_t device;
+    init(&device);
+    send(&device, NXS_OPERATION_READ_STATE, 1, 0, NULL);
+    nxs_snapshot_t snapshot = nxs_default_snapshot();
+    snapshot.attenuation_db = nxs_parameter_range(NXS_PARAMETER_ATTENUATION_DB).maximum;
+    CHECK(snapshot.attenuation_db > 0.0f);
+    send(&device, NXS_OPERATION_APPLY_STATE, 2, 1, &snapshot);
+    response(&device, 1, NXS_RESULT_OK);
+    CHECK(nxs_device_complete_apply(&device, NXS_RESULT_OK));
+    nxs_message_t reply = response(&device, 2, NXS_RESULT_OK);
+    CHECK(reply.generation == 2 && device.active.attenuation_db == snapshot.attenuation_db);
+}
+
 static void test_busy_failure_and_disconnect(void) {
     nxs_device_t device;
     init(&device);
@@ -97,7 +112,7 @@ static void test_busy_failure_and_disconnect(void) {
     response(&device, 2, NXS_RESULT_BUSY);
     CHECK(nxs_device_complete_apply(&device, NXS_RESULT_BUSY));
     response(&device, 1, NXS_RESULT_BUSY);
-    CHECK(device.generation == 1 && device.active.attenuation_db == -24);
+    CHECK(device.generation == 1 && device.active.attenuation_db == nxs_default_snapshot().attenuation_db);
     send(&device, NXS_OPERATION_APPLY_STATE, 3, 1, &snapshot);
     nxs_device_reset_session(&device);
     CHECK(nxs_device_complete_apply(&device, NXS_RESULT_OK));
@@ -199,7 +214,8 @@ static void test_persistence_acknowledgement(void) {
     send(&device, NXS_OPERATION_PERSIST_STATE, 2, 1, NULL);
     CHECK(device.persistence_pending && !device.apply_pending && device.status.persisted_generation == 0);
     CHECK(nxs_device_pending_persistence(&device, &pending));
-    CHECK(pending.generation == 1 && pending.snapshot.attenuation_db == -24 && pending.snapshot.muted == 1);
+    CHECK(pending.generation == 1 && pending.snapshot.attenuation_db == nxs_default_snapshot().attenuation_db &&
+          pending.snapshot.muted == 1);
     response(&device, 1, NXS_RESULT_OK);
     send(&device, NXS_OPERATION_PERSIST_STATE, 2, 1, NULL);
     nxs_snapshot_t next = nxs_default_snapshot();
@@ -297,7 +313,7 @@ static void test_diagnostics_are_read_only_and_versioned(void) {
     CHECK(nxs_message_encode(&request, report, sizeof(report)) == NXS_RESULT_OK);
     CHECK(nxs_device_receive(&device, report, sizeof(report)));
     response(&device, 102, NXS_RESULT_INVALID_PARAMETERS);
-    CHECK(device.active.muted == 1 && device.active.attenuation_db == -24 && device.generation == 1);
+    CHECK(device.active.muted == 1 && device.active.attenuation_db == nxs_default_snapshot().attenuation_db && device.generation == 1);
     CHECK(!device.apply_pending && !device.persistence_pending && device.status.persisted_generation == 0);
     request.operation = NXS_OPERATION_CAPABILITIES;
     request.payload_length = 0;
@@ -567,6 +583,7 @@ static void test_owner_metadata_write(void) {
 int main(void) {
     test_discovery();
     test_apply_acknowledgement_and_duplicates();
+    test_apply_gain_above_full_scale();
     test_busy_failure_and_disconnect();
     test_malformed_requests_do_not_mutate_state();
     test_storage_boot_and_audio_status();

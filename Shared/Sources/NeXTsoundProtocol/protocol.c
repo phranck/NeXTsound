@@ -6,8 +6,12 @@
 
 _Static_assert(sizeof(float) == 4 && FLT_RADIX == 2 && FLT_MANT_DIG == 24 && FLT_MAX_EXP == 128, "Protocol v1 requires IEEE-754 binary32");
 
+/*
+ * Master Volume (NXS_PARAMETER_ATTENUATION_DB) ends at +12 dB: the DSP applies it before the limiter, which keeps every
+ * sample at its ceiling, so a gain above full scale raises quiet music while no sample passes the ceiling.
+ */
 static const nxs_parameter_range_t parameter_ranges[NXS_PARAMETER_COUNT] = {
-    {20.0f, 5000.0f}, {20.0f, 20000.0f}, {-12.0f, 12.0f}, {0.2f, 10.0f}, {-80.0f, 0.0f}, {-36.0f, -1.0f}, {10.0f, 2000.0f}};
+    {20.0f, 5000.0f}, {20.0f, 20000.0f}, {-12.0f, 12.0f}, {0.2f, 10.0f}, {-80.0f, 12.0f}, {-36.0f, -1.0f}, {10.0f, 2000.0f}};
 static const uint8_t protocol_magic[] = {'N', 'X', 'S', '1'};
 static const uint16_t known_features =
     NXS_FEATURE_PERSISTENCE | NXS_FEATURE_FLASH_VERIFIED | NXS_FEATURE_DIAGNOSTICS | NXS_FEATURE_METADATA;
@@ -225,7 +229,7 @@ nxs_snapshot_t nxs_default_snapshot(void) {
     nxs_snapshot_t snapshot = {0};
     snapshot.muted = 1;
     snapshot.high_pass_hz = 80.0f;
-    snapshot.attenuation_db = -24.0f;
+    snapshot.attenuation_db = 0.0f;
     snapshot.limiter_threshold_db = -3.0f;
     snapshot.limiter_release_ms = 120.0f;
     static const float center_frequencies[NXS_EQ_BAND_COUNT] = {100.0f, 300.0f, 1000.0f, 3000.0f, 10000.0f};
