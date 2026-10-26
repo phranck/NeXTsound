@@ -79,12 +79,58 @@ struct FrontPanelDisplayLayoutTests {
         #expect(layout.gainLabel(decibels: 10) == "+10")
         #expect(layout.gainLabel(decibels: 0) == "0")
         #expect(layout.gainLabel(decibels: -5) == "-5")
-        let rows = layout.labeledDecibels.map(layout.gainLabelRow(decibels:)).sorted()
-        #expect(try #require(rows.first) > DotMatrixFont.glyphRows)
-        #expect(try #require(rows.last) + DotMatrixFont.glyphRows <= layout.graphRows)
-        for (upper, lower) in zip(rows, rows.dropFirst()) {
-            #expect(lower - upper > DotMatrixFont.glyphRows)
+        try Self.expectLabelsKeepClear(scale: .gain)
+    }
+
+    /// A level falls on the spectrum's rows with full scale on the top row and the floor on the bottom axis, and every
+    /// level beyond them on an edge row.
+    @Test func levelFallsOnTheSpectrumsRowsBelowFullScale() {
+        let layout = FrontPanelDisplayLayout.self
+        #expect(layout.row(level: 0, rows: 89) == 0)
+        #expect(layout.row(level: layout.spectrumFloorDecibels, rows: 89) == 88)
+        #expect(layout.row(level: layout.spectrumFloorDecibels / 2, rows: 89) == 44)
+        #expect(layout.row(level: 6, rows: 89) == 0)
+        #expect(layout.row(level: -200, rows: 89) == 88)
+        #expect(layout.row(level: .nan, rows: 89) == 88)
+    }
+
+    /// The level labels read like the gain labels, stay inside the graph, and keep clear of each other and of the unit
+    /// above them.
+    @Test func theLevelLabelsKeepClearOfEachOtherAndTheUnit() throws {
+        let scale = FrontPanelDisplayLayout.GraphScale.level
+        #expect(scale.labeledDecibels.map(FrontPanelDisplayLayout.gainLabel(decibels:)) == ["-10", "-20", "-30", "-40", "-50"])
+        #expect(scale.solidDecibels == nil)
+        #expect(FrontPanelDisplayLayout.GraphScale.gain.solidDecibels == 0)
+        try Self.expectLabelsKeepClear(scale: scale)
+    }
+
+    /// On the front panel's display with the status column in, every spectrum band gets a bar at least three dot
+    /// columns wide inside the curve's columns, with an unlit column between neighbors, and a band's bar holds its
+    /// center frequency's column.
+    @Test func theSpectrumBarsStandSideBySideWithAGapBetweenThem() throws {
+        let layout = FrontPanelDisplayLayout.self
+        let curveColumns = layout.curveColumns(graphColumns: layout.graphColumns(displayColumns: Self.frontPanelDisplayColumns))
+        let bars = try SpectrumBand.all.map { spectrumBand in
+            try #require(layout.spectrumBarColumns(spectrumBand, curveColumns: curveColumns))
         }
+        #expect(bars.allSatisfy { $0.count >= 3 && $0.lowerBound >= 0 && $0.upperBound <= curveColumns })
+        for (left, right) in zip(bars, bars.dropFirst()) {
+            #expect(right.lowerBound - left.upperBound == layout.spectrumBarGapColumns)
+        }
+        for (spectrumBand, bar) in zip(SpectrumBand.all, bars) {
+            let center = try #require(layout.column(frequencyHz: spectrumBand.centerHz, columns: curveColumns))
+            #expect(bar.contains(center))
+        }
+    }
+
+    /// A bar reaches from its level's row down to the row above the bottom axis, and a level on the floor lights none.
+    @Test func aSpectrumBarReachesDownToTheBottomAxis() {
+        let layout = FrontPanelDisplayLayout.self
+        let axisRow = layout.graphRows - 1
+        #expect(layout.spectrumBarRows(level: 0) == 0 ..< axisRow)
+        #expect(layout.spectrumBarRows(level: layout.spectrumFloorDecibels).isEmpty)
+        #expect(layout.spectrumBarRows(level: -.infinity).isEmpty)
+        #expect(layout.spectrumBarRows(level: -30) == layout.row(level: -30, rows: layout.graphRows) ..< axisRow)
     }
 
     /// On the front panel's display with the status column in, the frequency labels center under their lines, the
@@ -201,4 +247,14 @@ private extension FrontPanelDisplayLayoutTests {
     /// The dot columns of the front panel's display: the panel's 1110 points less its padding, the bay's margins, the
     /// frame and the glass's padding leave 954 points.
     static let frontPanelDisplayColumns = 477
+
+    /// Expects the labels of `scale` to stay inside the graph, below the unit at its top, and clear of each other.
+    static func expectLabelsKeepClear(scale: FrontPanelDisplayLayout.GraphScale) throws {
+        let rows = scale.labeledDecibels.map(scale.labelRow(decibels:)).sorted()
+        #expect(try #require(rows.first) > DotMatrixFont.glyphRows)
+        #expect(try #require(rows.last) + DotMatrixFont.glyphRows <= FrontPanelDisplayLayout.graphRows)
+        for (upper, lower) in zip(rows, rows.dropFirst()) {
+            #expect(lower - upper > DotMatrixFont.glyphRows)
+        }
+    }
 }

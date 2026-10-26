@@ -7,10 +7,11 @@ import SwiftUI
 /// of controls that edits the profile. The row sets the panel's width, and the header and the display take it, so
 /// they end where the controls end. The metal reaches under the hidden title bar, so the window's buttons sit on it.
 /// The key at the row's right end and the View menu show the Library as a sheet on this window, and the FLASH button
-/// shows the flash sheet. The INFO key and the View menu slide the display's status column in and out, and the
-/// display's overlay shows the model's messages as `FrontPanelMessageOverlay` decides. The window presents the panels
-/// that import and export a profile, which the Library and the File menu ask for, except while the Library sheet is
-/// shown and presents them over itself.
+/// shows the flash sheet. The SPECTRUM key and the View menu switch the display's graph between the EQ curve and the
+/// live spectrum of the verified SoundBox's audio, which is measured only while it shows. The INFO key and the View
+/// menu slide the display's status column in and out, and the display's overlay shows the model's messages as
+/// `FrontPanelMessageOverlay` decides. The window presents the panels that import and export a profile, which the
+/// Library and the File menu ask for, except while the Library sheet is shown and presents them over itself.
 public struct FrontPanelView: View {
     @Bindable private var model: WorkbenchModel
     private let driverLibrary: DriverLibraryModel
@@ -18,7 +19,9 @@ public struct FrontPanelView: View {
     @State private var saveFeedback = FrontPanelSaveFeedback()
     @State private var presentedSheet: FrontPanelSheet?
     @State private var messageOverlay = FrontPanelMessageOverlay()
+    @State private var spectrum = SpectrumMonitor()
     @AppStorage(PhosphorTheme.storageKey) private var theme = PhosphorTheme.blue
+    @AppStorage(SpectrumMonitor.visibilityStorageKey) private var showsSpectrum = false
     @AppStorage(FrontPanelStatus.visibilityStorageKey) private var showsStatus = true
     @Environment(\.undoManager) private var undoManager
 
@@ -32,7 +35,8 @@ public struct FrontPanelView: View {
                     status: status,
                     showsStatus: showsStatus,
                     selectedBand: selectedBand,
-                    overlayMessage: messageOverlay.shown
+                    overlayMessage: messageOverlay.shown,
+                    spectrum: showsSpectrum ? spectrum : nil
                 )
                 .padding(FrontPanelLayout.bayMargin)
                 FrontPanelControlRow(
@@ -40,6 +44,7 @@ public struct FrontPanelView: View {
                     boardButtons: boardButtons,
                     selectedBand: $selectedBand,
                     theme: $theme,
+                    isSpectrumShown: $showsSpectrum,
                     isInfoShown: $showsStatus,
                     isLibraryOpen: libraryKey
                 )
@@ -55,9 +60,13 @@ public struct FrontPanelView: View {
         .task(id: status.message) {
             await follow(status.message)
         }
+        .task(id: spectrumSerial) {
+            await spectrum.follow(serial: spectrumSerial)
+        }
         .focusedSceneValue(\.frontPanelBand, FrontPanelBand(editor: editor, index: selectedBand))
         .focusedSceneValue(\.libraryEditor, LibraryEditor(model: model, undoManager: undoManager))
         .focusedSceneValue(\.libraryShown, libraryKey)
+        .focusedSceneValue(\.spectrumShown, $showsSpectrum)
         .focusedSceneValue(\.statusColumnShown, $showsStatus)
         .sheet(item: $presentedSheet) { sheet in
             switch sheet {
@@ -117,7 +126,19 @@ private extension FrontPanelView {
     }
 
     var status: FrontPanelStatus {
-        FrontPanelStatus(model: model, saveSucceeded: saveFeedback.showsSuccess)
+        FrontPanelStatus(model: model, saveSucceeded: saveFeedback.showsSuccess, spectrumProblem: spectrum.problem?.localizedDescription)
+    }
+
+    /// The USB serial of the board whose spectrum the display shows: the verified board's while the SPECTRUM key is
+    /// down, and nil otherwise, which stops the measurement.
+    var spectrumSerial: String? {
+        guard
+            showsSpectrum,
+            case let .verified(capabilities) = model.boards.state
+        else {
+            return nil
+        }
+        return capabilities.serial
     }
 
     /// Shows a new message in the overlay after it settles, and hides it once its time is up. A newer message cancels
@@ -155,6 +176,9 @@ private struct DisplayBay: View {
     let showsStatus: Bool
     let selectedBand: Int
     let overlayMessage: FrontPanelMessage?
+    /// The spectrum the display shows in place of the EQ curve, or nil while it shows the curve. The bay reads its
+    /// levels itself, so their thirty updates a second redraw the display and leave the rest of the panel alone.
+    let spectrum: SpectrumMonitor?
 
     var body: some View {
         FrontPanelDisplay(
@@ -163,7 +187,8 @@ private struct DisplayBay: View {
             status: status,
             showsStatus: showsStatus,
             selectedBand: selectedBand,
-            overlayMessage: overlayMessage
+            overlayMessage: overlayMessage,
+            spectrum: spectrum?.levels
         )
         .padding(FrontPanelLayout.screenPadding)
         .vfdGlass(cornerRadius: FrontPanelLayout.bayRadius - FrontPanelLayout.frameWidth)

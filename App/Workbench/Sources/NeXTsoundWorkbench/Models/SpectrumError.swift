@@ -6,6 +6,8 @@ enum SpectrumError: Error, Equatable, Sendable {
     case invalidSampleRate
     /// macOS lists no audio output device for the verified SoundBox.
     case soundBoxAudioNotFound
+    /// The tap delivers samples in a format other than 32-bit floating point.
+    case unsupportedAudioFormat
     /// Core Audio refused to tap the SoundBox's output, for the reason it gives.
     case captureFailed(String)
 }
@@ -22,6 +24,11 @@ extension SpectrumError: LocalizedError {
             String(
                 localized: "macOS lists no audio output for this SoundBox.",
                 comment: "Message on the front panel's display when the spectrum finds no audio device for the board."
+            )
+        case .unsupportedAudioFormat:
+            String(
+                localized: "The SoundBox's audio comes in a format the spectrum cannot read.",
+                comment: "Message on the front panel's display when the spectrum's tap delivers samples it cannot read."
             )
         case let .captureFailed(reason):
             String(

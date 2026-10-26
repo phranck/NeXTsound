@@ -1,0 +1,47 @@
+import Foundation
+import Observation
+
+/// The live spectrum of the SoundBox's audio, which the front panel's display shows while its SPECTRUM key is down.
+///
+/// `follow(serial:)` runs for as long as the display shows the spectrum of one verified board, and the cancellation of
+/// its task stops the measurement. Each start sets the levels back to silence and clears the last problem, so a
+/// released key or a board that leaves takes both with it.
+@MainActor
+@Observable
+final class SpectrumMonitor {
+    /// The defaults key of whether the display shows the spectrum, which the front panel keeps across launches.
+    static let visibilityStorageKey = "frontPanelShowsSpectrum"
+
+    /// The bands' latest levels, silent while nothing is measured.
+    private(set) var levels = SpectrumLevels.silent
+    /// Why the measurement could not start, which the display's message card shows.
+    private(set) var problem: SpectrumError?
+
+    @ObservationIgnored private let source: any SpectrumSource
+
+    /// - Parameter source: Where the levels come from, a Core Audio tap on the SoundBox unless a test passes its own.
+    init(source: (any SpectrumSource)? = nil) {
+        self.source = source ?? CoreAudioSpectrumSource()
+    }
+}
+
+extension SpectrumMonitor {
+    /// Shows the levels of the SoundBox with USB serial `serial` until the calling task is cancelled, and silence for a
+    /// nil serial, which stands for no verified board or a released key.
+    func follow(serial: String?) async {
+        levels = .silent
+        problem = nil
+        guard let serial else {
+            return
+        }
+        do {
+            for await measured in try await source.levels(serial: serial) {
+                levels = measured
+            }
+        } catch let error as SpectrumError {
+            problem = error
+        } catch {
+            problem = .captureFailed(error.localizedDescription)
+        }
+    }
+}

@@ -35,6 +35,12 @@ enum FrontPanelDisplayLayout {
     static let gridDecibels: [Double] = [10, 5, -5, -10]
     /// The gains the scale at the curve's left labels.
     static let labeledDecibels: [Double] = [10, 5, 0, -5, -10]
+    /// The level on the spectrum's bottom axis, in decibels below full scale. Its top row is full scale.
+    static let spectrumFloorDecibels = -60.0
+    /// The levels that the scale at the spectrum's left labels and that dotted lines mark across it.
+    static let labeledLevels: [Double] = [-10, -20, -30, -40, -50]
+    /// The unlit dot columns between two neighboring spectrum bars.
+    static let spectrumBarGapColumns = 1
     /// The frequencies the scale under the curve labels: the curve's lowest one and the decades its lines mark.
     static let labeledFrequencies: [(hertz: Double, text: String)] = [(20, "20"), (100, "100"), (1000, "1k"), (10000, "10k")]
     /// The unit at the top of the gain scale.
@@ -148,11 +154,6 @@ extension FrontPanelDisplayLayout {
         decibels > 0 ? "+\(Int(decibels))" : "\(Int(decibels))"
     }
 
-    /// The first dot row of a gain's label, which centers the label on the row of its gain.
-    static func gainLabelRow(decibels: Double) -> Int {
-        row(decibels: decibels, rows: graphRows) - DotMatrixFont.glyphRows / 2
-    }
-
     /// The first dot column of a frequency label of `cells` cells: centered under its frequency's column, and kept
     /// within the curve's `curveColumns` columns, so the label of the lowest frequency starts where the curve starts.
     static func frequencyLabelColumn(frequencyHz: Double, cells: Int, curveColumns: Int) -> Int? {
@@ -204,6 +205,34 @@ extension FrontPanelDisplayLayout {
         return Int(((decibelRange - clamped) / (2 * decibelRange) * Double(rows - 1)).rounded())
     }
 
+    /// The dot row a level falls on among `rows` rows, with full scale on the top row and `spectrumFloorDecibels` on
+    /// the bottom one. A level beyond them falls on an edge row, and a level that is not a number on the bottom one,
+    /// because a band without power has no bar.
+    static func row(level decibels: Double, rows: Int) -> Int {
+        let clamped = decibels.isNaN ? spectrumFloorDecibels : min(max(decibels, spectrumFloorDecibels), 0)
+        return Int((clamped / spectrumFloorDecibels * Double(rows - 1)).rounded())
+    }
+
+    /// The dot columns of a spectrum band's bar among the curve's `curveColumns` columns: from its lower edge's column
+    /// up to the gap before its upper edge's column, where the next band's bar starts. Nil for a band too narrow to
+    /// leave a column besides the gap.
+    static func spectrumBarColumns(_ spectrumBand: SpectrumBand, curveColumns: Int) -> Range<Int>? {
+        guard
+            let first = column(frequencyHz: spectrumBand.lowerHz, columns: curveColumns),
+            let next = column(frequencyHz: spectrumBand.upperHz, columns: curveColumns),
+            first < next - spectrumBarGapColumns
+        else {
+            return nil
+        }
+        return first ..< next - spectrumBarGapColumns
+    }
+
+    /// The rows a spectrum bar lights for `level`: its level's row and every row down to the bottom axis, which stays
+    /// clear, and none for a level on the floor.
+    static func spectrumBarRows(level: Double) -> Range<Int> {
+        row(level: level, rows: graphRows) ..< graphRows - 1
+    }
+
     /// The dot column a frequency falls on among `columns` columns.
     ///
     /// It uses the band frequency's logarithmic scale, the one `ResponseCurve.samples(settings:count:)` samples, so a
@@ -236,6 +265,51 @@ extension FrontPanelDisplayLayout {
         let columns: ClosedRange<Int>
         /// The dot rows the frame spans, its top and bottom edges included.
         let rows: ClosedRange<Int>
+    }
+
+    /// What the scale at the graph's left measures: the EQ curve's gain around 0 dB, or the live spectrum's level
+    /// below full scale. Its labels and the lines across the graph follow from it.
+    enum GraphScale {
+        case gain
+        case level
+
+        /// The values the scale labels.
+        var labeledDecibels: [Double] {
+            switch self {
+            case .gain: FrontPanelDisplayLayout.labeledDecibels
+            case .level: FrontPanelDisplayLayout.labeledLevels
+            }
+        }
+
+        /// The values that dotted lines mark across the graph.
+        var dottedDecibels: [Double] {
+            switch self {
+            case .gain: FrontPanelDisplayLayout.gridDecibels
+            case .level: FrontPanelDisplayLayout.labeledLevels
+            }
+        }
+
+        /// The value a solid line marks across the graph: 0 dB on the curve, and none on the spectrum, whose top row
+        /// is full scale.
+        var solidDecibels: Double? {
+            switch self {
+            case .gain: 0
+            case .level: nil
+            }
+        }
+
+        /// The graph's dot row that `decibels` falls on.
+        func row(decibels: Double) -> Int {
+            switch self {
+            case .gain: FrontPanelDisplayLayout.row(decibels: decibels, rows: FrontPanelDisplayLayout.graphRows)
+            case .level: FrontPanelDisplayLayout.row(level: decibels, rows: FrontPanelDisplayLayout.graphRows)
+            }
+        }
+
+        /// The first dot row of the label of `decibels`, which centers the label on its value's row.
+        func labelRow(decibels: Double) -> Int {
+            row(decibels: decibels) - DotMatrixFont.glyphRows / 2
+        }
     }
 }
 

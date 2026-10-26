@@ -10,6 +10,8 @@ struct FrontPanelMessageTests {
         #expect(sources.message == FrontPanelMessage(text: "Saving profiles…", tone: .normal))
         sources.validationProblem = "The profile is invalid."
         #expect(sources.message == FrontPanelMessage(text: "The profile is invalid.", isError: true))
+        sources.spectrumProblem = "macOS lists no audio output for this SoundBox."
+        #expect(sources.message == FrontPanelMessage(text: "macOS lists no audio output for this SoundBox.", isError: true))
         sources.error = "The board did not reply in time."
         #expect(sources.message == FrontPanelMessage(text: "The board did not reply in time.", isError: true))
         sources.saveSucceeded = true

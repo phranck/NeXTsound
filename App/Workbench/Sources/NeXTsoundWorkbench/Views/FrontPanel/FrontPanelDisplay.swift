@@ -4,11 +4,13 @@ import SwiftUI
 /// The multifunction display's dot matrix.
 ///
 /// The live EQ curve takes its left part between its gain and frequency scales, with the selected profile's name under
-/// it, and the status column on the right shows the SoundBox. A message shows in a card with rounded corners over the
-/// middle of the display. The grid starts at the display's leading edge, so every dot keeps its whole-pixel position.
+/// it, and the status column on the right shows the SoundBox. While the SPECTRUM key is down, the live spectrum of the
+/// SoundBox's audio takes the curve's place between a level scale and the same frequency scale. A message shows in a
+/// card with rounded corners over the middle of the display. The grid starts at the display's leading edge, so every
+/// dot keeps its whole-pixel position.
 ///
 /// The status column slides in from the right and out to the right in whole dot columns over the unlit grid, and the
-/// curve takes the columns it leaves. With reduced motion, it appears and disappears at once.
+/// curve or the spectrum takes the columns it leaves. With reduced motion, it appears and disappears at once.
 struct FrontPanelDisplay: View {
     let settings: DSPSettings
     let profileName: String
@@ -19,6 +21,8 @@ struct FrontPanelDisplay: View {
     var selectedBand: Int?
     /// The message the card shows, or nil while the display shows none.
     var overlayMessage: FrontPanelMessage?
+    /// The live spectrum the graph shows in place of the EQ curve, or nil while it shows the curve.
+    var spectrum: SpectrumLevels?
     @Environment(\.phosphorTheme) private var theme
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
@@ -35,6 +39,7 @@ struct FrontPanelDisplay: View {
                     theme: theme,
                     selectedBand: selectedBand,
                     overlayMessage: overlayMessage,
+                    spectrum: spectrum,
                     columns: columns,
                     statusReveal: showsStatus ? 1 : 0
                 )
@@ -43,13 +48,17 @@ struct FrontPanelDisplay: View {
         }
         .frame(height: FrontPanelDisplayLayout.height)
         .accessibilityElement()
-        .accessibilityLabel("Analytical high-pass and equalizer response")
+        .accessibilityLabel(
+            spectrum == nil
+                ? LocalizedStringKey("Analytical high-pass and equalizer response")
+                : LocalizedStringKey("Live spectrum of the SoundBox's audio")
+        )
         .accessibilityValue(status.spokenDescription(profileName: profileName, showsStatus: showsStatus))
     }
 }
 
-/// The lit dots of the multifunction display: the axes, the grid lines and their labels, the curve with its fill, the
-/// band markers, the profile's name, the status column, and over them the message card.
+/// The lit dots of the multifunction display: the axes, the grid lines and their labels, the curve with its fill and
+/// the band markers or the spectrum's bars, the profile's name, the status column, and over them the message card.
 ///
 /// An animation of the status column's reveal redraws the dots for every step, and the column moves in whole dot
 /// columns. Dots that slide past the display's right edge are cut off. The card leaves every other dot under it unlit,
@@ -62,6 +71,7 @@ private struct FrontPanelDisplayDots: View {
     let theme: PhosphorTheme
     let selectedBand: Int?
     let overlayMessage: FrontPanelMessage?
+    let spectrum: SpectrumLevels?
     let columns: Int
     /// How far the status column stands in the display, from 0, out of it, to 1, in its place.
     var statusReveal: Double
@@ -77,13 +87,19 @@ private struct FrontPanelDisplayDots: View {
             var normal = DotMatrixPainter()
             var bright = DotMatrixPainter()
             var peak = DotMatrixPainter()
-            let curveRows = curveRows(columns: graphColumns)
-            let markers = bandMarkers(curveRows: curveRows)
-            let cleared = Set(markers.flatMap(\.clearance))
-            paintGrid(into: &dim, columns: graphColumns, sparing: cleared)
-            paintScales(into: &dim, columns: graphColumns)
-            paintCurve(into: &bright, fill: &fill, rows: curveRows, sparing: cleared)
-            paintBandMarkers(markers, dim: &dim, peak: &peak)
+            if let spectrum {
+                paintGrid(into: &dim, columns: graphColumns, scale: .level, sparing: [])
+                paintScales(into: &dim, columns: graphColumns, scale: .level)
+                paintSpectrum(spectrum, into: &bright, fill: &fill, columns: graphColumns)
+            } else {
+                let curveRows = curveRows(columns: graphColumns)
+                let markers = bandMarkers(curveRows: curveRows)
+                let cleared = Set(markers.flatMap(\.clearance))
+                paintGrid(into: &dim, columns: graphColumns, scale: .gain, sparing: cleared)
+                paintScales(into: &dim, columns: graphColumns, scale: .gain)
+                paintCurve(into: &bright, fill: &fill, rows: curveRows, sparing: cleared)
+                paintBandMarkers(markers, dim: &dim, peak: &peak)
+            }
             paintProfileName(into: &bright, columns: graphColumns)
             if statusColumn < columns {
                 paintStatus(normal: &normal, bright: &bright, column: statusColumn)
@@ -127,14 +143,20 @@ private extension FrontPanelDisplayDots {
     /// the curve and the status column.
     static let underlayOpacityBehindCard = 0.35
 
-    /// Draws the axes along the curve's left and bottom edges, the solid 0 dB line, and dotted lines at the gains and
-    /// frequencies the scales label. The lines leave out the dots in `sparing`, which the band markers clear.
-    func paintGrid(into painter: inout DotMatrixPainter, columns: Int, sparing: Set<FrontPanelDisplayLayout.Dot>) {
+    /// Draws the axes along the graph's left and bottom edges, the solid line that `scale` asks for, and dotted lines
+    /// at the values it marks and at the frequencies the frequency scale labels. The lines leave out the dots in
+    /// `sparing`, which the band markers clear.
+    func paintGrid(
+        into painter: inout DotMatrixPainter,
+        columns: Int,
+        scale: FrontPanelDisplayLayout.GraphScale,
+        sparing: Set<FrontPanelDisplayLayout.Dot>
+    ) {
         let layout = FrontPanelDisplayLayout.self
         let first = layout.gainScaleColumns
         let curveColumns = layout.curveColumns(graphColumns: columns)
         let bottomRow = layout.graphRows - 1
-        let zeroRow = layout.row(decibels: 0, rows: layout.graphRows)
+        let solidRows = [bottomRow] + [scale.solidDecibels].compactMap { $0.map(scale.row(decibels:)) }
         func light(column: Int, row: Int) {
             if !sparing.contains(FrontPanelDisplayLayout.Dot(column: column, row: row)) {
                 painter.light(column: column, row: row)
@@ -144,11 +166,12 @@ private extension FrontPanelDisplayDots {
             light(column: first - 1, row: row)
         }
         for column in first ..< first + curveColumns {
-            light(column: column, row: bottomRow)
-            light(column: column, row: zeroRow)
+            for row in solidRows {
+                light(column: column, row: row)
+            }
         }
-        for decibels in layout.gridDecibels {
-            let row = layout.row(decibels: decibels, rows: layout.graphRows)
+        for decibels in scale.dottedDecibels {
+            let row = scale.row(decibels: decibels)
             for column in stride(from: first, to: first + curveColumns, by: 2) {
                 light(column: column, row: row)
             }
@@ -163,14 +186,14 @@ private extension FrontPanelDisplayDots {
         }
     }
 
-    /// Labels the gain scale at the curve's left, with its unit at its top, and the frequency scale under the curve,
-    /// with its unit at its right end.
-    func paintScales(into painter: inout DotMatrixPainter, columns: Int) {
+    /// Labels the scale at the graph's left, which `scale` decides, with its unit at its top, and the frequency scale
+    /// under the graph, with its unit at its right end.
+    func paintScales(into painter: inout DotMatrixPainter, columns: Int, scale: FrontPanelDisplayLayout.GraphScale) {
         let layout = FrontPanelDisplayLayout.self
         painter.write(DotMatrixAlignment.trailing.fit(layout.gainUnit, cells: layout.gainLabelCells), column: 0, row: 0)
-        for decibels in layout.labeledDecibels {
+        for decibels in scale.labeledDecibels {
             let label = DotMatrixAlignment.trailing.fit(layout.gainLabel(decibels: decibels), cells: layout.gainLabelCells)
-            painter.write(label, column: 0, row: layout.gainLabelRow(decibels: decibels))
+            painter.write(label, column: 0, row: scale.labelRow(decibels: decibels))
         }
         let curveColumns = layout.curveColumns(graphColumns: columns)
         for label in layout.labeledFrequencies {
@@ -203,6 +226,29 @@ private extension FrontPanelDisplayDots {
                 row: row
             )) {
                 fill.light(column: column, row: row)
+            }
+        }
+    }
+
+    /// Lights a bar for every spectrum band from its level down to the bottom axis: its top row in the curve's bright
+    /// step and the rows under it with the curve's fill, so the bars read as the curve's line and area do.
+    func paintSpectrum(_ spectrum: SpectrumLevels, into painter: inout DotMatrixPainter, fill: inout DotMatrixPainter, columns: Int) {
+        let layout = FrontPanelDisplayLayout.self
+        let curveColumns = layout.curveColumns(graphColumns: columns)
+        for (spectrumBand, level) in zip(SpectrumBand.all, spectrum.decibels) {
+            let rows = layout.spectrumBarRows(level: Double(level))
+            guard
+                let topRow = rows.first,
+                let barColumns = layout.spectrumBarColumns(spectrumBand, curveColumns: curveColumns)
+            else {
+                continue
+            }
+            for barColumn in barColumns {
+                let column = layout.gainScaleColumns + barColumn
+                painter.light(column: column, row: topRow)
+                for row in rows.dropFirst() {
+                    fill.light(column: column, row: row)
+                }
             }
         }
     }

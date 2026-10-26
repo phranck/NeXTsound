@@ -38,6 +38,8 @@ targets:
         CFBundleShortVersionString: $(MARKETING_VERSION)
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         NSHumanReadableCopyright: "© 2026 LAYERED.work"
+        # The live spectrum taps the audio macOS sends to the SoundBox, which needs the system audio recording permission.
+        NSAudioCaptureUsageDescription: "NeXTsound reads the audio your Mac sends to the SoundBox to show its live spectrum. None of it is stored or passed on."
         NSPrincipalClass: NSApplication
         NSHighResolutionCapable: true
         LSApplicationCategoryType: public.app-category.music

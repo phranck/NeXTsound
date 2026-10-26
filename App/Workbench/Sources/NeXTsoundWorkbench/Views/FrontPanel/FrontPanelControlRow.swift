@@ -2,7 +2,7 @@ import NeXTsoundCore
 import SwiftUI
 
 /// The row of panels under the display: the band panel, the High-Pass, Output and Sample-Peak Limiter modules, and
-/// at the right end the display color keys over the INFO key and the key that shows the Library sheet.
+/// at the right end the display color keys over the SPECTRUM and INFO keys and the key that shows the Library sheet.
 ///
 /// Every panel is as tall as the tallest, so the readouts, the slider captions and the captions along the bottom each
 /// run on one line across the row. The modules with one slider take two thirds of the width the limiter takes for its
@@ -12,6 +12,8 @@ struct FrontPanelControlRow: View {
     let boardButtons: FrontPanelBoardButtons
     @Binding var selectedBand: Int
     @Binding var theme: PhosphorTheme
+    /// Whether the display's graph shows the live spectrum in place of the EQ curve, which the SPECTRUM key switches.
+    @Binding var isSpectrumShown: Bool
     /// Whether the display's status column stands in the display, which the INFO key switches.
     @Binding var isInfoShown: Bool
     @Binding var isLibraryOpen: Bool
@@ -26,7 +28,12 @@ struct FrontPanelControlRow: View {
                     .rowWidthShare(PanelRowMetrics.oneSliderModuleShare)
                 LimiterModule(editor: editor, buttons: boardButtons)
             }
-            ColorAndLibraryColumn(theme: $theme, isInfoShown: $isInfoShown, isLibraryOpen: $isLibraryOpen)
+            ColorAndLibraryColumn(
+                theme: $theme,
+                isSpectrumShown: $isSpectrumShown,
+                isInfoShown: $isInfoShown,
+                isLibraryOpen: $isLibraryOpen
+            )
         }
         .fixedSize(horizontal: false, vertical: true)
         .padding(PanelRowMetrics.margin)
@@ -174,10 +181,11 @@ private struct LimiterModule: View {
 }
 
 /// The column at the right end of the row: the display color keys at its top, whose LEDs stand on the middle of the
-/// panel titles' line, the INFO key under the AMBER key, and the key that shows the Library sheet at its bottom, whose
-/// LED, face and caption line up with the band keys'.
+/// panel titles' line, the SPECTRUM and INFO keys under the WHITE and AMBER keys, and the key that shows the Library
+/// sheet at its bottom, whose LED, face and caption line up with the band keys'.
 private struct ColorAndLibraryColumn: View {
     @Binding var theme: PhosphorTheme
+    @Binding var isSpectrumShown: Bool
     @Binding var isInfoShown: Bool
     @Binding var isLibraryOpen: Bool
 
@@ -185,7 +193,10 @@ private struct ColorAndLibraryColumn: View {
         VStack(spacing: 0) {
             VStack(alignment: .trailing, spacing: PanelRowMetrics.stackSpacing) {
                 KeyBank("Display color", selection: $theme, keys: Self.themeKeys)
-                LatchingKey(caption: "Info", isOn: $isInfoShown)
+                LatchingKeyBank(keys: [
+                    LatchingKeyBankKey(caption: "Spectrum", isOn: $isSpectrumShown),
+                    LatchingKeyBankKey(caption: "Info", isOn: $isInfoShown),
+                ])
             }
             LatchingKey(caption: "Library", isOn: $isLibraryOpen)
                 .frame(maxHeight: .infinity, alignment: .bottom)

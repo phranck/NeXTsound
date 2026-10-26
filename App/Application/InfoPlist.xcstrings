@@ -47,6 +47,24 @@
         }
       }
     },
+    "NSAudioCaptureUsageDescription" : {
+      "comment" : "Privacy - Audio Capture Usage Description",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "NeXTsound liest den Ton, den Ihr Mac an die SoundBox schickt, um sein Live-Spektrum anzuzeigen. Nichts davon wird gespeichert oder weitergegeben."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "NeXTsound reads the audio your Mac sends to the SoundBox to show its live spectrum. None of it is stored or passed on."
+          }
+        }
+      }
+    },
     "NSHumanReadableCopyright" : {
       "comment" : "Copyright (human-readable)",
       "extractionState" : "extracted_with_value",

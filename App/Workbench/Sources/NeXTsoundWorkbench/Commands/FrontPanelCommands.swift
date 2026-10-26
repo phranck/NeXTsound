@@ -47,14 +47,20 @@ public struct FrontPanelCommands: Commands {
     public init() {}
 }
 
-/// The View menu's command that slides the display's status column in or out on the front panel in front, as the INFO
-/// key does. Its title says what it does next, so it reads Hide Info while the column stands in the display.
-public struct StatusColumnCommands: Commands {
+/// The View menu's commands for the display of the front panel in front: one shows the live spectrum in place of the
+/// EQ curve or the curve again, as the SPECTRUM key does, and one slides the status column in or out, as the INFO key
+/// does. Each title says what its command does next, so it reads Hide Info while the column stands in the display.
+public struct DisplayCommands: Commands {
+    @FocusedBinding(\.spectrumShown) private var isSpectrumShown
     @FocusedBinding(\.statusColumnShown) private var isStatusShown
 
     public var body: some Commands {
         CommandGroup(before: .sidebar) {
-            Button(isStatusShown == true ? Self.hideTitle : Self.showTitle) {
+            Button(isSpectrumShown == true ? Self.hideSpectrumTitle : Self.showSpectrumTitle) {
+                isSpectrumShown?.toggle()
+            }
+            .disabled(isSpectrumShown == nil)
+            Button(isStatusShown == true ? Self.hideInfoTitle : Self.showInfoTitle) {
                 isStatusShown?.toggle()
             }
             .disabled(isStatusShown == nil)
@@ -64,12 +70,20 @@ public struct StatusColumnCommands: Commands {
     public init() {}
 }
 
-private extension StatusColumnCommands {
-    static var showTitle: String {
+private extension DisplayCommands {
+    static var showSpectrumTitle: String {
+        String(localized: "Show Spectrum", comment: "View menu item that shows the live spectrum in place of the front panel's EQ curve.")
+    }
+
+    static var hideSpectrumTitle: String {
+        String(localized: "Hide Spectrum", comment: "View menu item that shows the front panel's EQ curve in place of the live spectrum.")
+    }
+
+    static var showInfoTitle: String {
         String(localized: "Show Info", comment: "View menu item that slides the status column into the front panel's display.")
     }
 
-    static var hideTitle: String {
+    static var hideInfoTitle: String {
         String(localized: "Hide Info", comment: "View menu item that slides the status column out of the front panel's display.")
     }
 }
@@ -77,6 +91,9 @@ private extension StatusColumnCommands {
 extension FocusedValues {
     /// The band selected on the front panel whose window is in front.
     @Entry var frontPanelBand: FrontPanelBand?
+    /// Whether the front panel window in front shows the live spectrum in place of its EQ curve, which the View menu's
+    /// command switches.
+    @Entry var spectrumShown: Binding<Bool>?
     /// Whether the front panel window in front shows its display's status column, which the View menu's command
     /// switches.
     @Entry var statusColumnShown: Binding<Bool>?

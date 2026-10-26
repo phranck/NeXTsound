@@ -107,6 +107,26 @@ struct FrontPanelRenderTests {
             #expect(pixels.count(of: lit) < Self.minimumLitPixels)
         }
     }
+
+    /// While the display shows the spectrum, a band's bar lights from its level's row down and nothing above it, and
+    /// the curve's solid 0 dB line gives way to the spectrum's dotted level line on the same row.
+    @Test func theSpectrumTakesTheCurvesPlaceWhileItShows() async throws {
+        let layout = FrontPanelDisplayLayout.self
+        let curveColumns = layout.curveColumns(graphColumns: layout.graphColumns(displayColumns: Self.gapTestColumns))
+        let spectrumBand = try #require(SpectrumBand.all.firstIndex { $0.lowerHz <= 2000 && $0.upperHz > 2000 })
+        let barColumn = try #require(layout.spectrumBarColumns(SpectrumBand.all[spectrumBand], curveColumns: curveColumns)).lowerBound
+        var decibels = SpectrumLevels.silent.decibels
+        decibels[spectrumBand] = -25
+        let topRow = layout.row(level: -25, rows: layout.graphRows)
+        let lineDot = (column: layout.gainScaleColumns + 1, row: layout.row(decibels: 0, rows: layout.graphRows))
+        let (spectrum, curve) = try await MainActor.run {
+            try (Self.displayPixels(spectrum: SpectrumLevels(decibels: decibels)), Self.displayPixels(spectrum: nil))
+        }
+        #expect(Self.isLit(spectrum.dotPixel(column: layout.gainScaleColumns + barColumn, row: topRow)))
+        #expect(!Self.isLit(spectrum.dotPixel(column: layout.gainScaleColumns + barColumn, row: topRow - 1)))
+        #expect(Self.isLit(curve.dotPixel(column: lineDot.column, row: lineDot.row)))
+        #expect(!Self.isLit(spectrum.dotPixel(column: lineDot.column, row: lineDot.row)))
+    }
 }
 
 private extension FrontPanelRenderTests {
@@ -129,21 +149,28 @@ private extension FrontPanelRenderTests {
         return (left ..< left + edge, top ..< top + edge)
     }
 
-    /// Renders the display with a flat profile and returns the pixel at the middle of the dot where the 0 dB line
-    /// meets the last gap column before the status column's place.
+    /// The pixel at the middle of the dot where the flat curve's 0 dB line meets the last gap column before the status
+    /// column's place.
     @MainActor
     static func gapDotPixel(showsStatus: Bool) throws -> RenderedPixel {
         let gapColumn = FrontPanelDisplayLayout.statusColumn(displayColumns: gapTestColumns) - 1
         let zeroRow = FrontPanelDisplayLayout.row(decibels: 0, rows: FrontPanelDisplayLayout.graphRows)
-        let dot = DotMatrixMetrics.rect(column: gapColumn, row: zeroRow)
+        return try displayPixels(showsStatus: showsStatus).dotPixel(column: gapColumn, row: zeroRow)
+    }
+
+    /// Renders the display with a flat profile, `gapTestColumns` dot columns wide, showing `spectrum`, or the curve for
+    /// nil.
+    @MainActor
+    static func displayPixels(showsStatus: Bool = true, spectrum: SpectrumLevels? = nil) throws -> RenderedPixels {
         let display = FrontPanelDisplay(
             settings: SoundProfile(name: "Flat").settings,
             profileName: "Flat",
             status: FrontPanelStatus(connection: "SoundBox connected", fields: []),
-            showsStatus: showsStatus
+            showsStatus: showsStatus,
+            spectrum: spectrum
         )
         .frame(width: DotMatrixMetrics.size(columns: gapTestColumns, rows: 1).width)
-        return try RenderedPixels(display).pixel(column: Int(dot.midX * 2), row: Int(dot.midY * 2))
+        return try RenderedPixels(display)
     }
 
     static func isLit(_ pixel: RenderedPixel) -> Bool {
@@ -194,6 +221,12 @@ private extension RenderedPixels {
             }
         }
         return count > 0 ? Double(sum) / Double(count) : 0
+    }
+
+    /// The pixel at the middle of the dot in `column` and `row` of a display rendered at scale 2.
+    func dotPixel(column: Int, row: Int) -> RenderedPixel {
+        let dot = DotMatrixMetrics.rect(column: column, row: row)
+        return pixel(column: Int(dot.midX * 2), row: Int(dot.midY * 2))
     }
 
     /// How many pixels show `color`.
