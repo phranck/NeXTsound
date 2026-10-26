@@ -181,8 +181,8 @@ private struct LimiterModule: View {
 }
 
 /// The column at the right end of the row: the display color keys at its top, whose LEDs stand on the middle of the
-/// panel titles' line, the SPECTRUM and INFO keys under the WHITE and AMBER keys, and the key that shows the Library
-/// sheet at its bottom, whose LED, face and caption line up with the band keys'.
+/// panel titles' line, the SPECTRUM key under the BLUE key and the INFO key under the AMBER key, and the key that shows
+/// the Library sheet at its bottom, whose LED, face and caption line up with the band keys'.
 private struct ColorAndLibraryColumn: View {
     @Binding var theme: PhosphorTheme
     @Binding var isSpectrumShown: Bool
@@ -191,13 +191,18 @@ private struct ColorAndLibraryColumn: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            VStack(alignment: .trailing, spacing: PanelRowMetrics.stackSpacing) {
+            VStack(spacing: PanelRowMetrics.stackSpacing) {
                 KeyBank("Display color", selection: $theme, keys: Self.themeKeys)
-                LatchingKeyBank(keys: [
-                    LatchingKeyBankKey(caption: "Spectrum", isOn: $isSpectrumShown),
-                    LatchingKeyBankKey(caption: "Info", isOn: $isInfoShown),
-                ])
+                HStack(spacing: 0) {
+                    LatchingKey(caption: "Spectrum", isOn: $isSpectrumShown)
+                    Spacer(minLength: 0)
+                    LatchingKey(caption: "Info", isOn: $isInfoShown)
+                }
+                .frame(maxWidth: .infinity)
             }
+            // The column takes the color keys' width, and the row of the two keys under them spreads across it, so
+            // each key's frame lines up with the frame of the color key above it.
+            .fixedSize(horizontal: true, vertical: false)
             LatchingKey(caption: "Library", isOn: $isLibraryOpen)
                 .frame(maxHeight: .infinity, alignment: .bottom)
         }

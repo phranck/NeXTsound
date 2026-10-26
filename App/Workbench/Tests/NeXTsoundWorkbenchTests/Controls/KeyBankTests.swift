@@ -55,33 +55,6 @@ private extension MomentaryKeyBankTests {
 }
 
 @MainActor
-struct LatchingKeyBankTests {
-    /// The SPECTRUM and INFO captions keep their glyphs at least three points apart under neighboring keys, although
-    /// SPECTRUM is wider than its key. The German SPEKTRUM is as wide in the monospaced face.
-    @Test func theSpectrumAndInfoCaptionsStandClearOfEachOther() throws {
-        let bare = try RenderedPixels(Self.bank(captions: ["", ""]))
-        let left = try RenderedPixels(Self.bank(captions: ["Spectrum", ""])).changes(against: bare)
-        let right = try RenderedPixels(Self.bank(captions: ["", "Info"])).changes(against: bare)
-        try #require(!left.isEmpty)
-        try #require(!right.isEmpty)
-        let distance = MomentaryKeyBankTests.closestDistance(between: left, and: right)
-        #expect(distance >= MomentaryKeyBankTests.minimumDistance, "The captions' glyphs are \(distance) device pixels apart.")
-    }
-}
-
-private extension LatchingKeyBankTests {
-    /// The room around the bank that a caption wider than its key reaches into.
-    static let captionOverhang: CGFloat = 20
-
-    static func bank(captions: [LocalizedStringKey]) -> some View {
-        LatchingKeyBank(keys: captions.map { caption in
-            LatchingKeyBankKey(caption: caption, isOn: .constant(false))
-        })
-        .padding(captionOverhang)
-    }
-}
-
-@MainActor
 struct KeyColorTests {
     /// A radio key keeps the kit's gray, and a momentary or push-on/push-off key takes the stripes' yellow, so only
     /// the push keys' renders hold yellow pixels.

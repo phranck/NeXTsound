@@ -210,68 +210,35 @@ private struct BankKey: View {
     }
 }
 
-/// One latching key of a `LatchingKeyBank`: its caption under the bank, and the state it switches.
-struct LatchingKeyBankKey {
-    let caption: LocalizedStringKey
-    let isOn: Binding<Bool>
-}
-
-/// Latching keys side by side in a key bank's frame, each with its LED above the frame and its caption under it, laid
-/// out as a key bank lays out its keys, so they stand in line under the keys of a bank above them.
+/// A single latching key in a key bank's frame, with its LED above the frame and its caption under it, laid out as a
+/// key bank lays out each of its keys.
 ///
-/// Each key switches a state of its own: a press latches it down and lights its LED, and the next press releases it.
-/// Each key takes the keyboard's focus without showing a ring, and VoiceOver reads it as a switch.
-struct LatchingKeyBank: View {
-    /// The keys from left to right.
-    let keys: [LatchingKeyBankKey]
-
-    var body: some View {
-        VStack(spacing: KeyBankMetrics.captionSpacing) {
-            HStack(alignment: .top, spacing: KeyBankMetrics.keyGap) {
-                ForEach(keys.indices, id: \.self) { index in
-                    LatchingBankKey(key: keys[index])
-                }
-            }
-            .padding(KeyBankMetrics.framePadding)
-            .background(KeyBankFrame())
-            HStack(spacing: KeyBankMetrics.keyGap) {
-                ForEach(keys.indices, id: \.self) { index in
-                    ControlCaption(caption: Text(keys[index].caption))
-                        .frame(width: KeyBankMetrics.keyWidth)
-                }
-            }
-            .padding(.horizontal, KeyBankMetrics.framePadding)
-            .accessibilityHidden(true)
-        }
-        .padding(.top, KeyBankMetrics.ledLift + PanelLED.size)
-    }
-}
-
-/// A single latching key in a key bank's frame, as a `LatchingKeyBank` of one key lays it out.
+/// A press latches the key down and lights its LED, and the next press releases it. The key takes the keyboard's
+/// focus without showing a ring, and VoiceOver reads it as a switch.
 struct LatchingKey: View {
     let caption: LocalizedStringKey
     @Binding var isOn: Bool
 
     var body: some View {
-        LatchingKeyBank(keys: [LatchingKeyBankKey(caption: caption, isOn: $isOn)])
-    }
-}
-
-/// One latching key in its bank's frame, with its LED over it.
-private struct LatchingBankKey: View {
-    let key: LatchingKeyBankKey
-
-    var body: some View {
-        Button {
-            key.isOn.wrappedValue.toggle()
-        } label: {
-            EmptyView()
+        VStack(spacing: KeyBankMetrics.captionSpacing) {
+            Button {
+                isOn.toggle()
+            } label: {
+                EmptyView()
+            }
+            .buttonStyle(BankKeyStyle(kind: .push, isDown: isOn))
+            .focusEffectDisabled()
+            .keyLED(isLit: isOn)
+            .padding(KeyBankMetrics.framePadding)
+            .background(KeyBankFrame())
+            ControlCaption(caption: Text(caption))
+                .frame(width: KeyBankMetrics.keyWidth)
+                .padding(.horizontal, KeyBankMetrics.framePadding)
+                .accessibilityHidden(true)
         }
-        .buttonStyle(BankKeyStyle(kind: .push, isDown: key.isOn.wrappedValue))
-        .focusEffectDisabled()
-        .keyLED(isLit: key.isOn.wrappedValue)
+        .padding(.top, KeyBankMetrics.ledLift + PanelLED.size)
         .accessibilityRepresentation {
-            Toggle(key.caption, isOn: key.isOn)
+            Toggle(caption, isOn: $isOn)
         }
     }
 }
