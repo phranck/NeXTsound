@@ -8,6 +8,8 @@ The engine accepts normalized interleaved stereo and produces mono. Each input c
 
 The limiter has instantaneous attack and a configurable exponential gain release. Its output is bounded by the configured digital peak ceiling. This is not a thermal or excursion protection model for a loudspeaker.
 
+The attenuation is the app's Master Volume and ranges from -80 to +12 dB. Above 0 dB it raises the level before the limiter, so quiet music plays louder while no sample passes the ceiling. A new profile and a board without a stored state start at 0 dB, muted.
+
 Mute suppresses output while the filters continue processing. Initialization uses the canonical muted default settings.
 
 ## Closed-box alignment

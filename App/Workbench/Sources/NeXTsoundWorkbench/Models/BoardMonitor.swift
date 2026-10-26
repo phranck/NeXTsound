@@ -152,10 +152,16 @@ public extension BoardMonitor {
         guard let transport else {
             throw BoardTransportError.notConnected
         }
+        // A board refuses a snapshot beyond the ranges its capabilities report, and older firmware reports narrower ones,
+        // such as Master Volume up to 0 dB. A profile beyond them plays at the nearest value the board takes.
+        var limited = snapshot
+        if let capabilities = state.verifiedCapabilities {
+            limited.settings = snapshot.settings.limited(to: capabilities.parameterRanges)
+        }
         let current = generation
         beginWrite()
         defer { endWrite() }
-        try await transport.applyState(snapshot)
+        try await transport.applyState(limited)
         // An applied snapshot advances the firmware's active generation past the one it saved.
         if generation == current, storage == .saved {
             storage = .unsaved

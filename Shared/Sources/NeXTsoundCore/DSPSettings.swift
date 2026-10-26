@@ -82,6 +82,31 @@ public extension DSPSettings {
             throw WireError(result: NXS_RESULT_INVALID_PARAMETERS)
         }
     }
+
+    /// These settings with every value moved into the range `ranges` gives for its parameter, and a value without a range
+    /// left as it is. A board reports the ranges it takes in its capabilities, and older firmware reports narrower ones,
+    /// such as Master Volume up to 0 dB, so a write limited this way never asks a board for more than it takes.
+    func limited(to ranges: [DSPParameter: ClosedRange<Float>]) -> DSPSettings {
+        func limit(_ value: Float, to parameter: DSPParameter) -> Float {
+            guard let range = ranges[parameter] else {
+                return value
+            }
+            return min(max(value, range.lowerBound), range.upperBound)
+        }
+        var limited = self
+        limited.highPassHz = limit(highPassHz, to: .highPassFrequency)
+        limited.attenuationDb = limit(attenuationDb, to: .attenuation)
+        limited.limiterThresholdDb = limit(limiterThresholdDb, to: .limiterThreshold)
+        limited.limiterReleaseMs = limit(limiterReleaseMs, to: .limiterRelease)
+        limited.bands = bands.map { band in
+            var limitedBand = band
+            limitedBand.frequencyHz = limit(band.frequencyHz, to: .bandFrequency)
+            limitedBand.gainDb = limit(band.gainDb, to: .bandGain)
+            limitedBand.quality = limit(band.quality, to: .bandQuality)
+            return limitedBand
+        }
+        return limited
+    }
 }
 
 extension DSPSettings {

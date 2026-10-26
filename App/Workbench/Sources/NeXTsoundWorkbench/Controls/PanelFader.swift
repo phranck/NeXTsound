@@ -16,12 +16,20 @@ struct PanelFader: View {
     @Binding var value: Float
     /// What VoiceOver reads after the value, such as the share of full volume.
     var spokenDetail: String?
+    /// The part of the parameter's range the fader travels, or its whole range without one.
+    var range: ClosedRange<Float>?
 
     var body: some View {
         VStack(spacing: PanelFaderMetrics.wrapSpacing) {
             PanelReadout(text: unit.readout(value), layout: PanelFaderMetrics.readoutLayout, alignment: .trailing)
                 .accessibilityHidden(true)
-            FaderControl(label: label, scale: FaderScale(parameter: parameter), unit: unit, value: $value, spokenDetail: spokenDetail)
+            FaderControl(
+                label: label,
+                scale: FaderScale(parameter: parameter, range: range),
+                unit: unit,
+                value: $value,
+                spokenDetail: spokenDetail
+            )
             ControlCaption(caption: Text(caption))
                 .frame(width: Self.columnWidth)
                 .accessibilityHidden(true)

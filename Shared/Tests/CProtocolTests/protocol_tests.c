@@ -120,6 +120,30 @@ static nxs_capabilities_t test_capabilities(void) {
     return capabilities;
 }
 
+/*
+ * Master Volume raises the level above full scale, which the limiter after it catches, so its range ends above 0 dB. A
+ * new profile starts there at 0 dB, muted. A board that reports a range ending at 0 dB, as firmware before this range
+ * does, still decodes, so the app can keep its writes within that range.
+ */
+static void test_master_volume_range(void) {
+    nxs_parameter_range_t range = nxs_parameter_range(NXS_PARAMETER_ATTENUATION_DB);
+    CHECK(range.maximum > 0.0f);
+    nxs_snapshot_t snapshot = nxs_default_snapshot();
+    CHECK(snapshot.attenuation_db == 0.0f && snapshot.muted == 1);
+    snapshot.attenuation_db = range.maximum;
+    CHECK(nxs_snapshot_is_valid(&snapshot));
+    snapshot.attenuation_db = range.maximum + 0.5f;
+    CHECK(!nxs_snapshot_is_valid(&snapshot));
+
+    nxs_capabilities_t older = test_capabilities();
+    older.ranges[NXS_PARAMETER_ATTENUATION_DB].maximum = 0.0f;
+    uint8_t payload[NXS_CAPABILITIES_SIZE];
+    CHECK(nxs_capabilities_encode(&older, payload, sizeof(payload)) == NXS_RESULT_OK);
+    nxs_capabilities_t decoded;
+    CHECK(nxs_capabilities_decode(payload, sizeof(payload), &decoded) == NXS_RESULT_OK);
+    CHECK(decoded.ranges[NXS_PARAMETER_ATTENUATION_DB].maximum == 0.0f);
+}
+
 static void test_capability_validation(void) {
     nxs_capabilities_t original = test_capabilities();
     uint8_t payload[NXS_CAPABILITIES_SIZE];
@@ -398,6 +422,7 @@ int main(int argument_count, char **arguments) {
     test_message_rejection();
     test_snapshot_roundtrip();
     test_snapshot_rejection();
+    test_master_volume_range();
     test_capability_validation();
     test_runtime_status();
     test_optional_protocol_revision();

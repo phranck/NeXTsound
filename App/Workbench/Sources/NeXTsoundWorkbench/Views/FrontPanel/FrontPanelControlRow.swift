@@ -117,7 +117,7 @@ private struct HighPassModule: View {
 }
 
 /// The output module. VoiceOver reads the volume with its share of full volume, because the decibels alone say little
-/// before the scale is learned.
+/// before the scale is learned. The fader stops at the end of the range the verified board takes.
 private struct OutputModule: View {
     let editor: FrontPanelEditor
 
@@ -130,7 +130,8 @@ private struct OutputModule: View {
                     parameter: .attenuation,
                     unit: .decibels,
                     value: editor.binding(\.attenuationDb),
-                    spokenDetail: editor.settings.shareOfFullVolumeText
+                    spokenDetail: editor.settings.shareOfFullVolumeText,
+                    range: editor.range(for: .attenuation)
                 )
             } bottom: {
                 LabeledToggle(label: "Muted", caption: "Muted", isOn: editor.binding(\.isMuted))

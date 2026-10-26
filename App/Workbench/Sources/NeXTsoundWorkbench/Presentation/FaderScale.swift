@@ -19,12 +19,14 @@ enum FaderScale: Sendable {
 }
 
 extension FaderScale {
-    /// The scale for a parameter's range, logarithmic where the parameter asks for it.
-    init(parameter: DSPParameter) {
-        if parameter.usesLogarithmicScale, let scale = try? LogarithmicScale(bounds: parameter.bounds) {
+    /// The scale for a parameter over `range`, or over the parameter's whole range without one, logarithmic where the
+    /// parameter asks for it.
+    init(parameter: DSPParameter, range: ClosedRange<Float>? = nil) {
+        let bounds = range ?? parameter.bounds
+        if parameter.usesLogarithmicScale, let scale = try? LogarithmicScale(bounds: bounds) {
             self = .logarithmic(scale)
         } else {
-            self = .linear(parameter.bounds)
+            self = .linear(bounds)
         }
     }
 

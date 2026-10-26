@@ -38,6 +38,12 @@ extension FrontPanelEditor {
     func resetBand(_ band: Int) {
         edit { $0.bands[band] = DSPSettings.defaultBand(at: band) }
     }
+
+    /// The range a fader offers for `parameter`: the one the verified board reports, within the shared range, so the
+    /// fader stops where the board does, or the shared range while no board is verified.
+    func range(for parameter: DSPParameter) -> ClosedRange<Float> {
+        model.boards.state.verifiedCapabilities?.parameterRanges[parameter]?.clamped(to: parameter.bounds) ?? parameter.bounds
+    }
 }
 
 private extension FrontPanelEditor {

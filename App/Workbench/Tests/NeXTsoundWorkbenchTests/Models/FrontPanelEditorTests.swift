@@ -31,4 +31,14 @@ struct FrontPanelEditorTests {
         editor.resetBand(1)
         #expect(model.profile.settings.bands[1] == DSPSettings.defaultBand(at: 1))
     }
+
+    /// A fader stops where the verified board does, and travels the shared range while no board is verified.
+    @Test func aFaderOffersTheRangeTheVerifiedBoardTakes() async throws {
+        let unverified = FrontPanelEditor(model: WorkbenchModel(), undoManager: nil)
+        #expect(unverified.range(for: .attenuation) == DSPParameter.attenuation.bounds)
+        var capabilities = fixtureCapabilities()
+        capabilities.parameterRanges[.attenuation] = -80 ... 0
+        let model = try await WorkbenchModel(boards: verifiedMonitor(FakeBoardTransport(behavior: .success(capabilities))))
+        #expect(FrontPanelEditor(model: model, undoManager: nil).range(for: .attenuation) == -80 ... 0)
+    }
 }
