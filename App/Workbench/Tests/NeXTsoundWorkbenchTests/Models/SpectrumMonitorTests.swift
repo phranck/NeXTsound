@@ -30,30 +30,30 @@ struct SpectrumMonitorTests {
         #expect(source.requestedSerials.isEmpty)
     }
 
-    /// A measurement that cannot start leaves its reason for the message card, and the next start clears it.
-    /// A measurement that cannot start for a reason other than a missing output leaves that reason for the message card,
-    /// and the next start clears it.
-    @Test func aFailedStartLeavesItsReasonUntilTheNextStart() async {
+    /// A measurement that cannot start shows its reason on the message card while it waits to try again, and the next
+    /// start clears it.
+    @Test func aFailedStartShowsItsReasonWhileItWaits() async throws {
         let source = FakeSpectrumSource(levels: [], failures: [.unsupportedAudioFormat])
-        let monitor = SpectrumMonitor(source: source)
-        await monitor.follow(serial: "D4CDD489AFE28CC5")
-        #expect(monitor.problem == .unsupportedAudioFormat)
+        let monitor = SpectrumMonitor(source: source, retryInterval: .seconds(60))
+        let task = Task { await monitor.follow(serial: "D4CDD489AFE28CC5") }
+        try await Self.waitUntil { monitor.problem == .unsupportedAudioFormat }
         #expect(monitor.levels == .silent)
+        #expect(source.requestedSerials == ["D4CDD489AFE28CC5"])
+        task.cancel()
+        await task.value
         await monitor.follow(serial: nil)
         #expect(monitor.problem == nil)
     }
 
-    /// A board that verifies before macOS lists its audio output gets its spectrum once the device list changes, and the
-    /// message card shows the missing output until then.
-    @Test func aMissingOutputIsTriedAgainWhenTheDeviceListChanges() async throws {
-        let source = FakeSpectrumSource(levels: [Self.quiet], failures: [.soundBoxAudioNotFound])
-        let monitor = SpectrumMonitor(source: source)
+    /// A board that reconnects verifies before Core Audio lets the app record its output, so a measurement that cannot
+    /// start tries again until it runs, and the running measurement clears the last reason.
+    @Test func aFailedStartIsTriedAgainUntilTheMeasurementRuns() async throws {
+        let source = FakeSpectrumSource(levels: [Self.quiet], failures: [.soundBoxAudioNotFound, .captureFailed("Not ready")])
+        let monitor = SpectrumMonitor(source: source, retryInterval: .milliseconds(10))
         let task = Task { await monitor.follow(serial: "D4CDD489AFE28CC5") }
-        try await Self.waitUntil { monitor.problem == .soundBoxAudioNotFound }
-        source.changeDeviceList()
         try await Self.waitUntil { monitor.levels == Self.quiet }
         #expect(monitor.problem == nil)
-        #expect(source.requestedSerials == ["D4CDD489AFE28CC5", "D4CDD489AFE28CC5"])
+        #expect(source.requestedSerials == Array(repeating: "D4CDD489AFE28CC5", count: 3))
         task.cancel()
         await task.value
     }
@@ -95,13 +95,10 @@ private extension SpectrumMonitorTests {
     }
 }
 
-/// A source that hands out fixed levels, or refuses to start, and records what it was asked for.
-/// A source that hands out fixed levels after refusing its first starts, records what it was asked for, and reports a
-/// change of macOS's device list when a test asks it to.
+/// A source that hands out fixed levels after refusing its first starts, and records what it was asked for.
 private final class FakeSpectrumSource: SpectrumSource {
     private let levels: [SpectrumLevels]
     private let state: Mutex<State>
-    private let deviceList = AsyncStream.makeStream(of: Void.self)
 
     /// - Parameters:
     ///   - levels: The levels every start that succeeds hands out.
@@ -122,15 +119,6 @@ private final class FakeSpectrumSource: SpectrumSource {
     /// The inputs the last measurement was started with.
     var inputs: SpectrumInputs? {
         state.withLock(\.inputs)
-    }
-
-    /// Reports a change of macOS's device list to the monitor that listens.
-    func changeDeviceList() {
-        deviceList.continuation.yield()
-    }
-
-    func audioDeviceListChanges() -> AsyncStream<Void> {
-        deviceList.stream
     }
 
     func levels(serial: String, inputs: SpectrumInputs) async throws -> AsyncStream<SpectrumLevels> {

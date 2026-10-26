@@ -9,8 +9,4 @@ protocol SpectrumSource: Sendable {
     ///
     /// - Throws: `SpectrumError` when the measurement cannot start.
     func levels(serial: String, inputs: SpectrumInputs) async throws -> AsyncStream<SpectrumLevels>
-
-    /// Yields whenever macOS's list of audio devices changes, until the iteration ends. A board that verifies over USB
-    /// can come before its audio output, so a start that found no output tries again with the next change.
-    func audioDeviceListChanges() -> AsyncStream<Void>
 }
