@@ -46,15 +46,16 @@ extension FrontPanelStatus {
     }
 
     /// The column for the model's board, with the message that the model's state calls for. `saveSucceeded` says
-    /// whether a save to the SoundBox finished a moment ago, which the front panel's save feedback knows.
+    /// whether a save to the SoundBox finished a moment ago, which the front panel's save feedback knows, and
+    /// `spectrumProblem` why the live spectrum cannot show the SoundBox's audio, which its monitor knows.
     @MainActor
-    init(model: WorkbenchModel, saveSucceeded: Bool) {
+    init(model: WorkbenchModel, saveSucceeded: Bool, spectrumProblem: String? = nil) {
         self.init(
             board: model.boards.state,
             storage: model.boards.storage,
             runtime: model.boards.runtime,
             metadata: model.boards.metadata,
-            message: FrontPanelMessageSources(model: model, saveSucceeded: saveSucceeded).message
+            message: FrontPanelMessageSources(model: model, saveSucceeded: saveSucceeded, spectrumProblem: spectrumProblem).message
         )
     }
 
@@ -184,8 +185,8 @@ private extension FrontPanelStatus {
 /// Everything the display's message overlay reports, and the one message that is current.
 ///
 /// The first of these that has something to say wins: a save that runs or has just finished, a board or profile
-/// error, the profile's validation problem, the library's storage status, and the reminder that a verified board
-/// plays every edit.
+/// error, the reason the live spectrum cannot show, the profile's validation problem, the library's storage status,
+/// and the reminder that a verified board plays every edit.
 struct FrontPanelMessageSources: Equatable {
     /// What the model says while a save to the SoundBox runs.
     var saveInProgress: String?
@@ -194,6 +195,8 @@ struct FrontPanelMessageSources: Equatable {
     /// A board or profile error the model reports.
     var error: String?
     var board: BoardConnectionState = .disconnected
+    /// Why the live spectrum cannot show the SoundBox's audio.
+    var spectrumProblem: String?
     var validationProblem: String?
     var storageStatus: String?
     /// Whether the storage status reports a failure.
@@ -202,14 +205,16 @@ struct FrontPanelMessageSources: Equatable {
 
 extension FrontPanelMessageSources {
     /// The model's save, error, validation and storage news. `saveSucceeded` comes from the front panel's save
-    /// feedback, because the model keeps no record of a save once it has finished.
+    /// feedback, because the model keeps no record of a save once it has finished, and `spectrumProblem` from the
+    /// spectrum's monitor, which the model does not own.
     @MainActor
-    init(model: WorkbenchModel, saveSucceeded: Bool) {
+    init(model: WorkbenchModel, saveSucceeded: Bool, spectrumProblem: String? = nil) {
         self.init(
             saveInProgress: model.isSavingToBoard ? model.boardStorageStatus : nil,
             saveSucceeded: saveSucceeded,
             error: model.errorMessage,
             board: model.boards.state,
+            spectrumProblem: spectrumProblem,
             validationProblem: model.profile.validationProblem,
             storageStatus: model.storageStatus,
             storageFailed: model.storageError != nil
@@ -228,6 +233,9 @@ extension FrontPanelMessageSources {
         }
         if case let .mismatched(reason) = board {
             return FrontPanelMessage(text: reason, isError: true)
+        }
+        if let spectrumProblem {
+            return FrontPanelMessage(text: spectrumProblem, isError: true)
         }
         if let validationProblem {
             return FrontPanelMessage(text: validationProblem, isError: true)
