@@ -19,6 +19,28 @@ Build products:
 
 The complete repository gate is `bash Scripts/check.sh`. It includes shared and app package tests, formatting/lint, Release packages, all RP2350 targets and guards, and both native app configurations.
 
+### Version and build number
+
+Nobody edits the app's version or build number. `Scripts/app-version.sh` derives both from git, and `Scripts/app.sh` hands them to XcodeGen, which writes them into the Info.plist. The About window shows them.
+
+- The build number is the number of commits reachable from `HEAD`, so it grows along `main`.
+- The version is the one in the app tag on `HEAD`, written `app-v<major>.<minor>.<patch>`. Without such a tag on `HEAD`, it is the next version after the latest app tag: a `Feat:` commit since that tag raises the minor version, and otherwise a `Fix:` commit raises the patch version. Without any app tag, it counts from 0.1.0.
+- The firmware keeps its own version in `Firmware/CMakeLists.txt`.
+
+`Scripts/test-app-version.sh`, part of the gate, checks each rule against throwaway repositories.
+
+A new version is a tag on `main` and a GitHub release:
+
+```bash
+version=$(bash Scripts/app-version.sh | cut -d ' ' -f 1)
+git tag "app-v$version" && git push origin "app-v$version"
+bash Scripts/app.sh
+ditto -c -k --keepParent .build/macOS/Build/Products/Release/NeXTsound.app "NeXTsound-$version.zip"
+gh release create "app-v$version" --draft --title "NeXTsound $version" --notes-file <notes> "NeXTsound-$version.zip"
+```
+
+The release stays a draft until its asset has been downloaded, unpacked, and reports the tag's version, and only then is it published.
+
 ## Source layout
 
 The app target compiles `App/Application/NeXTsoundApp.swift` alone, and every other part of the app lives in the Swift package `App/Workbench`. The folders of its `NeXTsoundWorkbench` target name the kind of code they hold: `Models`, `Persistence`, `Services`, `Presentation` for the types that turn state into what a view shows, `Views` with one folder per window or sheet, `Controls`, `DotMatrix`, `Layout`, `Modifiers`, `Extensions`, `Commands` and `Theme`. A file holds one kind of code, and a helper that only one file uses stays in that file. The tests use the same folders, and their fakes and pixel reader sit in `Support`.
@@ -148,7 +170,7 @@ This has not been exercised against real hardware; see [issue 41](https://github
 
 - `toolchain.json` owns the Xcode and generator pins.
 - `App/Workbench/Package.swift` owns the native deployment minimum.
-- `App/project.yml` owns the app's version, build and copyright.
+- `Scripts/app-version.sh` derives the app's version and build from git, and `App/project.yml` owns its copyright.
 - `ProfileFile` owns the exported profile's type identifier and file extension.
 - `WorkbenchWindows` owns the windows' identifiers and titles.
 - `FrontPanelDisplayLayout` owns the display's plotted gain range.
