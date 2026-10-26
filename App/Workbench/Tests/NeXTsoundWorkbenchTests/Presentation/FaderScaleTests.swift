@@ -77,4 +77,44 @@ struct FaderScaleTests {
         #expect(FaderUnit.milliseconds.readout(120) == "120")
         #expect(FaderUnit.quality.readout(0.53) == "0.53")
     }
+
+    /// Every parameter's ticks stand inside its range, rise along the travel, and sit where its fader's scale places
+    /// their values, so a tick and the cap agree on where a value is.
+    @Test func everyTickStandsWhereItsFadersScalePlacesItsValue() {
+        for parameter in DSPParameter.allCases {
+            let scale = FaderScale(parameter: parameter)
+            let ticks = parameter.faderTicks()
+            #expect(ticks.count == parameter.tickValues.count)
+            #expect(parameter.tickValues.allSatisfy(parameter.bounds.contains))
+            for (tick, value) in zip(ticks, parameter.tickValues) {
+                #expect(tick.position == scale.position(for: value))
+            }
+            #expect(zip(ticks, ticks.dropFirst()).allSatisfy { $0.position < $1.position })
+        }
+    }
+
+    /// Master Volume's and the band gain's 0 dB ticks are their reference ticks, at three quarters and at half of the
+    /// travel, and the other faders have none.
+    @Test func zeroDecibelsIsTheReferenceTickOfTheGainFaders() {
+        #expect(DSPParameter.attenuation.faderTicks().filter(\.isReference).map(\.position) == [0.75])
+        #expect(DSPParameter.bandGain.faderTicks().filter(\.isReference).map(\.position) == [0.5])
+        for parameter in DSPParameter.allCases where parameter != .attenuation && parameter != .bandGain {
+            let hasReferenceTick = parameter.faderTicks().contains { $0.isReference }
+            #expect(!hasReferenceTick)
+        }
+    }
+
+    /// The band frequency's ticks mark the decades a reader looks for.
+    @Test func theBandFrequencyHasTicksAtEveryDecade() {
+        for decade: Float in [100, 1000, 10000] {
+            #expect(DSPParameter.bandFrequency.tickValues.contains(decade))
+        }
+    }
+
+    /// On a board whose range ends at 0 dB, the ticks above it are not drawn, and the 0 dB tick marks the top.
+    @Test func aNarrowerRangeDropsTheTicksBeyondIt() {
+        let ticks = DSPParameter.attenuation.faderTicks(range: -80 ... 0)
+        #expect(ticks.count == DSPParameter.attenuation.tickValues.count(where: { $0 <= 0 }))
+        #expect(ticks.last == FaderTick(position: 1, isReference: true))
+    }
 }
