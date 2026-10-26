@@ -44,6 +44,8 @@ Protocol 1.1 adds the read-only `NXS_OPERATION_DIAGNOSTICS` operation and, from 
 
 Capability decoders drop feature bits they do not know rather than refusing the reply, so a later firmware never locks out an app that predates one of its features. Encoders still refuse unknown bits. Apps before firmware 0.2.0 refuse `NXS_FEATURE_METADATA` because they predate this rule, so they cannot verify a board running 0.2.0; the app bundles the firmware it matches.
 
+Capabilities also report every DSP parameter's range, which the firmware fills from the shared bounds. Firmware 0.4.0 reports the attenuation up to +12 dB, and earlier firmware up to 0 dB. The app keeps its sliders and every snapshot it writes within the ranges the verified board reports, so it never sends a value an older board refuses. A decoder refuses a range beyond its own bounds, so an app before 0.4.0's bounds cannot verify a board running 0.4.0.
+
 The 120-byte active snapshot and 40-byte runtime status keep their existing layouts. Persistent records use `NXS_SNAPSHOT_PROTOCOL_MAJOR` and `NXS_SNAPSHOT_PROTOCOL_MINOR`, which remain 1.0 independently of the envelope revision.
 
 The diagnostic payload is 32 bytes. All integers are little-endian.
