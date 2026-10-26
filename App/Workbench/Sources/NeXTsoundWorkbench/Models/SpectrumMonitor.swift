@@ -21,10 +21,14 @@ final class SpectrumMonitor {
     /// The profile's settings and the host's volume and mute, which the running measurement reads for every cycle.
     @ObservationIgnored let inputs = SpectrumInputs()
     @ObservationIgnored private let source: any SpectrumSource
+    @ObservationIgnored private let retryInterval: Duration
 
-    /// - Parameter source: Where the levels come from, a Core Audio tap on the SoundBox unless a test passes its own.
-    init(source: (any SpectrumSource)? = nil) {
+    /// - Parameters:
+    ///   - source: Where the levels come from, a Core Audio tap on the SoundBox unless a test passes its own.
+    ///   - retryInterval: How long a measurement that cannot start waits before it tries again.
+    init(source: (any SpectrumSource)? = nil, retryInterval: Duration = .seconds(1)) {
         self.source = source ?? CoreAudioSpectrumSource()
+        self.retryInterval = retryInterval
     }
 }
 
@@ -49,20 +53,30 @@ extension SpectrumMonitor {
 
     /// Shows the levels of the SoundBox with USB serial `serial` until the calling task is cancelled, and silence for a
     /// nil serial, which stands for no verified board or a released key.
+    ///
+    /// A measurement that cannot start shows why on the message card and tries again after `retryInterval`, because a
+    /// board that reconnects verifies over USB before Core Audio lets the app record its output. The reason stays until
+    /// a start succeeds.
     func follow(serial: String?) async {
         levels = .silent
         problem = nil
         guard let serial else {
             return
         }
-        do {
-            for await measured in try await source.levels(serial: serial, inputs: inputs) {
-                levels = measured
+        while !Task.isCancelled {
+            do {
+                let measurement = try await source.levels(serial: serial, inputs: inputs)
+                problem = nil
+                for await measured in measurement {
+                    levels = measured
+                }
+                return
+            } catch let error as SpectrumError {
+                problem = error
+            } catch {
+                problem = .captureFailed(error.localizedDescription)
             }
-        } catch let error as SpectrumError {
-            problem = error
-        } catch {
-            problem = .captureFailed(error.localizedDescription)
+            try? await Task.sleep(for: retryInterval)
         }
     }
 }

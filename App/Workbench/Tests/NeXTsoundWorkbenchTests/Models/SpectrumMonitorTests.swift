@@ -30,15 +30,32 @@ struct SpectrumMonitorTests {
         #expect(source.requestedSerials.isEmpty)
     }
 
-    /// A measurement that cannot start leaves its reason for the message card, and the next start clears it.
-    @Test func aFailedStartLeavesItsReasonUntilTheNextStart() async {
-        let source = FakeSpectrumSource(levels: [], failure: .soundBoxAudioNotFound)
-        let monitor = SpectrumMonitor(source: source)
-        await monitor.follow(serial: "D4CDD489AFE28CC5")
-        #expect(monitor.problem == .soundBoxAudioNotFound)
+    /// A measurement that cannot start shows its reason on the message card while it waits to try again, and the next
+    /// start clears it.
+    @Test func aFailedStartShowsItsReasonWhileItWaits() async throws {
+        let source = FakeSpectrumSource(levels: [], failures: [.unsupportedAudioFormat])
+        let monitor = SpectrumMonitor(source: source, retryInterval: .seconds(60))
+        let task = Task { await monitor.follow(serial: "D4CDD489AFE28CC5") }
+        try await Self.waitUntil { monitor.problem == .unsupportedAudioFormat }
         #expect(monitor.levels == .silent)
+        #expect(source.requestedSerials == ["D4CDD489AFE28CC5"])
+        task.cancel()
+        await task.value
         await monitor.follow(serial: nil)
         #expect(monitor.problem == nil)
+    }
+
+    /// A board that reconnects verifies before Core Audio lets the app record its output, so a measurement that cannot
+    /// start tries again until it runs, and the running measurement clears the last reason.
+    @Test func aFailedStartIsTriedAgainUntilTheMeasurementRuns() async throws {
+        let source = FakeSpectrumSource(levels: [Self.quiet], failures: [.soundBoxAudioNotFound, .captureFailed("Not ready")])
+        let monitor = SpectrumMonitor(source: source, retryInterval: .milliseconds(10))
+        let task = Task { await monitor.follow(serial: "D4CDD489AFE28CC5") }
+        try await Self.waitUntil { monitor.levels == Self.quiet }
+        #expect(monitor.problem == nil)
+        #expect(source.requestedSerials == Array(repeating: "D4CDD489AFE28CC5", count: 3))
+        task.cancel()
+        await task.value
     }
 
     /// The display measures the verified board while it shows the spectrum, and nothing while it shows the curve or no
@@ -78,15 +95,17 @@ private extension SpectrumMonitorTests {
     }
 }
 
-/// A source that hands out fixed levels, or refuses to start, and records what it was asked for.
+/// A source that hands out fixed levels after refusing its first starts, and records what it was asked for.
 private final class FakeSpectrumSource: SpectrumSource {
     private let levels: [SpectrumLevels]
-    private let failure: SpectrumError?
-    private let state = Mutex(State())
+    private let state: Mutex<State>
 
-    init(levels: [SpectrumLevels], failure: SpectrumError? = nil) {
+    /// - Parameters:
+    ///   - levels: The levels every start that succeeds hands out.
+    ///   - failures: The errors the first starts throw, one per start, before the starts succeed.
+    init(levels: [SpectrumLevels], failures: [SpectrumError] = []) {
         self.levels = levels
-        self.failure = failure
+        state = Mutex(State(failures: failures))
     }
 
     var requestedSerials: [String] {
@@ -103,9 +122,10 @@ private final class FakeSpectrumSource: SpectrumSource {
     }
 
     func levels(serial: String, inputs: SpectrumInputs) async throws -> AsyncStream<SpectrumLevels> {
-        state.withLock {
-            $0.requestedSerials.append(serial)
-            $0.inputs = inputs
+        let failure = state.withLock { state -> SpectrumError? in
+            state.requestedSerials.append(serial)
+            state.inputs = inputs
+            return state.failures.isEmpty ? nil : state.failures.removeFirst()
         }
         if let failure {
             throw failure
@@ -126,5 +146,6 @@ private extension FakeSpectrumSource {
         var requestedSerials: [String] = []
         var inputs: SpectrumInputs?
         var isTerminated = false
+        var failures: [SpectrumError] = []
     }
 }
