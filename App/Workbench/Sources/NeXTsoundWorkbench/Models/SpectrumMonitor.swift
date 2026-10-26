@@ -18,6 +18,8 @@ final class SpectrumMonitor {
     /// Why the measurement could not start, which the display's message card shows.
     private(set) var problem: SpectrumError?
 
+    /// The profile's settings and the host's volume and mute, which the running measurement reads for every cycle.
+    @ObservationIgnored let inputs = SpectrumInputs()
     @ObservationIgnored private let source: any SpectrumSource
 
     /// - Parameter source: Where the levels come from, a Core Audio tap on the SoundBox unless a test passes its own.
@@ -39,6 +41,12 @@ extension SpectrumMonitor {
         return capabilities.serial
     }
 
+    /// Hands the profile's settings and the host's volume and mute to the measurement, which takes them with its next
+    /// cycle, whether it runs already or starts later.
+    func update(_ values: SpectrumInputs.Values) {
+        inputs.current = values
+    }
+
     /// Shows the levels of the SoundBox with USB serial `serial` until the calling task is cancelled, and silence for a
     /// nil serial, which stands for no verified board or a released key.
     func follow(serial: String?) async {
@@ -48,7 +56,7 @@ extension SpectrumMonitor {
             return
         }
         do {
-            for await measured in try await source.levels(serial: serial) {
+            for await measured in try await source.levels(serial: serial, inputs: inputs) {
                 levels = measured
             }
         } catch let error as SpectrumError {

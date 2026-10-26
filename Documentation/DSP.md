@@ -34,6 +34,10 @@ The engine crossfades two complete processing chains over `NXS_DSP_TRANSITION_FR
 
 `nxs_dsp_process` accepts no more than `NXS_DSP_BLOCK_FRAMES` per call. Rejection leaves the engine unchanged. It allocates no memory and calls no USB or flash API. The caller provides input/output buffers and handles device synchronization. `nxs_dsp_reset_history` clears both chains' signal history and meters without changing their prepared settings or transition progress. The renderer uses it only after its output envelope has reached silence.
 
+## Engine on the Mac
+
+`NeXTsoundCore.DSPEngine` runs the same engine in the app, for the front panel's live spectrum. It starts muted and crossfades into a profile's settings, as the board does. `apply(_:)` refuses a change while a crossfade runs, so the caller offers it again with the next block. `process(_:into:)` takes interleaved stereo of any length and hands it to `nxs_dsp_process` in blocks of `NXS_DSP_BLOCK_FRAMES`. `DSPEngine` and the EQ preview prepare their configuration through the same `nxs_dsp_prepare` call.
+
 ## EQ preview
 
 `nxs_dsp_eq_magnitude` evaluates the same coefficients used by the processing engine. Swift's `EQResponse` prepares those coefficients once and exposes the result in decibels. The preview includes the linear high-pass and EQ stages only. It excludes attenuation, mute, and nonlinear limiting and does not describe the speaker's acoustic response.

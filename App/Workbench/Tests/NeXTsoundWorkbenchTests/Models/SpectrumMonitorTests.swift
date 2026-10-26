@@ -50,6 +50,20 @@ struct SpectrumMonitorTests {
         #expect(SpectrumMonitor.serial(showsSpectrum: true, board: .detected) == nil)
         #expect(SpectrumMonitor.serial(showsSpectrum: true, board: .mismatched("The serial does not match.")) == nil)
     }
+
+    /// The measurement reads the inputs the monitor holds, so an update after its start still reaches it.
+    @Test func anUpdateReachesARunningMeasurement() async throws {
+        let source = FakeSpectrumSource(levels: [Self.quiet])
+        let monitor = SpectrumMonitor(source: source)
+        let task = Task { await monitor.follow(serial: "D4CDD489AFE28CC5") }
+        try await Self.waitUntil { monitor.levels == Self.quiet }
+        var values = monitor.inputs.current
+        values.hostVolumeDb = -18
+        monitor.update(values)
+        #expect(source.inputs?.current.hostVolumeDb == -18)
+        task.cancel()
+        await task.value
+    }
 }
 
 private extension SpectrumMonitorTests {
@@ -83,8 +97,16 @@ private final class FakeSpectrumSource: SpectrumSource {
         state.withLock(\.isTerminated)
     }
 
-    func levels(serial: String) async throws -> AsyncStream<SpectrumLevels> {
-        state.withLock { $0.requestedSerials.append(serial) }
+    /// The inputs the last measurement was started with.
+    var inputs: SpectrumInputs? {
+        state.withLock(\.inputs)
+    }
+
+    func levels(serial: String, inputs: SpectrumInputs) async throws -> AsyncStream<SpectrumLevels> {
+        state.withLock {
+            $0.requestedSerials.append(serial)
+            $0.inputs = inputs
+        }
         if let failure {
             throw failure
         }
@@ -102,6 +124,7 @@ private final class FakeSpectrumSource: SpectrumSource {
 private extension FakeSpectrumSource {
     struct State {
         var requestedSerials: [String] = []
+        var inputs: SpectrumInputs?
         var isTerminated = false
     }
 }

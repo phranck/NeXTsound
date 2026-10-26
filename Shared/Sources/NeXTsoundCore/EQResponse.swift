@@ -6,12 +6,7 @@ public struct EQResponse: Sendable {
     private let configuration: nxs_dsp_configuration_t
 
     public init(settings: DSPSettings) throws {
-        var snapshot = try settings.protocolSnapshot(profileID: UUID(), revision: 0)
-        var prepared = nxs_dsp_configuration_t()
-        guard nxs_dsp_prepare(&snapshot, &prepared) else {
-            throw WireError(result: NXS_RESULT_INVALID_PARAMETERS)
-        }
-        configuration = prepared
+        configuration = try settings.dspConfiguration()
     }
 }
 

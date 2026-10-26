@@ -2,7 +2,8 @@ import CoreAudio
 import Foundation
 import NeXTsoundCore
 
-/// Measures the audio macOS sends to the SoundBox through a Core Audio tap on its output device.
+/// Measures what the SoundBox sends to its amplifier: a Core Audio tap on its output device delivers the audio macOS
+/// sends it, and `SpectrumSignal` runs that through the host's volume and the board's DSP before the analyzer.
 ///
 /// The tap is private to the app and leaves the audio playing. A private aggregate device holds it, as Apple's
 /// "Capturing system audio with Core Audio taps" describes. Starting and stopping run on a queue of their own, so the
@@ -11,14 +12,14 @@ import NeXTsoundCore
 /// dispatches every IO block synchronously. The first start asks for permission to record system audio, which the
 /// app's `NSAudioCaptureUsageDescription` explains.
 struct CoreAudioSpectrumSource: SpectrumSource {
-    func levels(serial: String) async throws -> AsyncStream<SpectrumLevels> {
+    func levels(serial: String, inputs: SpectrumInputs) async throws -> AsyncStream<SpectrumLevels> {
         let controlQueue = DispatchQueue(label: "work.layered.NeXTsound.spectrum.control")
         let ioQueue = DispatchQueue(label: "work.layered.NeXTsound.spectrum.io", qos: .userInteractive)
         let (stream, continuation) = AsyncStream.makeStream(of: SpectrumLevels.self, bufferingPolicy: .bufferingNewest(1))
         let capture = try await withCheckedThrowingContinuation { (started: CheckedContinuation<SpectrumCapture, any Error>) in
             controlQueue.async {
                 started.resume(with: Result {
-                    try SpectrumCapture.start(serial: serial, ioQueue: ioQueue) { levels in
+                    try SpectrumCapture.start(serial: serial, inputs: inputs, ioQueue: ioQueue) { levels in
                         continuation.yield(levels)
                     }
                 })
@@ -48,64 +49,82 @@ enum SoundBoxAudio {
         format.mFormatID == kAudioFormatLinearPCM && format.mFormatFlags & kAudioFormatFlagIsFloat != 0 && format.mBitsPerChannel == 32
     }
 
-    /// Averages every channel of every buffer in `buffers` into one sample per frame, as the SoundBox's DSP averages
-    /// its stereo input, whether the channels come interleaved in one buffer or in a buffer each. `mono` keeps its
-    /// storage, so the mixdown allocates nothing once its first buffer has passed.
-    static func mixDown(_ buffers: UnsafeMutableAudioBufferListPointer, into mono: inout [Float]) {
-        mono.removeAll(keepingCapacity: true)
-        let channelCount = buffers.reduce(0) { total, buffer in total + Int(buffer.mNumberChannels) }
-        guard
-            channelCount > 0,
-            let first = buffers.first(where: { $0.mNumberChannels > 0 })
-        else {
-            return
-        }
-        let frames = Int(first.mDataByteSize) / (MemoryLayout<Float>.size * Int(first.mNumberChannels))
-        mono.append(contentsOf: repeatElement(0, count: frames))
-        for buffer in buffers {
-            let channels = Int(buffer.mNumberChannels)
-            guard
-                channels > 0,
-                let data = buffer.mData
-            else {
+    /// Writes the first two channels of `buffers` into `stereo` as interleaved left and right samples, the form the
+    /// SoundBox's DSP takes, whether they come interleaved in one buffer or in a buffer each. A single channel feeds both
+    /// sides, and further channels are left out. `stereo` keeps its storage, so this allocates nothing once its first
+    /// buffer has passed.
+    static func interleaveStereo(_ buffers: UnsafeMutableAudioBufferListPointer, into stereo: inout [Float]) {
+        stereo.removeAll(keepingCapacity: true)
+        var left: Channel?
+        var right: Channel?
+        for buffer in buffers where buffer.mNumberChannels > 0 && right == nil {
+            guard let data = buffer.mData else {
                 continue
             }
-            let samples = data.assumingMemoryBound(to: Float.self)
-            let bufferFrames = min(frames, Int(buffer.mDataByteSize) / (MemoryLayout<Float>.size * channels))
-            for frame in 0 ..< bufferFrames {
-                for channel in 0 ..< channels {
-                    mono[frame] += samples[frame * channels + channel]
+            let stride = Int(buffer.mNumberChannels)
+            let frames = Int(buffer.mDataByteSize) / (MemoryLayout<Float>.size * stride)
+            for offset in 0 ..< min(stride, 2) where right == nil {
+                let channel = Channel(samples: data.assumingMemoryBound(to: Float.self), offset: offset, stride: stride, frames: frames)
+                if left == nil {
+                    left = channel
+                } else {
+                    right = channel
                 }
             }
         }
-        let share = 1 / Float(channelCount)
-        for index in mono.indices {
-            mono[index] *= share
+        guard let left else {
+            return
+        }
+        let other = right ?? left
+        for frame in 0 ..< min(left.frames, other.frames) {
+            stereo.append(left.sample(frame))
+            stereo.append(other.sample(frame))
+        }
+    }
+}
+
+private extension SoundBoxAudio {
+    /// One channel of a buffer: its samples, its place within a frame, and how many samples a frame takes.
+    struct Channel {
+        let samples: UnsafeMutablePointer<Float>
+        let offset: Int
+        let stride: Int
+        let frames: Int
+
+        func sample(_ frame: Int) -> Float {
+            samples[frame * stride + offset]
         }
     }
 }
 
 /// A running tap on the SoundBox's output: the tap, the aggregate device that holds it, and the IO block that feeds the
-/// analyzer.
+/// signal and the analyzer.
 ///
 /// `start` and `stop` run on the source's control queue and the IO block on its IO queue, which alone touches the
-/// analyzer and the mono buffer. That split is what lets the capture pass between the two queues.
+/// signal, the analyzer and their buffers. That split is what lets the capture pass between the two queues.
 private final class SpectrumCapture: @unchecked Sendable {
     private let tap: AudioHardwareTap
     private let aggregate: AudioHardwareAggregateDevice
+    private let inputs: SpectrumInputs
+    private var signal: SpectrumSignal
     private let analyzer: SpectrumAnalyzer
     private let onLevels: @Sendable (SpectrumLevels) -> Void
+    private var stereo: [Float] = []
     private var mono: [Float] = []
     private var procID: AudioDeviceIOProcID?
 
     private init(
         tap: AudioHardwareTap,
         aggregate: AudioHardwareAggregateDevice,
+        inputs: SpectrumInputs,
+        signal: SpectrumSignal,
         analyzer: SpectrumAnalyzer,
         onLevels: @escaping @Sendable (SpectrumLevels) -> Void
     ) {
         self.tap = tap
         self.aggregate = aggregate
+        self.inputs = inputs
+        self.signal = signal
         self.analyzer = analyzer
         self.onLevels = onLevels
     }
@@ -119,12 +138,14 @@ extension SpectrumCapture {
         AudioHardwareError(kAudioHardwareUnspecifiedError).localizedDescription
     }
 
-    /// Taps the output of the SoundBox with USB serial `serial` and starts the IO block on `ioQueue`, which hands every
-    /// update of the bands' levels to `onLevels`. A start that fails part of the way destroys what it created.
+    /// Taps the output of the SoundBox with USB serial `serial` and starts the IO block on `ioQueue`, which runs every
+    /// cycle through the signal with the `inputs` of that moment and hands every update of the bands' levels to
+    /// `onLevels`. A start that fails part of the way destroys what it created.
     ///
-    /// - Throws: `SpectrumError` with the reason the display shows.
+    /// - Throws: `SpectrumError` with the reason the display shows, or `WireError` for settings the DSP refuses.
     static func start(
         serial: String,
+        inputs: SpectrumInputs,
         ioQueue: DispatchQueue,
         onLevels: @escaping @Sendable (SpectrumLevels) -> Void
     ) throws -> SpectrumCapture {
@@ -134,12 +155,14 @@ extension SpectrumCapture {
             throw SpectrumError.captureFailed(unspecifiedFailureReason)
         }
         let aggregate: AudioHardwareAggregateDevice
+        let signal: SpectrumSignal
         let analyzer: SpectrumAnalyzer
         do {
             let format = try coreAudio { try tap.format }
             guard SoundBoxAudio.readsSamples(of: format) else {
                 throw SpectrumError.unsupportedAudioFormat
             }
+            signal = try SpectrumSignal(inputs: inputs.current)
             analyzer = try SpectrumAnalyzer(sampleRate: format.mSampleRate)
             guard let made = try coreAudio({ try system.makeAggregateDevice(description: aggregateDescription()) }) else {
                 throw SpectrumError.captureFailed(unspecifiedFailureReason)
@@ -149,7 +172,14 @@ extension SpectrumCapture {
             try? system.destroyProcessTap(tap)
             throw error
         }
-        let capture = SpectrumCapture(tap: tap, aggregate: aggregate, analyzer: analyzer, onLevels: onLevels)
+        let capture = SpectrumCapture(
+            tap: tap,
+            aggregate: aggregate,
+            inputs: inputs,
+            signal: signal,
+            analyzer: analyzer,
+            onLevels: onLevels
+        )
         do {
             try coreAudio { try aggregate.setSubtaps([tap]) }
             try capture.run(on: ioQueue)
@@ -238,9 +268,11 @@ private extension SpectrumCapture {
         try Self.coreAudio { try aggregate.start(IOProcID: created) }
     }
 
-    /// Mixes one IO cycle's input down to mono and hands the analyzer's update, when it completes one, onward.
+    /// Runs one IO cycle's input through the signal with the inputs of this moment, and hands the analyzer's update,
+    /// when it completes one, onward.
     func receive(_ input: UnsafePointer<AudioBufferList>) {
-        SoundBoxAudio.mixDown(UnsafeMutableAudioBufferListPointer(UnsafeMutablePointer(mutating: input)), into: &mono)
+        SoundBoxAudio.interleaveStereo(UnsafeMutableAudioBufferListPointer(UnsafeMutablePointer(mutating: input)), into: &stereo)
+        signal.process(stereo, inputs: inputs.current, into: &mono)
         if let levels = analyzer.append(mono) {
             onLevels(levels)
         }
