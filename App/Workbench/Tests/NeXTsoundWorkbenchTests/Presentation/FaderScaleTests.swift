@@ -30,6 +30,43 @@ struct FaderScaleTests {
         }
     }
 
+    /// Master Volume's fader law puts each of its points on its share of the travel, 0 dB at three quarters, and an
+    /// arrow key's step near 0 dB moves it by about half a decibel.
+    @Test func theVolumeFadersLawPutsZeroDecibelsAtThreeQuartersOfTheTravel() throws {
+        let scale = FaderScale(parameter: .attenuation)
+        let law = try #require(DSPParameter.attenuation.faderLaw)
+        for point in law {
+            #expect(abs(scale.position(for: point.value) - point.position) < 1e-9)
+            #expect(abs(scale.value(at: point.position) - point.value) < 1e-4)
+        }
+        #expect(abs(scale.position(for: 0) - 0.75) < 1e-9)
+        #expect(scale.value(at: 0) == DSPParameter.attenuation.bounds.lowerBound)
+        #expect(scale.value(at: 1) == DSPParameter.attenuation.bounds.upperBound)
+        let step = scale.value(at: 0.75) - scale.value(at: 0.74)
+        #expect(step > 0.3 && step < 0.7)
+    }
+
+    /// Along the law, every step up the travel raises the value, and position and value round-trip.
+    @Test func theVolumeFadersLawOnlyRisesAndRoundTrips() {
+        let scale = FaderScale(parameter: .attenuation)
+        var previous = -Float.infinity
+        for index in 0 ... 1000 {
+            let position = Double(index) / 1000
+            let value = scale.value(at: position)
+            #expect(value > previous)
+            #expect(abs(scale.position(for: value) - position) < 1e-6)
+            previous = value
+        }
+    }
+
+    /// On a board whose range ends at 0 dB, the travel ends there, and below it the law keeps its shape.
+    @Test func aNarrowerRangeEndsTheTravelAtItsTop() {
+        let scale = FaderScale(parameter: .attenuation, range: -80 ... 0)
+        #expect(scale.value(at: 1) == 0)
+        #expect(scale.value(at: 0) == -80)
+        #expect(abs(scale.position(for: -12) - 0.55 / 0.75) < 1e-9)
+    }
+
     @Test func readoutsAreCompactAndWriteDecimalsWithAPoint() {
         #expect(FaderUnit.hertz.readout(176) == "176")
         #expect(FaderUnit.hertz.readout(1500) == "1.5k")

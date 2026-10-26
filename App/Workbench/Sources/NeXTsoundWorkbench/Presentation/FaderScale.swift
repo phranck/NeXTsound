@@ -10,20 +10,49 @@ extension DSPParameter {
         case .bandGain, .attenuation, .limiterThreshold: false
         }
     }
+
+    /// The fader law a parameter's fader follows instead of a linear or logarithmic scale, from the bottom of the
+    /// travel to its top, or nil for a parameter without one. Master Volume's spends most of its travel near 0 dB and
+    /// less toward silence, as a mixing console's fader does, so 0 dB sits at three quarters of the travel.
+    var faderLaw: [FaderLawPoint]? {
+        guard self == .attenuation else {
+            return nil
+        }
+        return [
+            FaderLawPoint(position: 0, value: bounds.lowerBound),
+            FaderLawPoint(position: 0.10, value: -60),
+            FaderLawPoint(position: 0.25, value: -40),
+            FaderLawPoint(position: 0.40, value: -24),
+            FaderLawPoint(position: 0.55, value: -12),
+            FaderLawPoint(position: 0.75, value: 0),
+            FaderLawPoint(position: 1, value: bounds.upperBound),
+        ]
+    }
+}
+
+/// A point of a fader law: a share of the travel, and the value that falls on it.
+struct FaderLawPoint: Equatable, Sendable {
+    let position: Double
+    let value: Float
 }
 
 /// How a fader's travel maps onto its parameter's range, with position 0 at the bottom and 1 at the top.
 enum FaderScale: Sendable {
     case linear(ClosedRange<Float>)
     case logarithmic(LogarithmicScale)
+    /// A fader law's points, rising along the travel, with the values between two points interpolated linearly.
+    case law([FaderLawPoint])
 }
 
 extension FaderScale {
-    /// The scale for a parameter over `range`, or over the parameter's whole range without one, logarithmic where the
-    /// parameter asks for it.
+    /// The scale for a parameter over `range`, or over the parameter's whole range without one: its fader law where it
+    /// has one, cut to `range` and stretched over the whole travel, and otherwise logarithmic where the parameter asks
+    /// for it.
     init(parameter: DSPParameter, range: ClosedRange<Float>? = nil) {
         let bounds = range ?? parameter.bounds
-        if parameter.usesLogarithmicScale, let scale = try? LogarithmicScale(bounds: bounds) {
+        if let law = parameter.faderLaw {
+            self = .law(Self.law(law, within: bounds))
+        } else if parameter.usesLogarithmicScale, let scale = try? LogarithmicScale(bounds: bounds) {
             self = .logarithmic(scale)
         } else {
             self = .linear(bounds)
@@ -44,6 +73,8 @@ extension FaderScale {
             return Double((clamped - bounds.lowerBound) / (bounds.upperBound - bounds.lowerBound))
         case let .logarithmic(scale):
             return scale.position(for: value)
+        case let .law(points):
+            return Self.position(for: value, along: points)
         }
     }
 
@@ -55,7 +86,61 @@ extension FaderScale {
             return bounds.lowerBound + Float(clamped) * (bounds.upperBound - bounds.lowerBound)
         case let .logarithmic(scale):
             return scale.value(at: position)
+        case let .law(points):
+            return Self.value(at: position, along: points)
         }
+    }
+}
+
+private extension FaderScale {
+    /// The law's points inside `bounds`, with a point at each end of `bounds`, and the positions stretched so the ends
+    /// of `bounds` meet the ends of the travel. A board with a narrower range thereby keeps the law's shape below its
+    /// top.
+    static func law(_ points: [FaderLawPoint], within bounds: ClosedRange<Float>) -> [FaderLawPoint] {
+        let lower = position(for: bounds.lowerBound, along: points)
+        let upper = position(for: bounds.upperBound, along: points)
+        guard upper > lower else {
+            return points
+        }
+        let bottom = FaderLawPoint(position: lower, value: bounds.lowerBound)
+        let top = FaderLawPoint(position: upper, value: bounds.upperBound)
+        let inner = points.filter { $0.value > bounds.lowerBound && $0.value < bounds.upperBound }
+        return ([bottom] + inner + [top]).map { point in
+            FaderLawPoint(position: (point.position - lower) / (upper - lower), value: point.value)
+        }
+    }
+
+    /// The position of `value` along the law, interpolated between the two points around it and clamped to the law.
+    static func position(for value: Float, along points: [FaderLawPoint]) -> Double {
+        guard
+            let first = points.first,
+            let last = points.last,
+            !value.isNaN
+        else {
+            return 0
+        }
+        let clamped = min(max(value, first.value), last.value)
+        for (lower, upper) in zip(points, points.dropFirst()) where clamped <= upper.value {
+            let share = Double((clamped - lower.value) / (upper.value - lower.value))
+            return lower.position + share * (upper.position - lower.position)
+        }
+        return last.position
+    }
+
+    /// The value at `position` along the law, interpolated between the two points around it and clamped to the law.
+    static func value(at position: Double, along points: [FaderLawPoint]) -> Float {
+        guard
+            let first = points.first,
+            let last = points.last
+        else {
+            return 0
+        }
+        let clamped = position.isNaN ? first.position : min(max(position, first.position), last.position)
+        for (lower, upper) in zip(points, points.dropFirst()) where clamped <= upper.position {
+            let share = (clamped - lower.position) / (upper.position - lower.position)
+            return lower.value + Float(share) * (upper.value - lower.value)
+        }
+        return last.value
     }
 }
 
