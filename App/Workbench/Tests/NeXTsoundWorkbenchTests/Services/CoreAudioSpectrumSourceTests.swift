@@ -15,12 +15,14 @@ struct CoreAudioSpectrumSourceTests {
         #expect(!SoundBoxAudio.matches(uid: uid, modelUID: modelUID, serial: ""))
     }
 
-    /// Every channel of every buffer adds its share to each frame's mono sample, whether the stereo comes interleaved
-    /// in one buffer or in one buffer per channel.
-    @Test func everyChannelAddsItsShareToTheMonoSample() {
-        #expect(Self.mono(of: [([1, 0, 1, 0], 2)]) == [0.5, 0.5])
-        #expect(Self.mono(of: [([1, 1], 1), ([0, -1], 1)]) == [0.5, 0])
-        #expect(Self.mono(of: []).isEmpty)
+    /// The first two channels become interleaved left and right samples for the DSP, whether they come interleaved in
+    /// one buffer or in a buffer each, a single channel feeds both sides, and further channels are left out.
+    @Test func theFirstTwoChannelsBecomeInterleavedStereo() {
+        #expect(Self.stereo(of: [([1, 2, 3, 4], 2)]) == [1, 2, 3, 4])
+        #expect(Self.stereo(of: [([1, 3], 1), ([2, 4], 1)]) == [1, 2, 3, 4])
+        #expect(Self.stereo(of: [([1, 3], 1)]) == [1, 1, 3, 3])
+        #expect(Self.stereo(of: [([1, 2, 9, 3, 4, 9], 3)]) == [1, 2, 3, 4])
+        #expect(Self.stereo(of: []).isEmpty)
     }
 
     /// The capture reads 32-bit floating-point linear PCM and nothing else.
@@ -39,8 +41,8 @@ struct CoreAudioSpectrumSourceTests {
 }
 
 private extension CoreAudioSpectrumSourceTests {
-    /// Mixes buffers of interleaved samples with their channel counts down to mono, as the capture mixes the tap's.
-    static func mono(of buffers: [(samples: [Float], channels: Int)]) -> [Float] {
+    /// Interleaves the first two channels of buffers with their channel counts, as the capture interleaves the tap's.
+    static func stereo(of buffers: [(samples: [Float], channels: Int)]) -> [Float] {
         let list = AudioBufferList.allocate(maximumBuffers: max(buffers.count, 1))
         list.count = buffers.count
         let storage = buffers.map { buffer in
@@ -55,8 +57,8 @@ private extension CoreAudioSpectrumSourceTests {
         for (index, buffer) in buffers.enumerated() {
             list[index] = AudioBuffer(storage[index], numberOfChannels: buffer.channels)
         }
-        var mono: [Float] = []
-        SoundBoxAudio.mixDown(list, into: &mono)
-        return mono
+        var stereo: [Float] = []
+        SoundBoxAudio.interleaveStereo(list, into: &stereo)
+        return stereo
     }
 }

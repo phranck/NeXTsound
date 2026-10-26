@@ -63,6 +63,9 @@ public struct FrontPanelView: View {
         .task(id: spectrumSerial) {
             await spectrum.follow(serial: spectrumSerial)
         }
+        .onChange(of: spectrumInputs, initial: true) { _, values in
+            spectrum.update(values)
+        }
         .focusedSceneValue(\.frontPanelBand, FrontPanelBand(editor: editor, index: selectedBand))
         .focusedSceneValue(\.libraryEditor, LibraryEditor(model: model, undoManager: undoManager))
         .focusedSceneValue(\.libraryShown, libraryKey)
@@ -127,6 +130,12 @@ private extension FrontPanelView {
 
     var status: FrontPanelStatus {
         FrontPanelStatus(model: model, saveSucceeded: saveFeedback.showsSuccess, spectrumProblem: spectrum.problem?.localizedDescription)
+    }
+
+    /// What the spectrum's DSP takes besides the audio: the selected profile's settings, which every edit sends to the
+    /// board, and the host's volume and mute as the board reports them.
+    var spectrumInputs: SpectrumInputs.Values {
+        SpectrumInputs.Values(settings: model.profile.settings, runtime: model.boards.runtime)
     }
 
     /// The USB serial of the board whose spectrum the display shows, which `SpectrumMonitor` decides.
