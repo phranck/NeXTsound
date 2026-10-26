@@ -49,20 +49,35 @@ extension SpectrumMonitor {
 
     /// Shows the levels of the SoundBox with USB serial `serial` until the calling task is cancelled, and silence for a
     /// nil serial, which stands for no verified board or a released key.
+    ///
+    /// After a reconnect the board verifies over USB before macOS lists its audio output, so a start that finds no
+    /// output shows that on the message card and starts again with every change of macOS's device list. Any other
+    /// failure stays on the card until the next call.
     func follow(serial: String?) async {
         levels = .silent
         problem = nil
         guard let serial else {
             return
         }
-        do {
-            for await measured in try await source.levels(serial: serial, inputs: inputs) {
-                levels = measured
+        // Listening begins before the first start, so an output that appears between a failed start and the wait counts.
+        var deviceListChanges = source.audioDeviceListChanges().makeAsyncIterator()
+        repeat {
+            do {
+                let measurement = try await source.levels(serial: serial, inputs: inputs)
+                problem = nil
+                for await measured in measurement {
+                    levels = measured
+                }
+                return
+            } catch SpectrumError.soundBoxAudioNotFound {
+                problem = .soundBoxAudioNotFound
+            } catch let error as SpectrumError {
+                problem = error
+                return
+            } catch {
+                problem = .captureFailed(error.localizedDescription)
+                return
             }
-        } catch let error as SpectrumError {
-            problem = error
-        } catch {
-            problem = .captureFailed(error.localizedDescription)
-        }
+        } while await deviceListChanges.next(isolation: #isolation) != nil
     }
 }

@@ -32,6 +32,38 @@ struct CoreAudioSpectrumSource: SpectrumSource {
         }
         return stream
     }
+
+    /// Listens to the system object's device list on a queue of its own. Core Audio keeps the listener until it is
+    /// removed with the same block, so the stream's termination removes exactly that block. A listener that cannot
+    /// register ends the stream at once, which leaves a start that found no output with its first answer.
+    func audioDeviceListChanges() -> AsyncStream<Void> {
+        let (stream, continuation) = AsyncStream.makeStream(of: Void.self, bufferingPolicy: .bufferingNewest(1))
+        let system = AudioObjectID(kAudioObjectSystemObject)
+        let queue = DispatchQueue(label: "work.layered.NeXTsound.spectrum.devices")
+        // The block never changes and holds only the continuation, which is Sendable, so the termination may keep it.
+        nonisolated(unsafe) let listener: AudioObjectPropertyListenerBlock = { _, _ in
+            continuation.yield()
+        }
+        var address = Self.deviceListAddress
+        guard AudioObjectAddPropertyListenerBlock(system, &address, queue, listener) == noErr else {
+            continuation.finish()
+            return stream
+        }
+        continuation.onTermination = { _ in
+            var address = Self.deviceListAddress
+            AudioObjectRemovePropertyListenerBlock(system, &address, queue, listener)
+        }
+        return stream
+    }
+}
+
+private extension CoreAudioSpectrumSource {
+    /// The system object's list of audio devices, which changes when a device such as the SoundBox's output comes or goes.
+    static let deviceListAddress = AudioObjectPropertyAddress(
+        mSelector: kAudioHardwarePropertyDevices,
+        mScope: kAudioObjectPropertyScopeGlobal,
+        mElement: kAudioObjectPropertyElementMain
+    )
 }
 
 /// How the app finds the SoundBox among the audio devices macOS lists, and reads the samples its tap delivers.
