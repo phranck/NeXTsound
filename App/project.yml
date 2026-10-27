@@ -47,12 +47,14 @@ targets:
         NSPrincipalClass: NSApplication
         NSHighResolutionCapable: true
         LSApplicationCategoryType: public.app-category.music
+        # A profile file holds JSON, but the type is plain data: Quick Look renders a text preview of any type that
+        # conforms to public.json, which the Finder's icon view would show instead of the profile icon.
         UTExportedTypeDeclarations:
           - UTTypeIdentifier: ${NXS_PROFILE_IDENTIFIER}
             UTTypeDescription: NeXTsound sound profile
             UTTypeIconFile: ProfileIcon
             UTTypeConformsTo:
-              - public.json
+              - public.data
             UTTypeTagSpecification:
               public.filename-extension:
                 - ${NXS_PROFILE_EXTENSION}
