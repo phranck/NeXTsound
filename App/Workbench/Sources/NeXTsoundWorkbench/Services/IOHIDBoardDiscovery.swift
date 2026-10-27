@@ -214,17 +214,8 @@ private extension USBHostBoardTransport {
     }
 
     func transfer(_ request: WireMessage) async throws -> WireMessage {
-        try await withThrowingTaskGroup(of: WireMessage.self) { group in
-            group.addTask { try await self.transferOffQueue(request) }
-            group.addTask {
-                try await Task.sleep(for: Self.timeout)
-                throw BoardTransportError.timeout
-            }
-            guard let result = try await group.next() else {
-                throw BoardTransportError.timeout
-            }
-            group.cancelAll()
-            return result
+        try await withTimeout(Self.timeout, throwing: BoardTransportError.timeout) {
+            try await self.transferOffQueue(request)
         }
     }
 
