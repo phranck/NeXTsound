@@ -38,6 +38,12 @@ private struct ProfileFileDialogs: ViewModifier {
                 document: ProfileFile(profile: model.profile),
                 contentType: .neXTsoundProfile,
                 defaultFilename: model.profile.displayName
-            ) { _ in }
+            ) { result in
+                guard case let .success(url) = result else {
+                    return
+                }
+                // The file is written, so a failure here only leaves its extension visible.
+                try? ProfileFile.hideExtension(of: url)
+            }
     }
 }

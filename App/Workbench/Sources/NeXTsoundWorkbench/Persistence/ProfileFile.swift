@@ -41,6 +41,21 @@ public extension ProfileFile {
         try FileWrapper(regularFileWithContents: profile.encoded())
     }
 
+    /// Hides the extension of a written profile file, so the Finder shows the profile's name alone.
+    ///
+    /// SwiftUI's `fileExporter` offers no option for this, and the setting belongs to the file rather than to its type,
+    /// so the exporter sets it on the file it wrote. The Finder still shows the extension while its "Show all filename
+    /// extensions" setting is on.
+    ///
+    /// - Parameter url: The location of the written file.
+    /// - Throws: The error of setting the file's resource value, such as a missing file.
+    static func hideExtension(of url: URL) throws {
+        var values = URLResourceValues()
+        values.hasHiddenExtension = true
+        var file = url
+        try file.setResourceValues(values)
+    }
+
     /// Commits one edit atomically. Incomplete names remain editable but cannot be saved.
     mutating func edit(_ mutation: (inout SoundProfile) throws -> Void) throws {
         var candidate = profile

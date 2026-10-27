@@ -107,6 +107,19 @@ struct ProfileFileTests {
             try document.encodedFile()
         }
     }
+
+    @Test func anExportedFileHidesItsExtension() throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        var url = directory.appendingPathComponent("Profile").appendingPathExtension(ProfileFile.fileExtension)
+        try ProfileFile(profile: fixture()).encodedFile().write(to: url, originalContentsURL: nil)
+
+        try ProfileFile.hideExtension(of: url)
+
+        url.removeAllCachedResourceValues()
+        #expect(try url.resourceValues(forKeys: [.hasHiddenExtensionKey]).hasHiddenExtension == true)
+    }
 }
 
 private extension ProfileFileTests {
