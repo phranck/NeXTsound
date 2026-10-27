@@ -46,8 +46,10 @@ if ! nm "$binary" | grep ' T _libusb_init$' >/dev/null; then
 fi
 bash "$root/Scripts/check-system-libraries.sh" "$binary"
 # Signed as code of its own, so the app's seal covers a valid executable rather than an unsigned one,
-# and with Hardened Runtime, so dyld ignores DYLD_* variables when the app starts it.
-codesign --force --sign - --options runtime "$binary"
+# and with Hardened Runtime, so dyld ignores DYLD_* variables when the app starts it. The two
+# entitlements make it inherit the sandboxed app's sandbox, USB access included; as Apple's helper
+# tool guidance requires, it carries those two and nothing else, so it runs only as the app's child.
+codesign --force --sign - --options runtime --entitlements "$root/Scripts/picotool.entitlements" "$binary"
 
 destination="$root/App/Workbench/Sources/NeXTsoundWorkbench/Resources/picotool"
 cp "$binary" "$destination"

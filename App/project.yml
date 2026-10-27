@@ -39,6 +39,9 @@ targets:
       base:
         PRODUCT_NAME: NeXTsound
         PRODUCT_BUNDLE_IDENTIFIER: work.layered.NeXTsound
+        # The App Sandbox with user-selected files and USB; Application/container-migration.plist moves the stored
+        # libraries into the container on the first sandboxed launch.
+        CODE_SIGN_ENTITLEMENTS: Application/NeXTsound.entitlements
         COMBINE_HIDPI_IMAGES: YES
     dependencies:
       - package: Workbench
