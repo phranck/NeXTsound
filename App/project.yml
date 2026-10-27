@@ -44,8 +44,6 @@ targets:
         NSPrincipalClass: NSApplication
         NSHighResolutionCapable: true
         LSApplicationCategoryType: public.app-category.music
-        # The first extension is the one exported files get. The second is the one profile files had before, so such a
-        # file still opens in the app.
         UTExportedTypeDeclarations:
           - UTTypeIdentifier: ${NXS_PROFILE_IDENTIFIER}
             UTTypeDescription: NeXTsound sound profile
@@ -54,7 +52,6 @@ targets:
             UTTypeTagSpecification:
               public.filename-extension:
                 - ${NXS_PROFILE_EXTENSION}
-                - ${NXS_PROFILE_LEGACY_EXTENSION}
         # The app owns the profile type, so the Finder opens a profile file in it, and the front panel imports it.
         CFBundleDocumentTypes:
           - CFBundleTypeName: NeXTsound sound profile
