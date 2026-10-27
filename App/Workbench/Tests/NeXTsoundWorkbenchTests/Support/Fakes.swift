@@ -36,6 +36,8 @@ final class FakeProfileLibraryStorage: ProfileLibraryStorage, @unchecked Sendabl
 
     var loadResult: LoadResult
     var saveError: (any Error)?
+    /// Holds every load until the stream finishes, so a test decides when the stored library arrives.
+    var loadRelease: AsyncStream<Void>?
     private let saved = Locked<[ProfileLibrary]>([])
 
     /// Every library the model saved, oldest first.
@@ -48,6 +50,9 @@ final class FakeProfileLibraryStorage: ProfileLibraryStorage, @unchecked Sendabl
     }
 
     func load() async throws -> ProfileLibrary? {
+        if let loadRelease {
+            for await _ in loadRelease {}
+        }
         switch loadResult {
         case let .value(library): return library
         case let .failure(error): throw error

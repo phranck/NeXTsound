@@ -21,6 +21,13 @@ struct NeXTsoundApp: App {
             FrontPanelView(model: model, driverLibrary: driverLibrary)
                 .task { await model.start() }
                 .task { await driverLibrary.start() }
+                // The open front panel takes every file the app is asked to open, such as a profile double-clicked in
+                // the Finder. Without it, SwiftUI opens a new instance of this scene for the file, which closes the
+                // window and with it the app.
+                .handlesExternalEvents(preferring: ["*"], allowing: ["*"])
+                .onOpenURL { url in
+                    Task { await model.openProfile(at: url) }
+                }
                 .onWindowClose { NSApplication.shared.terminate(nil) }
                 .opensInTitledWindow()
         }

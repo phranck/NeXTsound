@@ -6,7 +6,10 @@ import UniformTypeIdentifiers
 /// The canonical shared profile is the document's only stored state.
 public struct ProfileFile: FileDocument, Equatable {
     public static let typeIdentifier = "work.layered.NeXTsound.profile"
-    public static let fileExtension = "nxsprofile"
+    /// The extension every exported profile file gets, which `App/project.yml` declares first for the profile type.
+    public static let fileExtension = "nxsbprofile"
+    /// The extension profile files had before, which the profile type still claims, so such a file opens in the app.
+    public static let legacyFileExtension = "nxsprofile"
     public static let readableContentTypes: [UTType] = [.neXTsoundProfile, .json]
     public static let writableContentTypes: [UTType] = [.neXTsoundProfile, .json]
 
