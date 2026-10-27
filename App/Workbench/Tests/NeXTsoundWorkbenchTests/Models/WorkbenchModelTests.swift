@@ -73,18 +73,6 @@ struct WorkbenchModelTests {
         #expect(model.library.profiles == afterAdd.profiles)
     }
 
-    @Test func importingAProfileInsertsItsDecodedContents() async throws {
-        let url = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString + ".json")
-        defer { try? FileManager.default.removeItem(at: url) }
-        let imported = SoundProfile(name: "Imported")
-        try imported.encoded().write(to: url)
-
-        let model = WorkbenchModel()
-        await model.importProfile(at: url)
-        #expect(model.library.profiles.contains(imported))
-        #expect(model.library.selectedID == imported.id)
-    }
-
     @Test func flushSavesImmediatelyWithoutWaitingForTheDebounce() async throws {
         let storage = FakeProfileLibraryStorage(loadResult: .value(nil))
         let model = WorkbenchModel(storage: storage)

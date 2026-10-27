@@ -27,7 +27,7 @@ public final class WorkbenchModel {
     @ObservationIgnored private var isWritingToBoard = false
     @ObservationIgnored private var boardApplyIsPending = false
     @ObservationIgnored private var boardSaveIsPending = false
-    @ObservationIgnored private var hasStarted = false
+    @ObservationIgnored private var startTask: Task<Void, Never>?
     private var savedRevision: UInt64 = 0
 
     public var profile: SoundProfile {
@@ -100,26 +100,12 @@ public final class WorkbenchModel {
 public extension WorkbenchModel {
     /// Loads the local library once. A failed load never blocks editing or quitting; it is
     /// surfaced through `storageStatus` and local edits stay in memory until storage recovers.
+    /// Every later call waits for that one load to finish, so a caller that needs the loaded library calls it too.
     func start() async {
-        guard !hasStarted else {
-            return
+        if startTask == nil {
+            startTask = Task { await loadLibrary() }
         }
-        hasStarted = true
-        // Read before the boards connect, so the number a connected board carries reaches a loaded register.
-        await loadSerialNumbers()
-        boards.start()
-        defer { isReady = true }
-        guard let storage else {
-            return
-        }
-        do {
-            library = try await storage.load() ?? library
-            try await storage.save(library)
-            savedRevision = library.revision
-            storageError = nil
-        } catch {
-            storageError = error.localizedDescription
-        }
+        await startTask?.value
     }
 
     func flush() async throws {
@@ -193,6 +179,14 @@ public extension WorkbenchModel {
         } catch {
             errorMessage = error.localizedDescription
         }
+    }
+
+    /// Imports a profile file macOS asked the app to open, such as one double-clicked in the Finder, and selects it, so
+    /// it plays on a connected board. A file that launches the app arrives before the stored library has loaded, and
+    /// the load replaces the library, so the import waits for `start()` first.
+    func openProfile(at url: URL) async {
+        await start()
+        await importProfile(at: url)
     }
 
     /// Writes a new persisted name to the connected SoundBox. The new name is visible to macOS
@@ -401,6 +395,25 @@ private extension WorkbenchModel {
                 return
             }
             await self?.applyToBoard()
+        }
+    }
+
+    /// The one load `start()` runs: the serial number register, then the boards, then the stored library.
+    func loadLibrary() async {
+        // Read before the boards connect, so the number a connected board carries reaches a loaded register.
+        await loadSerialNumbers()
+        boards.start()
+        defer { isReady = true }
+        guard let storage else {
+            return
+        }
+        do {
+            library = try await storage.load() ?? library
+            try await storage.save(library)
+            savedRevision = library.revision
+            storageError = nil
+        } catch {
+            storageError = error.localizedDescription
         }
     }
 

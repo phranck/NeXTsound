@@ -13,7 +13,11 @@ enum RenderWorkbench {
             throw CocoaError(.fileWriteInvalidFileName)
         }
         if CommandLine.arguments[1] == "--document-type" {
-            let metadata = ["identifier": ProfileFile.typeIdentifier, "file_extension": ProfileFile.fileExtension]
+            let metadata = [
+                "identifier": ProfileFile.typeIdentifier,
+                "file_extension": ProfileFile.fileExtension,
+                "legacy_file_extension": ProfileFile.legacyFileExtension,
+            ]
             let data = try JSONEncoder().encode(metadata)
             guard let json = String(bytes: data, encoding: .utf8) else {
                 throw CocoaError(.fileWriteInapplicableStringEncoding)
