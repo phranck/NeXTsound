@@ -10,7 +10,7 @@ From the repository root:
 bash Scripts/app.sh
 ```
 
-The command selects the Xcode version from `toolchain.json`, bootstraps the checksum-pinned XcodeGen, generates `App/NeXTsound.xcodeproj`, and builds Debug and Release without signing. It does not launch or install the app.
+The command selects the Xcode version from `toolchain.json`, bootstraps the checksum-pinned XcodeGen, generates `App/NeXTsound.xcodeproj`, and builds Debug and Release, both signed ad hoc (see [Firmware flashing](#firmware-flashing)). It does not launch or install the app.
 
 Build products:
 
