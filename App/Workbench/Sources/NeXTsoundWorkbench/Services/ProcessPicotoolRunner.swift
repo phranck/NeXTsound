@@ -30,6 +30,9 @@ extension ProcessPicotoolRunner {
             do {
                 try process.run()
             } catch {
+                // A started process takes over the pipe's write end. One that never started leaves it open here, so
+                // the output reader would wait for an end of file that never comes.
+                try? pipe.fileHandleForWriting.close()
                 continuation.resume(throwing: error)
             }
         }
