@@ -1,24 +1,23 @@
 import Foundation
 import Testing
 
-/// A minimal app bundle in a temporary directory, signed ad hoc like the built app, so `BundleSeal` accepts it until a
-/// sealed file changes.
+/// A copy of the committed fixture `SealProbe.app`, an app bundle signed ad hoc like the built app, so `BundleSeal`
+/// accepts it until a sealed file changes, and a resource bundle next to it holding the `picotool` a test asks for.
 ///
-/// Tests that start a real `ProcessPicotoolRunner` pass this bundle as its app bundle. Left at its default, the runner
-/// checks `Bundle.main`, which in a test process is the test host inside Xcode, and checking all of Xcode never ends in
-/// practice. The executable is a copy of `/usr/bin/true`, which only has to be a Mach-O file for `codesign` to sign the
-/// bundle; the `picotool` resource is whatever the test asks for.
+/// Tests that start a real `ProcessPicotoolRunner` pass `url` as its app bundle. Left at its default, the runner checks
+/// `Bundle.main`, which in a test process is the test host inside Xcode. The fixture is signed once and committed,
+/// because a test that ran `codesign` blocked a thread of the concurrency pool until it returned, and on the few cores
+/// of a CI machine that froze the whole test run.
 struct SignedProbeBundle {
     let directory: URL
+    /// The signed app bundle.
     let url: URL
-
-    var resourceURL: URL {
-        url.appendingPathComponent("Contents/Resources/picotool")
-    }
+    /// The resource bundle holding `picotool`, which the seal does not cover.
+    let resourceBundleURL: URL
 
     var bundle: Bundle {
         get throws {
-            try #require(Bundle(url: url))
+            try #require(Bundle(url: resourceBundleURL))
         }
     }
 
@@ -26,39 +25,26 @@ struct SignedProbeBundle {
     ///   - picotool: The contents of the `picotool` resource, by default a shell script that exits at once.
     ///   - picotoolIsExecutable: Whether the resource may be started.
     init(picotool: Data = Data("#!/bin/sh\nexit 0\n".utf8), picotoolIsExecutable: Bool = true) throws {
-        directory = FileManager.default.temporaryDirectory.appendingPathComponent("nxs-seal-\(UUID().uuidString)", isDirectory: true)
-        url = directory.appendingPathComponent("Probe.app", isDirectory: true)
-        let contents = url.appendingPathComponent("Contents", isDirectory: true)
         let fileManager = FileManager.default
-        try fileManager.createDirectory(at: contents.appendingPathComponent("MacOS"), withIntermediateDirectories: true)
-        try fileManager.createDirectory(at: contents.appendingPathComponent("Resources"), withIntermediateDirectories: true)
-        let info: [String: Any] = [
-            "CFBundleIdentifier": "work.layered.NeXTsound.seal-probe",
-            "CFBundleExecutable": "Probe",
-            "CFBundlePackageType": "APPL",
-        ]
-        try PropertyListSerialization.data(fromPropertyList: info, format: .xml, options: 0)
-            .write(to: contents.appendingPathComponent("Info.plist"))
-        try fileManager.copyItem(at: URL(fileURLWithPath: "/usr/bin/true"), to: contents.appendingPathComponent("MacOS/Probe"))
-        let resource = contents.appendingPathComponent("Resources/picotool")
+        directory = fileManager.temporaryDirectory.appendingPathComponent("nxs-seal-\(UUID().uuidString)", isDirectory: true)
+        try fileManager.createDirectory(at: directory, withIntermediateDirectories: true)
+        let fixture = try #require(Bundle.module.url(forResource: "SealProbe", withExtension: "app"))
+        url = directory.appendingPathComponent("SealProbe.app", isDirectory: true)
+        try fileManager.copyItem(at: fixture, to: url)
+        resourceBundleURL = directory.appendingPathComponent("Picotool.bundle", isDirectory: true)
+        let resources = resourceBundleURL.appendingPathComponent("Contents/Resources", isDirectory: true)
+        try fileManager.createDirectory(at: resources, withIntermediateDirectories: true)
+        let resource = resources.appendingPathComponent("picotool")
         try picotool.write(to: resource)
         try fileManager.setAttributes([.posixPermissions: picotoolIsExecutable ? 0o755 : 0o644], ofItemAtPath: resource.path)
-        try Self.sign(url)
+    }
+
+    /// Adds a file to the signed bundle's resources, which breaks its seal.
+    func tamper() throws {
+        try Data("tampered".utf8).write(to: url.appendingPathComponent("Contents/Resources/tampered.txt"))
     }
 
     func remove() {
         try? FileManager.default.removeItem(at: directory)
-    }
-}
-
-private extension SignedProbeBundle {
-    static func sign(_ url: URL) throws {
-        let process = Process()
-        process.executableURL = URL(fileURLWithPath: "/usr/bin/codesign")
-        process.arguments = ["--force", "--sign", "-", url.path]
-        process.standardError = FileHandle.nullDevice
-        try process.run()
-        process.waitUntilExit()
-        try #require(process.terminationStatus == 0)
     }
 }

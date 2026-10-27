@@ -12,7 +12,7 @@ struct BundleSealTests {
     @Test func aChangedResourceBreaksTheSeal() throws {
         let probe = try SignedProbeBundle()
         defer { probe.remove() }
-        try Data("replaced".utf8).write(to: probe.resourceURL)
+        try probe.tamper()
         #expect(throws: FlashError.bundleSealBroken) {
             try BundleSeal.verify(probe.url)
         }
@@ -24,7 +24,7 @@ struct BundleSealTests {
         let runner = try #require(ProcessPicotoolRunner(bundle: probe.bundle, appBundleURL: probe.url))
         #expect(try await runner.run(arguments: []).exitCode == 0)
 
-        try Data("replaced".utf8).write(to: probe.resourceURL)
+        try probe.tamper()
         await #expect(throws: FlashError.bundleSealBroken) {
             try await runner.run(arguments: [])
         }

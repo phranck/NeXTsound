@@ -49,7 +49,9 @@ let package = Package(
         ),
         .testTarget(
             name: "NeXTsoundWorkbenchTests",
-            dependencies: ["NeXTsoundWorkbench", .product(name: "NeXTsoundCore", package: "Shared")]
+            dependencies: ["NeXTsoundWorkbench", .product(name: "NeXTsoundCore", package: "Shared")],
+            // An app bundle signed ad hoc once and committed, so the seal tests never start codesign themselves.
+            resources: [.copy("Fixtures/SealProbe.app")]
         ),
     ]
 )
