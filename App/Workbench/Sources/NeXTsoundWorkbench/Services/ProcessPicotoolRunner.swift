@@ -1,20 +1,29 @@
 import Foundation
 
 /// Runs the picotool binary embedded as a package resource (`Scripts/bootstrap-picotool-usb.sh`
-/// builds it against Homebrew's libusb). The app never depends on a system picotool install.
+/// builds it with libusb linked in). The app never depends on a system picotool install.
+///
+/// Every run first checks the app bundle's seal, because picotool writes firmware onto the board and a replaced
+/// picotool or firmware image would run with everything the app is allowed to do.
 struct ProcessPicotoolRunner: PicotoolRunning {
     private let executableURL: URL
+    private let appBundleURL: URL
 
-    init?(bundle: Bundle = .module) {
+    /// - Parameters:
+    ///   - bundle: The resource bundle holding `picotool`.
+    ///   - appBundleURL: The signed app bundle whose seal covers `picotool` and the firmware image.
+    init?(bundle: Bundle = .module, appBundleURL: URL = Bundle.main.bundleURL) {
         guard let url = bundle.url(forResource: "picotool", withExtension: nil) else {
             return nil
         }
         executableURL = url
+        self.appBundleURL = appBundleURL
     }
 }
 
 extension ProcessPicotoolRunner {
     func run(arguments: [String]) async throws -> (exitCode: Int32, output: String) {
+        try BundleSeal.verify(appBundleURL)
         let process = Process()
         process.executableURL = executableURL
         process.arguments = arguments
