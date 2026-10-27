@@ -1,27 +1,23 @@
 #!/bin/bash
-set -euo pipefail
+# Diagnostic only, never merged: samples the workbench test process on the CI host when it hangs.
+set -uo pipefail
 source "$(dirname "${BASH_SOURCE[0]}")/common.sh"
 select_xcode
-
-bash "$root/Scripts/format.sh" --check
-bash "$root/Scripts/format.sh" --fixtures
-swift_files=()
-while IFS= read -r -d '' relative; do
-    swift_files+=("$root/$relative")
-done < <(swift_sources)
-"$root/.tools/bin/swiftlint" lint --strict --config "$root/.swiftlint.yml" "${swift_files[@]}"
-
-bash "$root/Scripts/check-firmware-version.sh"
-bash "$root/Scripts/test-app-version.sh"
-bash "$root/Scripts/firmware.sh"
-cmake -S "$root/Shared" -B "$root/.build/c-protocol" -G Ninja \
-    -DCMAKE_BUILD_TYPE=Debug -DCMAKE_C_COMPILER="$(xcrun --find clang)" -DNXS_TEST_FIRMWARE=ON
-cmake --build "$root/.build/c-protocol"
-ctest --test-dir "$root/.build/c-protocol" --output-on-failure
-swift test --package-path "$root/Shared"
-swift build --package-path "$root/Shared" --configuration release
-bash "$root/Scripts/bootstrap-picotool-usb.sh"
-xcrun swift test --package-path "$root/App/Workbench"
-xcrun swift build --package-path "$root/App/Workbench" --configuration release
-bash "$root/Scripts/app.sh"
-git -C "$root" diff --check
+bash "$root/Scripts/firmware.sh" >/dev/null 2>&1 || echo "firmware failed"
+bash "$root/Scripts/bootstrap-picotool-usb.sh" >/dev/null 2>&1 || echo "picotool failed"
+xcrun swift build --package-path "$root/App/Workbench" --build-tests >/dev/null 2>&1 || echo "build failed"
+log=$(mktemp)
+xcrun swift test --package-path "$root/App/Workbench" --skip-build >"$log" 2>&1 &
+tester=$!
+for i in $(seq 1 24); do kill -0 $tester 2>/dev/null || break; sleep 5; done
+if kill -0 $tester 2>/dev/null; then
+    echo "== still running after 120 s, sampling"
+    for pid in $(pgrep -f 'swiftpm-testing|NeXTsoundWorkbenchPackageTests|xctest'); do
+        echo "== process $pid: $(ps -o comm= -p $pid)"
+        sample "$pid" 3 -mayDie 2>/dev/null | grep -vE '^\s*$' | head -400
+    done
+    kill -9 $tester 2>/dev/null
+else
+    echo "== tests finished"; tail -3 "$log"
+fi
+exit 1
