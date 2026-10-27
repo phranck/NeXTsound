@@ -23,6 +23,9 @@ targets:
     platform: macOS
     sources:
       - Application
+      # The sound profile type's icon, which Scripts/profile-icon.sh renders before XcodeGen runs.
+      - path: Generated/ProfileIcon.icns
+        buildPhase: resources
     settings:
       base:
         PRODUCT_NAME: NeXTsound
@@ -47,6 +50,7 @@ targets:
         UTExportedTypeDeclarations:
           - UTTypeIdentifier: ${NXS_PROFILE_IDENTIFIER}
             UTTypeDescription: NeXTsound sound profile
+            UTTypeIconFile: ProfileIcon
             UTTypeConformsTo:
               - public.json
             UTTypeTagSpecification:
