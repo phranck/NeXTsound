@@ -7,7 +7,10 @@ settings:
   base:
     SWIFT_VERSION: "6.0"
     SWIFT_STRICT_CONCURRENCY: complete
-    CODE_SIGNING_ALLOWED: NO
+    # An ad-hoc signature seals every resource of the bundle, among them picotool and the firmware image, which
+    # ProcessPicotoolRunner checks before it starts picotool.
+    CODE_SIGN_IDENTITY: "-"
+    CODE_SIGN_STYLE: Manual
     # Scripts/app-version.sh derives both from the git history, and Scripts/app.sh exports them.
     MARKETING_VERSION: "${NXS_APP_VERSION}"
     CURRENT_PROJECT_VERSION: "${NXS_BUILD_NUMBER}"
