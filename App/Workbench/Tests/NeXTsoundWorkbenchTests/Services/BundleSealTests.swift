@@ -32,7 +32,8 @@ struct BundleSealTests {
 }
 
 /// A minimal app bundle in a temporary directory, signed ad hoc like the built app. Its executable and its `picotool`
-/// resource are copies of `/usr/bin/true`, so the runner can start it without touching a board.
+/// resource is a shell script that exits at once, so the runner can start it without touching a board. The executable
+/// is a copy of `/usr/bin/true`, which only has to be a Mach-O file for `codesign` to sign the bundle.
 private struct SignedProbeBundle {
     let directory: URL
     let url: URL
@@ -63,7 +64,9 @@ private struct SignedProbeBundle {
             .write(to: contents.appendingPathComponent("Info.plist"))
         let executable = URL(fileURLWithPath: "/usr/bin/true")
         try fileManager.copyItem(at: executable, to: contents.appendingPathComponent("MacOS/Probe"))
-        try fileManager.copyItem(at: executable, to: contents.appendingPathComponent("Resources/picotool"))
+        let picotool = contents.appendingPathComponent("Resources/picotool")
+        try Data("#!/bin/sh\nexit 0\n".utf8).write(to: picotool)
+        try fileManager.setAttributes([.posixPermissions: 0o755], ofItemAtPath: picotool.path)
         try Self.sign(url)
     }
 
