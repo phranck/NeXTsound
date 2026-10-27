@@ -158,7 +158,7 @@ private struct LimiterModule: View {
                 VStack(spacing: FrontPanelLayout.captionSpacing) {
                     PanelLED(isLit: buttons.saveLEDIsLit, confirms: true)
                     PanelPushButton(label: "Save to SoundBox", kind: .save, action: buttons.save)
-                    ControlCaption(caption: Text("Save to SoundBox"), wrapWidth: PanelFader.columnWidth)
+                    ControlCaption(caption: Text("Save"), wrapWidth: PanelFader.columnWidth)
                         .accessibilityHidden(true)
                 }
             }
@@ -173,7 +173,7 @@ private struct LimiterModule: View {
             } bottom: {
                 VStack(spacing: FrontPanelLayout.captionSpacing) {
                     PanelPushButton(label: "Flash Firmware", kind: .flash, action: buttons.flash)
-                    ControlCaption(caption: Text("Flash Firmware"), wrapWidth: PanelFader.columnWidth)
+                    ControlCaption(caption: Text("Flash"), wrapWidth: PanelFader.columnWidth)
                         .accessibilityHidden(true)
                 }
             }
