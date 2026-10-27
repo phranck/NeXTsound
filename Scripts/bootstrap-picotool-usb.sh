@@ -38,7 +38,9 @@ if [ ! -x "$binary" ]; then
     printf 'picotool build did not produce %s\n' "$binary" >&2
     exit 1
 fi
-if ! nm "$binary" | grep -q ' T _libusb_init$'; then
+# grep reads all of nm's output: with -q it would stop at the first match, nm would fail on the
+# closed pipe, and pipefail would report the linked-in library as missing.
+if ! nm "$binary" | grep ' T _libusb_init$' >/dev/null; then
     printf 'Embedded picotool was built without libusb; refusing a USB-incapable binary.\n' >&2
     exit 1
 fi
