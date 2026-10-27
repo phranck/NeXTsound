@@ -22,6 +22,12 @@ for configuration in Debug Release; do
     xcodebuild -quiet -project "$root/App/NeXTsound.xcodeproj" -scheme NeXTsound \
         -configuration "$configuration" -destination 'generic/platform=macOS' \
         -derivedDataPath "$root/.build/macOS" build
-    printf '%s app: %s\n' "$configuration" "$root/.build/macOS/Build/Products/$configuration/NeXTsound.app"
+    app="$root/.build/macOS/Build/Products/$configuration/NeXTsound.app"
+    # Debug builds load their code from a debug dylib and from the build products directory; only
+    # the Release app is handed out, and it has to load nothing from outside macOS and itself.
+    if [ "$configuration" = Release ]; then
+        bash "$root/Scripts/check-system-libraries.sh" "$app"
+    fi
+    printf '%s app: %s\n' "$configuration" "$app"
 done
 printf 'App version %s, build %s\n' "$NXS_APP_VERSION" "$NXS_BUILD_NUMBER"

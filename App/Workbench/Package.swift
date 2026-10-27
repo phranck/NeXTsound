@@ -15,7 +15,15 @@ let package = Package(
         .target(
             name: "NXSUSBHostShim",
             cSettings: [.unsafeFlags(["-I/opt/homebrew/include"])],
-            linkerSettings: [.unsafeFlags(["-L/opt/homebrew/lib", "-lusb-1.0"])]
+            // The static library goes into every executable that links the shim, so the app loads no libusb from outside its
+            // bundle. Its own dependencies are the frameworks below, as its pkg-config Libs.private lists them.
+            linkerSettings: [
+                .unsafeFlags(["/opt/homebrew/opt/libusb/lib/libusb-1.0.a"]),
+                .linkedLibrary("objc"),
+                .linkedFramework("IOKit"),
+                .linkedFramework("CoreFoundation"),
+                .linkedFramework("Security"),
+            ]
         ),
         .target(
             name: "NeXTsoundWorkbench",
