@@ -11,12 +11,18 @@ settings:
     # ProcessPicotoolRunner checks before it starts picotool.
     CODE_SIGN_IDENTITY: "-"
     CODE_SIGN_STYLE: Manual
+    # Hardened Runtime makes dyld ignore DYLD_* variables and turns on library validation.
+    ENABLE_HARDENED_RUNTIME: YES
     # Scripts/app-version.sh derives both from the git history, and Scripts/app.sh exports them.
     MARKETING_VERSION: "${NXS_APP_VERSION}"
     CURRENT_PROJECT_VERSION: "${NXS_BUILD_NUMBER}"
     # NXSUSBHostShim links Homebrew's static libusb, which Homebrew only ships for arm64 on Apple Silicon.
     ARCHS: arm64
     VALID_ARCHS: arm64
+  configs:
+    # Xcode adds get-task-allow to every ad-hoc signature for debugging; the Release app must not carry it.
+    Release:
+      CODE_SIGN_INJECT_BASE_ENTITLEMENTS: NO
 packages:
   Workbench:
     path: Workbench
