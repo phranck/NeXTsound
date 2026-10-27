@@ -1,0 +1,108 @@
+{
+  "fill": {
+    "linear-gradient": [
+      "srgb:0.08627,0.13725,0.16863,1.00000",
+      "srgb:0.01961,0.03137,0.03922,1.00000"
+    ],
+    "orientation": {
+      "start": {
+        "x": 0.5,
+        "y": 0
+      },
+      "stop": {
+        "x": 0.5,
+        "y": 1
+      }
+    }
+  },
+  "groups": [
+    {
+      "blur-material": null,
+      "hidden": false,
+      "layers": [
+        {
+          "hidden": false,
+          "image-name": "4-sheet.png",
+          "name": "4-sheet"
+        }
+      ],
+      "shadow": {
+        "kind": "none",
+        "opacity": 0
+      },
+      "translucency": {
+        "enabled": false,
+        "value": 0.5
+      },
+      "specular": false
+    },
+    {
+      "blur-material": null,
+      "hidden": false,
+      "layers": [
+        {
+          "hidden": false,
+          "image-name": "3-stripes.svg",
+          "name": "3-stripes"
+        }
+      ],
+      "shadow": {
+        "kind": "neutral",
+        "opacity": 0.5
+      },
+      "translucency": {
+        "enabled": false,
+        "value": 0.5
+      }
+    },
+    {
+      "blur-material": null,
+      "hidden": false,
+      "layers": [
+        {
+          "hidden": false,
+          "image-name": "2-curve.svg",
+          "name": "2-curve"
+        },
+        {
+          "hidden": false,
+          "image-name": "1-area.svg",
+          "name": "1-area"
+        }
+      ],
+      "shadow": {
+        "kind": "neutral",
+        "opacity": 0.5
+      },
+      "translucency": {
+        "enabled": false,
+        "value": 0.5
+      }
+    },
+    {
+      "blur-material": null,
+      "hidden": false,
+      "layers": [
+        {
+          "hidden": false,
+          "image-name": "0-ghosts.svg",
+          "name": "0-ghosts"
+        }
+      ],
+      "shadow": {
+        "kind": "none",
+        "opacity": 0
+      },
+      "translucency": {
+        "enabled": false,
+        "value": 0.5
+      },
+      "specular": false
+    }
+  ],
+  "supported-platforms": {
+    "squares": [
+      "macOS"
+    ]
+  }
+}

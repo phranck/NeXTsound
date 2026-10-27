@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""Write the app icon's Icon Composer file from its vector layers and the driver that app-icon-driver.py renders."""
+"""Write an icon's Icon Composer file from the shared vector layers and the subject that app-icon-render.py renders: the
+driver for the app icon, the sheet for the sound profile file's icon."""
 
 import json
 import os
@@ -27,7 +28,7 @@ GHOST = "#1B3438"
 DIMMED = "#2A5961"
 GLASS_TOP, GLASS_BOTTOM = "#16232B", "#05080A"
 
-# The curve's control points in grid columns and rows: a bass lift on the left, a dip that passes behind the driver's
+# The curve's control points in grid columns and rows: a bass lift on the left, a dip that passes behind the subject's
 # top, a presence peak on the right, and a dip toward the right edge.
 WAVE_POINTS = [
     (0, 7.0), (2, 3.6), (3.5, 2.0), (5.5, 2.4), (8, 4.6), (11, 6.0), (14, 4.6), (16.5, 2.4), (18, 2.2), (19.5, 4.6),
@@ -109,8 +110,10 @@ def group(layers, glass):
 
 
 if len(sys.argv) != 3 or not sys.argv[2].endswith(".icon"):
-    raise SystemExit("Usage: app-icon-layers.py DRIVER.png OUTPUT.icon")
-driver, icon = sys.argv[1], sys.argv[2]
+    raise SystemExit("Usage: app-icon-layers.py SUBJECT.png OUTPUT.icon")
+subject, icon = sys.argv[1], sys.argv[2]
+# The subject's layer takes the rendered file's name, so the app icon's is 4-driver.png and the profile icon's 4-sheet.png.
+subject_layer = "4-" + os.path.basename(subject)
 shutil.rmtree(icon, ignore_errors=True)
 os.makedirs(os.path.join(icon, "Assets"))
 lit, area = curve_and_area()
@@ -124,15 +127,15 @@ vectors = {
 for name, body in vectors.items():
     with open(os.path.join(icon, "Assets", name), "w") as file:
         file.write(svg(body))
-shutil.copyfile(driver, os.path.join(icon, "Assets", "4-driver.png"))
-# The driver brings its own light and shadow from Blender, so the system adds neither to it.
+shutil.copyfile(subject, os.path.join(icon, "Assets", subject_layer))
+# The subject brings its own light and shadow from Blender, so the system adds neither to it.
 document = {
     "fill": {
         "linear-gradient": [srgb(GLASS_TOP), srgb(GLASS_BOTTOM)],
         "orientation": {"start": {"x": 0.5, "y": 0}, "stop": {"x": 0.5, "y": 1}},
     },
     "groups": [
-        group(["4-driver.png"], glass=False),
+        group([subject_layer], glass=False),
         group(["3-stripes.svg"], glass=True),
         group(["2-curve.svg", "1-area.svg"], glass=True),
         group(["0-ghosts.svg"], glass=False),

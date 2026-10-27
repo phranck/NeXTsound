@@ -53,13 +53,15 @@ Views lay out and draw. What a readout shows, whether a key is enabled and what 
 
 From the back to the front, it shows the display's dot grid on dark glass, the blue phosphor EQ curve with a dim area under it, the four LAYERED stripes along the bottom, and a speaker driver rendered in Blender, which reaches into the red stripe and casts its shadow on the stripes. The grid starts two rows below the top edge, because the glass rim that macOS draws around every icon smears whatever lies there. The driver brings its own light and shadow, so the system adds neither to it.
 
-To change the icon, edit its scripts and run:
+A sound profile file has an icon of its own, `App/Icons/ProfileIcon.icon`. It shares every layer with the app icon except the driver, whose place a sheet of paper with a folded corner takes, rendered with the same camera, lights and shadow. Printed on the sheet in Helvetica, NeXTSTEP's typeface, is Steve Jobs' quote that begins "Creativity is just connecting things", justified and signed "-- Steve Jobs". A footer that reads only at the largest sizes says "-- printed on a NeXT Laser Printer, 400 dpi --". The file lies outside `App/Application`, so Xcode does not take it for the app icon. `Scripts/app.sh` runs `Scripts/profile-icon.sh`, which renders it with Icon Composer's `ictool` at every size an `.icns` holds and writes `App/Generated/ProfileIcon.icns`. The app bundles that file, and the profile type names it in `UTTypeIconFile`. The `ictool` that `xcrun` finds is a different tool without `--export-image`, so the script takes the one inside Icon Composer.
+
+To change the icons, edit their scripts and run:
 
 ```bash
 bash Scripts/app-icon.sh
 ```
 
-`Scripts/app-icon-driver.py` renders the driver in Blender's Cycles, and `Scripts/app-icon-layers.py` writes the vector layers and `icon.json`. The script needs Blender. Icon Composer opens the result, and its `ictool` renders a preview:
+`Scripts/app-icon-render.py` renders a subject in Blender's Cycles, the driver or the sheet, and `Scripts/app-icon-layers.py` writes the vector layers and `icon.json` around it. The script needs Blender. Its first argument sets the samples, 256 by default, and further arguments name the subjects to render, `driver` and `sheet` by default. Icon Composer opens the result, and its `ictool` renders a preview:
 
 ```bash
 "/Applications/Icon Composer.app/Contents/Executables/ictool" App/Application/AppIcon.icon --export-image \

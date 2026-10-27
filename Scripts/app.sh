@@ -5,6 +5,7 @@ select_xcode
 bash "$root/Scripts/bootstrap-tools.sh"
 bash "$root/Scripts/bootstrap-picotool-usb.sh"
 bash "$root/Scripts/firmware.sh"
+bash "$root/Scripts/profile-icon.sh"
 
 NXS_XCODEGEN_VERSION=$(jq -r '.tools.xcodegen.version' "$manifest")
 NXS_MACOS_MINIMUM=$(xcrun swift package --package-path "$root/App/Workbench" dump-package | \
