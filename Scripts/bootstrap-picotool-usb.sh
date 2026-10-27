@@ -45,8 +45,9 @@ if ! nm "$binary" | grep ' T _libusb_init$' >/dev/null; then
     exit 1
 fi
 bash "$root/Scripts/check-system-libraries.sh" "$binary"
-# Signed as code of its own, so the app's seal covers a valid executable rather than an unsigned one.
-codesign --force --sign - "$binary"
+# Signed as code of its own, so the app's seal covers a valid executable rather than an unsigned one,
+# and with Hardened Runtime, so dyld ignores DYLD_* variables when the app starts it.
+codesign --force --sign - --options runtime "$binary"
 
 destination="$root/App/Workbench/Sources/NeXTsoundWorkbench/Resources/picotool"
 cp "$binary" "$destination"
