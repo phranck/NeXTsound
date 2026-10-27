@@ -23,7 +23,7 @@ struct ProcessPicotoolRunner: PicotoolRunning {
 
 extension ProcessPicotoolRunner {
     func run(arguments: [String]) async throws -> (exitCode: Int32, output: String) {
-        try BundleSeal.verify(appBundleURL)
+        try await BundleSeal.verify(appBundleURL)
         let process = Process()
         process.executableURL = executableURL
         process.arguments = arguments
