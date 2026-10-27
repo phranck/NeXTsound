@@ -18,7 +18,7 @@ NeXTsound tunes the NeXT SoundBox mini, a small desktop speaker that plays from 
 ## What it does
 
 - **Sound profiles.** A profile holds five EQ bands, a high-pass, the master volume and a sample-peak limiter. The app keeps a library of profiles, and every edit plays on the connected SoundBox at once.
-- **The board's own memory.** The SAVE TO SOUNDBOX button stores the current profile on the board, so it plays that way on any computer, without the app.
+- **The board's own memory.** The SAVE button stores the current profile on the board, so it plays that way on any computer, without the app.
 - **Live spectrum.** The display shows the spectrum of what the SoundBox plays, computed from the audio the Mac sends to it and the profile's processing.
 - **Profile files.** Profiles export as `.nxsbprofile` files, and a double-click in the Finder imports one and plays it.
 - **Firmware updates.** The app brings the firmware that matches it and flashes it onto the board.
