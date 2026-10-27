@@ -7,6 +7,7 @@ SUBJECT is driver or sheet.
 """
 
 import math
+import os
 import sys
 
 import bpy
@@ -21,30 +22,44 @@ ORTHO_SCALE = 2.0 * CANVAS / DRIVER_DIAMETER
 # The panel behind the subject, which catches its shadow and shows nothing else.
 SHADOW_PLANE_DEPTH = -0.36
 
-# The sheet in model units, in the proportions of A4, so its lower edge reaches into the red stripe as the driver's
-# does. The folded corner's legs run along its top and right edges, and the fold lifts its tip off the paper.
-SHEET_WIDTH = 1.46
-SHEET_HEIGHT = 2.06
+# The sheet in model units, in the proportions of A4, and the height of its center on the canvas in pixels, so its lower
+# edge ends in the red stripe as the driver's does. The folded corner's legs run along its top and right edges, and
+# the fold lifts its tip off the paper.
+SHEET_WIDTH = 1.62
+SHEET_HEIGHT = 2.29
+SHEET_CENTER_Y = 460
 SHEET_THICKNESS = 0.012
-FOLD = 0.34
+FOLD = 0.37
 FOLD_LIFT = 0.03
-# The print on the sheet in Helvetica, NeXTSTEP's typeface: a quote justified between the margins, and the footer under
-# it, small enough to read only at the icon's largest sizes.
+# The print on the sheet in Inter Tight: a quote justified between the margins, which flows around the folded corner,
+# and a printer's line centered near the bottom edge.
 QUOTE = (
-    "“Creativity is just connecting things. When you ask creative people how they did something, they feel a "
-    "little guilty because they didn't really do it, they just saw something. It seemed obvious to them after a "
-    "while. That's because they were able to connect experiences they've had and synthesize new things. And the "
-    "reason they were able to do that was that they've had more experiences or they have thought more about their "
-    "experiences than other people.”"
+    "“Sometimes life hits you in the head with a brick. Don’t lose faith. I’m convinced that the only thing that "
+    "kept me going was that I loved what I did. You’ve got to find what you love. And that is as true for your work "
+    "as it is for your lovers. Your work is going to fill a large part of your life, and the only way to be truly "
+    "satisfied is to do what you believe is great work. And the only way to do great work is to love what you do. "
+    "If you haven't found it yet, keep looking. Don't settle. As with all matters of the heart, you'll know when you "
+    "find it. And, like any great relationship, it just gets better and better as the years roll on. So keep "
+    "looking. Don’t settle.”"
 )
-ATTRIBUTION = "-- Steve Jobs"
+# The quote is set in SemiBold Italic, the attribution in Bold behind an em dash, and the printer's line in SemiBold.
+ATTRIBUTION = chr(0x2014) + " Steve Jobs"
 FOOTER = "-- printed on a NeXT Laser Printer, 400 dpi --"
-PRINT_FONT = "/System/Library/Fonts/Helvetica.ttc"
-PRINT_SIZE = 0.078
-FOOTER_SIZE = 0.040
+# The directory that NXS_ICON_FONTS names holds the faces that app-icon-fonts.py writes, one file per face. They fill
+# the upright, italic and bold slots of Blender's text.
+FONT_DIRECTORY = os.environ.get("NXS_ICON_FONTS", "")
+UPRIGHT, ITALIC, BOLD = "InterTight-SemiBold.ttf", "InterTight-SemiBoldItalic.ttf", "InterTight-Bold.ttf"
+# The quote takes the largest size in this range that fits the sheet, which the script finds in this many halvings.
+PRINT_SIZES = (0.05, 0.16)
+PRINT_SIZE_STEPS = 14
+FOOTER_SIZE = 0.065
 PRINT_MARGIN = 0.13
-PRINT_TOP = 0.40
-FOOTER_TOP = 0.30
+# The space the print keeps from the folded corner, wide enough beside it to show that the lines end there, and
+# small below it, and from the footer above which it ends.
+FOLD_CLEARANCE = 0.11
+FOLD_CLEARANCE_BELOW = 0.03
+FOOTER_CLEARANCE = 0.08
+FOOTER_TOP = 0.17
 LINE_SPACING = 1.25
 
 arguments = sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else []
@@ -124,22 +139,39 @@ def panel(name, corners, thickness, surface):
     return item
 
 
-def printed(name, body, size, left, top, ink, width=0.0):
-    """Text set from its top left corner on the sheet's front. With a `width`, a text box of that width breaks it at
-    whole words and justifies every line but the last."""
+def printed(name, body, ink, boxes=1):
+    """A text object in Inter Tight on the sheet's front, whose lines fill `boxes` text boxes in turn. With more than one,
+    it breaks at whole words and justifies every line but the last."""
     curve = bpy.data.curves.new(name, type="FONT")
     curve.body = body
-    curve.font = bpy.data.fonts.load(PRINT_FONT, check_existing=True)
-    curve.size = size
+    curve.font, curve.font_italic, curve.font_bold = (
+        bpy.data.fonts.load(os.path.join(FONT_DIRECTORY, face), check_existing=True) for face in (UPRIGHT, ITALIC, BOLD)
+    )
     curve.space_line = LINE_SPACING
-    curve.align_x = "JUSTIFY" if width else "LEFT"
+    curve.align_x = "JUSTIFY" if boxes > 1 else "LEFT"
     curve.align_y = "TOP"
-    if width:
-        curve.text_boxes[0].width = width
     item = bpy.data.objects.new(name, curve)
-    item.location = (left, top, 0.001)
     bpy.context.scene.collection.objects.link(item)
     curve.materials.append(ink)
+    # A text curve starts with one box, and Blender's operator adds each further one to the active object.
+    bpy.context.view_layer.objects.active = item
+    for _ in range(boxes - 1):
+        bpy.ops.font.textbox_add()
+    return item
+
+
+def set_text(item, size, boxes=()):
+    """Sets the text at `size` into `boxes`, given as x, y, width and height from the object's origin, and returns the
+    top and the bottom of the set text in the object's own coordinates. Blender sets the first line above the origin,
+    so a caller places the text by the measured top."""
+    item.data.size = size
+    for box, (x, y, width, height) in zip(item.data.text_boxes, boxes):
+        box.x, box.y, box.width, box.height = x, y, width, height
+    bpy.context.view_layer.update()
+    evaluated = item.evaluated_get(bpy.context.evaluated_depsgraph_get())
+    heights = [vertex.co.y for vertex in evaluated.to_mesh().vertices]
+    evaluated.to_mesh_clear()
+    return max(heights), min(heights)
 
 
 def area_light(name, location, size, energy):
@@ -197,19 +229,53 @@ def driver():
 
 def sheet():
     """A printed sheet of paper with its top right corner folded over onto its front."""
-    right, top = SHEET_WIDTH / 2, SHEET_HEIGHT / 2
+    center = (DRIVER_CENTER_Y - SHEET_CENTER_Y) * ORTHO_SCALE / CANVAS
+    right, top, bottom = SHEET_WIDTH / 2, center + SHEET_HEIGHT / 2, center - SHEET_HEIGHT / 2
     front = material("paper", "#EDEBE4", 0.0, 0.82)
     add_bump(front, "ShaderNodeTexNoise", 0.02, 140.0)
     back = material("paper back", "#D9D5CB", 0.0, 0.85)
-    outline = [(-right, -top, 0), (right, -top, 0), (right, top - FOLD, 0), (right - FOLD, top, 0), (-right, top, 0)]
+    outline = [(-right, bottom, 0), (right, bottom, 0), (right, top - FOLD, 0), (right - FOLD, top, 0), (-right, top, 0)]
     panel("sheet", outline, SHEET_THICKNESS, front)
     # The corner folded across the line between the ends of its legs, so its tip lies on the sheet's front.
     flap = [(right, top - FOLD, 0.002), (right - FOLD, top, 0.002), (right - FOLD, top - FOLD, FOLD_LIFT)]
     panel("fold", flap, SHEET_THICKNESS / 2, back)
-    ink = material("ink", "#141619", 0.0, 0.7)
+    # Black ink without a specular reflection, which would otherwise lighten it under the key light.
+    ink = material("ink", "#000000", 0.0, 1.0)
+    ink.node_tree.nodes.get("Principled BSDF").inputs["Specular IOR Level"].default_value = 0
+    # The print starts a margin below the top edge. Its lines beside the folded corner end a clear gap short of it, and
+    # the lines below run across the full measure down to the footer. The narrow box holds whole lines, Blender's line
+    # pitch being the size times the spacing, so the lines below keep the same pitch.
     width = SHEET_WIDTH - 2 * PRINT_MARGIN
-    printed("print", QUOTE + "\n" + ATTRIBUTION, PRINT_SIZE, -right + PRINT_MARGIN, top - PRINT_TOP, ink, width)
-    printed("footer", FOOTER, FOOTER_SIZE, -right + PRINT_MARGIN, -top + FOOTER_TOP, ink)
+    beside_width = width - (FOLD + FOLD_CLEARANCE - PRINT_MARGIN)
+    corner_depth = FOLD + FOLD_CLEARANCE_BELOW - PRINT_MARGIN
+    height = SHEET_HEIGHT - PRINT_MARGIN - FOOTER_TOP - FOOTER_CLEARANCE
+    quote = printed("print", QUOTE + "\n" + ATTRIBUTION, ink, boxes=2)
+    for index, character in enumerate(quote.data.body_format):
+        character.use_italic = index < len(QUOTE)
+        character.use_bold = index > len(QUOTE)
+
+    def set_quote(size):
+        pitch = size * LINE_SPACING
+        beside = math.ceil(corner_depth / pitch) * pitch
+        return set_text(quote, size, [(0, 0, beside_width, beside), (0, -beside, width, height - beside)])
+
+    # The largest size whose set quote fits the height above the footer, found by halving the range of sizes.
+    smallest, largest = PRINT_SIZES
+    for _ in range(PRINT_SIZE_STEPS):
+        size = (smallest + largest) / 2
+        text_top, text_bottom = set_quote(size)
+        if text_top - text_bottom <= height:
+            smallest = size
+        else:
+            largest = size
+    text_top, _ = set_quote(smallest)
+    quote.location = (-right + PRINT_MARGIN, top - PRINT_MARGIN - text_top, 0.001)
+    print(f"Quote set at size {smallest:.4f}")
+
+    footer = printed("footer", FOOTER, ink)
+    footer.data.align_x = "CENTER"
+    footer_top, _ = set_text(footer, FOOTER_SIZE)
+    footer.location = (0, bottom + FOOTER_TOP - footer_top, 0.001)
 
 
 bpy.ops.wm.read_factory_settings(use_empty=True)

@@ -18,6 +18,10 @@ if [ ${#subjects[@]} -eq 0 ]; then
 fi
 work=$(mktemp -d /tmp/nxs-app-icon.XXXXXX)
 trap 'rm -rf "$work"' EXIT
+# The sheet's print takes Inter Tight's faces from files of their own, which app-icon-fonts.py fetches and writes
+# with fontTools.
+python3 "$root/Scripts/app-icon-fonts.py" "$work/fonts" > /dev/null
+export NXS_ICON_FONTS="$work/fonts"
 for subject in "${subjects[@]}"; do
     case "$subject" in
         driver) icon="$root/App/Application/AppIcon.icon" ;;
