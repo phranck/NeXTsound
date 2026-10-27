@@ -21,7 +21,7 @@ ctest --test-dir "$root/.build/c-protocol" --output-on-failure
 swift test --package-path "$root/Shared"
 swift build --package-path "$root/Shared" --configuration release
 bash "$root/Scripts/bootstrap-picotool-usb.sh"
-xcrun swift test --package-path "$root/App/Workbench"
+xcrun swift test --package-path "$root/App/Workbench" --event-stream-output-path /dev/stderr --event-stream-version 0
 xcrun swift build --package-path "$root/App/Workbench" --configuration release
 bash "$root/Scripts/app.sh"
 git -C "$root" diff --check
