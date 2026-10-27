@@ -3,15 +3,17 @@ import SwiftUI
 import Testing
 @testable import NeXTsoundWorkbench
 
-@MainActor
-struct ControlCaptionTests {
-    /// A caption beside an LED or under a single key is as wide as its widest word, which SwiftUI must never find too
-    /// narrow for that word, or it would break the word itself.
-    @Test func aCaptionAsNarrowAsItsWidestWordBreaksOnlyBetweenWords() throws {
-        _ = FrontPanelFonts.registration
-        #expect(try lineCount(of: "Driver models") == 2)
-        #expect(try lineCount(of: "Connected") == 1)
-        #expect(try lineCount(of: "Treibermodelle") == 1)
+extension RenderingTests {
+    @MainActor
+    struct ControlCaptionTests {
+        /// A caption beside an LED or under a single key is as wide as its widest word, which SwiftUI must never find too
+        /// narrow for that word, or it would break the word itself.
+        @Test func aCaptionAsNarrowAsItsWidestWordBreaksOnlyBetweenWords() throws {
+            _ = FrontPanelFonts.registration
+            #expect(try lineCount(of: "Driver models") == 2)
+            #expect(try lineCount(of: "Connected") == 1)
+            #expect(try lineCount(of: "Treibermodelle") == 1)
+        }
     }
 }
 

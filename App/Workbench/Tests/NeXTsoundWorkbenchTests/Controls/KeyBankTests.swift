@@ -14,23 +14,25 @@ struct KeyBankNavigationTests {
     }
 }
 
-@MainActor
-struct MomentaryKeyBankTests {
-    /// Two six-letter captions under neighboring keys keep their glyphs at least three points apart, because a key is
-    /// wider than a six-letter word. A caption's glyphs are the pixels it changes against a render of the bank
-    /// without captions, so the keys and their frame drop out.
-    @Test func neighboringCaptionsStandClearOfEachOther() throws {
-        let bare = try RenderedPixels(Self.bank(captions: ["", ""]))
-        let left = try RenderedPixels(Self.bank(captions: ["DELETE", ""])).changes(against: bare)
-        let right = try RenderedPixels(Self.bank(captions: ["", "IMPORT"])).changes(against: bare)
-        try #require(!left.isEmpty)
-        try #require(!right.isEmpty)
-        let distance = Self.closestDistance(between: left, and: right)
-        #expect(distance >= Self.minimumDistance, "The captions' glyphs are \(distance) device pixels apart.")
+extension RenderingTests {
+    @MainActor
+    struct MomentaryKeyBankTests {
+        /// Two six-letter captions under neighboring keys keep their glyphs at least three points apart, because a key is
+        /// wider than a six-letter word. A caption's glyphs are the pixels it changes against a render of the bank
+        /// without captions, so the keys and their frame drop out.
+        @Test func neighboringCaptionsStandClearOfEachOther() throws {
+            let bare = try RenderedPixels(Self.bank(captions: ["", ""]))
+            let left = try RenderedPixels(Self.bank(captions: ["DELETE", ""])).changes(against: bare)
+            let right = try RenderedPixels(Self.bank(captions: ["", "IMPORT"])).changes(against: bare)
+            try #require(!left.isEmpty)
+            try #require(!right.isEmpty)
+            let distance = Self.closestDistance(between: left, and: right)
+            #expect(distance >= Self.minimumDistance, "The captions' glyphs are \(distance) device pixels apart.")
+        }
     }
 }
 
-private extension MomentaryKeyBankTests {
+private extension RenderingTests.MomentaryKeyBankTests {
     /// Three points in device pixels at scale 2. Under keys as wide as the kit's, the two words keep one point apart.
     static let minimumDistance = 6.0
 
@@ -54,26 +56,28 @@ private extension MomentaryKeyBankTests {
     }
 }
 
-@MainActor
-struct KeyColorTests {
-    /// A radio key keeps the kit's gray, and a momentary or push-on/push-off key takes the stripes' yellow, so only
-    /// the push keys' renders hold yellow pixels.
-    @Test func radioKeysStayGrayAndPushKeysTakeTheStripesYellow() throws {
-        let radio = try RenderedPixels(KeyBank(
-            "Radio",
-            selection: .constant(0),
-            keys: [KeyBankKey(value: 0, caption: Text(verbatim: "Key"), name: Text(verbatim: "Key"))]
-        ))
-        let momentary =
-            try RenderedPixels(MomentaryKeyBank(keys: [MomentaryKey(id: "key", caption: "Key", name: Text(verbatim: "Key")) {}]))
-        let latching = try RenderedPixels(LatchingKey(caption: "Key", isOn: .constant(false)))
-        #expect(radio.yellowPixelCount == 0)
-        #expect(momentary.yellowPixelCount > Self.minimumYellowPixels)
-        #expect(latching.yellowPixelCount > Self.minimumYellowPixels)
+extension RenderingTests {
+    @MainActor
+    struct KeyColorTests {
+        /// A radio key keeps the kit's gray, and a momentary or push-on/push-off key takes the stripes' yellow, so only
+        /// the push keys' renders hold yellow pixels.
+        @Test func radioKeysStayGrayAndPushKeysTakeTheStripesYellow() throws {
+            let radio = try RenderedPixels(KeyBank(
+                "Radio",
+                selection: .constant(0),
+                keys: [KeyBankKey(value: 0, caption: Text(verbatim: "Key"), name: Text(verbatim: "Key"))]
+            ))
+            let momentary =
+                try RenderedPixels(MomentaryKeyBank(keys: [MomentaryKey(id: "key", caption: "Key", name: Text(verbatim: "Key")) {}]))
+            let latching = try RenderedPixels(LatchingKey(caption: "Key", isOn: .constant(false)))
+            #expect(radio.yellowPixelCount == 0)
+            #expect(momentary.yellowPixelCount > Self.minimumYellowPixels)
+            #expect(latching.yellowPixelCount > Self.minimumYellowPixels)
+        }
     }
 }
 
-private extension KeyColorTests {
+private extension RenderingTests.KeyColorTests {
     /// About a quarter of a key's face at scale 2, which a yellow key passes many times over.
     static let minimumYellowPixels = 2000
 }
