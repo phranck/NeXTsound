@@ -14,6 +14,7 @@ struct DriverLibraryStoreTests {
         defer { try? FileManager.default.removeItem(at: url) }
         let writer = DriverLibraryStore(fileURL: url)
         let library = DriverLibrary()
+        _ = try await writer.load()
         try await writer.save(library)
 
         let reader = DriverLibraryStore(fileURL: url)
@@ -44,6 +45,7 @@ struct DriverLibraryStoreTests {
         let url = temporaryURL()
         defer { try? FileManager.default.removeItem(at: url) }
         let store = DriverLibraryStore(fileURL: url)
+        _ = try await store.load()
         try await store.save(DriverLibrary())
         var updated = DriverLibrary()
         try updated.insert(DriverRecord(name: "Second driver"))
@@ -51,6 +53,32 @@ struct DriverLibraryStoreTests {
 
         let reader = DriverLibraryStore(fileURL: url)
         #expect(try await reader.load() == updated)
+    }
+
+    @Test func aFailedLoadRefusesTheNextSaveAndKeepsTheFile() async throws {
+        let url = temporaryURL()
+        defer { try? FileManager.default.removeItem(at: url) }
+        let unreadable = Data("not a driver library".utf8)
+        try unreadable.write(to: url)
+        let store = DriverLibraryStore(fileURL: url)
+        await #expect(throws: (any Error).self) {
+            try await store.load()
+        }
+
+        await #expect(throws: DriverLibraryError.invalidLibrary) {
+            try await store.save(DriverLibrary())
+        }
+        #expect(try Data(contentsOf: url) == unreadable)
+    }
+
+    @Test func aSaveBeforeAnyLoadIsRefused() async throws {
+        let url = temporaryURL()
+        defer { try? FileManager.default.removeItem(at: url) }
+        let store = DriverLibraryStore(fileURL: url)
+        await #expect(throws: DriverLibraryError.invalidLibrary) {
+            try await store.save(DriverLibrary())
+        }
+        #expect(!FileManager.default.fileExists(atPath: url.path))
     }
 }
 
