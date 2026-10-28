@@ -8,6 +8,10 @@ The [product baseline](https://github.com/phranck/NeXTsound/issues/1) records th
 
 Project ID: `PVT_kwHODzNVpM4BnjJG`. Status field: `PVTSSF_lAHODzNVpM4BnjJGzhmHPZg`. Status options are Backlog `1456fec7`, Ready `ec9d8b53`, In progress `1e9a5476`, In review `e5b6a05b`, and Done `9a4ba4ac`. Priority field: `PVTSSF_lAHODzNVpM4BnjJGzhmHPmk`. Priority options are P0 `7e4123f2`, P1 `9dbf8d89`, and P2 `a7fcd9ae`.
 
+## Issues
+
+When listing or referencing GitHub issues in replies, always link them, e.g. [#38](https://github.com/phranck/NeXTsound/issues/38).
+
 ## Documentation
 
 `Papers` contains the living German documentation and stays outside version control. Repository documentation and interface copy are English. Use the `PAP-NXS` paper prefix and maintain the local papers overview and the global projects overview together.
