@@ -7,6 +7,11 @@ source "$(dirname "${BASH_SOURCE[0]}")/common.sh"
 scratch=$(mktemp -d "${TMPDIR:-/tmp}/nxs-app-version-test.XXXXXX")
 trap 'command rm -rf "$scratch"' EXIT
 
+# The throwaway repositories and app-version.sh read no git configuration from the Mac they run on. A
+# global commit.gpgsign would otherwise sign every throwaway commit and fail the test wherever signing
+# is unavailable, such as with a locked SSH agent or on a CI host without the signing program.
+export GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_SYSTEM=/dev/null
+
 repository="$scratch/repository"
 
 start_repository() {
