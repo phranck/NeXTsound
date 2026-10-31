@@ -1,11 +1,10 @@
 <div align="center">
 
-[![release](https://img.shields.io/github/v/release/phranck/NeXTsound?style=flat&color=e53935&label=release)](https://github.com/phranck/NeXTsound/releases)
-[![checks](https://img.shields.io/github/actions/workflow/status/phranck/NeXTsound/checks.yml?branch=main&style=flat&color=fb8c00&label=checks)](https://github.com/phranck/NeXTsound/actions/workflows/checks.yml)
-[![last commit](https://img.shields.io/github/last-commit/phranck/NeXTsound?style=flat&color=f9a825&label=last%20commit)](https://github.com/phranck/NeXTsound/commits/main)
-[![code size](https://img.shields.io/github/languages/code-size/phranck/NeXTsound?style=flat&color=43a047&label=code%20size)](https://github.com/phranck/NeXTsound)
-[![issues](https://img.shields.io/github/issues/phranck/NeXTsound?style=flat&color=1e88e5&label=issues)](https://github.com/phranck/NeXTsound/issues)
-[![stars](https://img.shields.io/github/stars/phranck/NeXTsound?style=flat&color=8e24aa&label=stars)](https://github.com/phranck/NeXTsound)
+[![release](https://img.shields.io/gitea/v/release/phranck/NeXTsound?gitea_url=https%3A%2F%2Fgit.layered.work&style=flat&color=e53935&label=release)](https://git.layered.work/phranck/NeXTsound/releases)
+[![last commit](https://img.shields.io/gitea/last-commit/phranck/NeXTsound/main?gitea_url=https%3A%2F%2Fgit.layered.work&style=flat&color=fb8c00&label=last%20commit)](https://git.layered.work/phranck/NeXTsound/commits/branch/main)
+[![issues](https://img.shields.io/gitea/issues/open/phranck/NeXTsound?gitea_url=https%3A%2F%2Fgit.layered.work&style=flat&color=f9a825&label=issues)](https://git.layered.work/phranck/NeXTsound/issues)
+[![languages](https://img.shields.io/gitea/languages/count/phranck/NeXTsound?gitea_url=https%3A%2F%2Fgit.layered.work&style=flat&color=43a047&label=languages)](https://git.layered.work/phranck/NeXTsound)
+[![stars](https://img.shields.io/gitea/stars/phranck/NeXTsound?gitea_url=https%3A%2F%2Fgit.layered.work&style=flat&color=1e88e5&label=stars)](https://git.layered.work/phranck/NeXTsound)
 
 <img src="Documentation/Images/front-panel.png" alt="The NeXTsound front panel with the EQ curve on its display and a connected SoundBox" width="860">
 
