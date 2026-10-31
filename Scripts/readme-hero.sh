@@ -1,7 +1,7 @@
 #!/bin/bash
 # Renders the README's hero image from the connected front panel, so it shows the panel as the code draws it.
-# GitHub drops style attributes from README HTML, so the rounded corners are cut into the file: 48 pixels at
-# 1720 pixels wide, which is 24 points where the README shows it at width 860.
+# Neither Gitea nor GitHub keeps a border-radius in README HTML, so the rounded corners are cut into the file:
+# 48 pixels at 1720 pixels wide, which is 24 points where the README shows it at width 860.
 set -euo pipefail
 source "$(dirname "${BASH_SOURCE[0]}")/common.sh"
 

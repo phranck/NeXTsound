@@ -29,17 +29,21 @@ Nobody edits the app's version or build number. `Scripts/app-version.sh` derives
 
 `Scripts/test-app-version.sh`, part of the gate, checks each rule against throwaway repositories.
 
-A new version is a tag on `main` and a GitHub release:
+A new version is a tag on `main` and a release on git.layered.work, created as a draft with its archive:
 
 ```bash
 version=$(bash Scripts/app-version.sh | cut -d ' ' -f 1)
 git tag "app-v$version" && git push origin "app-v$version"
 bash Scripts/app.sh
 ditto -c -k --keepParent .build/macOS/Build/Products/Release/NeXTsound.app "NeXTsound-$version.zip"
-gh release create "app-v$version" --draft --title "NeXTsound $version" --notes-file <notes> "NeXTsound-$version.zip"
+~/.agents/tools/gitea/release.py create NeXTsound "app-v$version" --title "NeXTsound $version" --notes-file <notes> --asset "NeXTsound-$version.zip"
 ```
 
-The release stays a draft until its asset has been downloaded, unpacked, and reports the tag's version, and only then is it published.
+`release.py` checks the uploaded archive against the local one by size. The release stays a draft until its asset has been downloaded, unpacked, and reports the tag's version, and only then is it published:
+
+```bash
+~/.agents/tools/gitea/release.py publish NeXTsound "app-v$version"
+```
 
 ## Source layout
 
