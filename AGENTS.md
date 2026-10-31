@@ -4,13 +4,11 @@ Preserve the exact spelling `NeXTsound` in the product name, repository name, an
 
 ## Planning
 
-The [product baseline](https://github.com/phranck/NeXTsound/issues/1) records the product and architecture decisions. Work is tracked in repository issues and the [NeXTsound project board](https://github.com/users/phranck/projects/16). Read an issue and its comments before starting its work.
-
-Project ID: `PVT_kwHODzNVpM4BnjJG`. Status field: `PVTSSF_lAHODzNVpM4BnjJGzhmHPZg`. Status options are Backlog `1456fec7`, Ready `ec9d8b53`, In progress `1e9a5476`, In review `e5b6a05b`, and Done `9a4ba4ac`. Priority field: `PVTSSF_lAHODzNVpM4BnjJGzhmHPmk`. Priority options are P0 `7e4123f2`, P1 `9dbf8d89`, and P2 `a7fcd9ae`.
+The [product baseline](https://git.layered.work/phranck/NeXTsound/issues/1) records the product and architecture decisions. Work is tracked in the repository's issues on git.layered.work and on its [project board](https://git.layered.work/phranck/NeXTsound/projects/13), which `~/.agents/tools/gitea/board.py` keeps current. An issue's column is its status, and its exclusive label `priority/P0`, `priority/P1` or `priority/P2` is its priority. Read an issue and its comments before starting its work.
 
 ## Issues
 
-When listing or referencing GitHub issues in replies, always link them, e.g. [#38](https://github.com/phranck/NeXTsound/issues/38).
+When listing or referencing issues in replies, always link them, e.g. [#38](https://git.layered.work/phranck/NeXTsound/issues/38).
 
 ## Documentation
 
