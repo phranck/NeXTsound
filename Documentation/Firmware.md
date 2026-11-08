@@ -14,7 +14,7 @@ The script bootstraps the pinned project-local tools, builds all three firmware 
 
 ## Status LED
 
-The onboard WS2812 on GP16 lights dim red immediately after its PIO initialization. It changes to dim green only after storage, audio, and USB initialization have completed and a 1 ms latch interval has elapsed. The main loop retries the green write while time or the PIO FIFO is not ready. Both colors limit their active RGB channel to 4 of 255.
+The onboard WS2812 on GP16 lights dim red immediately after its PIO initialization. It changes to dim green after storage, audio, and USB initialization have completed and a 1 ms latch interval has elapsed. Both colors limit their active RGB channel to 4 of 255.
 
 ## Version
 

@@ -65,12 +65,9 @@ int main(void) {
     if (!tusb_init(0, &usb)) {
         panic(usb_error);
     }
-    /** @brief Whether the green ready frame has been written. */
-    bool status_ready = false;
+    busy_wait_us(NXS_STATUS_READY_DELAY_US);
+    (void)nxs_status_led_ready();
     for (;;) {
-        if (!status_ready) {
-            status_ready = nxs_status_led_ready();
-        }
         nxs_usb_task();
         tud_task();
         /** @brief Reset action requested through USB and awaiting audio quiescence. */

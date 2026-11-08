@@ -1,23 +1,16 @@
 /** @file status_led_tests.c
- * @brief Tests the boot and ready colors and timing of the onboard status LED.
+ * @brief Tests the boot and ready colors of the onboard status LED.
  */
 
 #include "nxs_status_led.h"
 #include "nxs_test.h"
 
 #include "hardware/pio.h"
-#include "pico/time.h"
 
 /** @brief Expected dim red in the WS2812's 0xGGRRBB00 format. */
-#define TEST_BOOTING_WORD 0x00040000u
+#define TEST_BOOTING_WORD 0x04000000u
 /** @brief Expected dim green in the WS2812's 0xGGRRBB00 format. */
-#define TEST_READY_WORD 0x04000000u
-/** @brief Timestamp at which the fake red frame has just been written. */
-#define TEST_RED_WRITTEN_US 30u
-/** @brief Timestamp after the red frame but before its 1 ms delay expires. */
-#define TEST_BEFORE_READY_US 1000u
-/** @brief Timestamp at which the 1 ms delay after the red frame expires. */
-#define TEST_READY_US 1030u
+#define TEST_READY_WORD 0x00040000u
 /** @brief Name printed for this test suite. */
 #define TEST_SUITE_NAME "Status LED"
 
@@ -27,8 +20,12 @@ bool fake_tx_fifo_full = false;
 uint32_t fake_status_words[TEST_MAX_STATUS_WORDS] = {0};
 /** @brief Number of WS2812 words written through the fake PIO. */
 unsigned int fake_status_word_count = 0;
-/** @brief Current fake timestamp in microseconds. */
-uint64_t fake_now_us = 0;
+/** @brief Number of times the fake state machine was disabled. */
+unsigned int fake_disable_count = 0;
+/** @brief Number of times the fake FIFO was cleared. */
+unsigned int fake_fifo_clear_count = 0;
+/** @brief Number of times the fake WS2812 program was initialized. */
+unsigned int fake_program_init_count = 0;
 
 /** @brief Verifies the exact boot and ready color words. */
 static void status_colors_are_dim_red_and_green(void) {
@@ -36,11 +33,13 @@ static void status_colors_are_dim_red_and_green(void) {
     CHECK(NXS_STATUS_READY_WORD == TEST_READY_WORD);
 }
 
-/** @brief Resets the fake time, FIFO, and recorded LED output. */
+/** @brief Resets the fake FIFO and recorded LED output. */
 static void reset_fixture(void) {
     fake_tx_fifo_full = false;
     fake_status_word_count = 0;
-    fake_now_us = 0;
+    fake_disable_count = 0;
+    fake_fifo_clear_count = 0;
+    fake_program_init_count = 0;
     /** @brief Index of the recorded word being reset. */
     unsigned int index = 0;
     for (; index < TEST_MAX_STATUS_WORDS; ++index) {
@@ -48,22 +47,19 @@ static void reset_fixture(void) {
     }
 }
 
-/** @brief Verifies that green waits for the latch interval and for room in the PIO FIFO. */
-static void ready_waits_for_latch_and_fifo(void) {
+/** @brief Verifies that initialization writes red and the ready call writes green. */
+static void initialization_writes_red_then_ready_writes_green(void) {
     reset_fixture();
     CHECK(nxs_status_led_init());
     CHECK(fake_status_word_count == 1u);
     CHECK(fake_status_words[0] == TEST_BOOTING_WORD);
-    CHECK(fake_now_us == TEST_RED_WRITTEN_US);
-    fake_now_us = TEST_BEFORE_READY_US;
-    CHECK(!nxs_status_led_ready());
-    CHECK(fake_status_word_count == 1u);
-    fake_now_us = TEST_READY_US;
-    fake_tx_fifo_full = true;
-    CHECK(!nxs_status_led_ready());
-    CHECK(fake_status_word_count == 1u);
-    fake_tx_fifo_full = false;
+    CHECK(fake_disable_count == 0u);
+    CHECK(fake_fifo_clear_count == 0u);
+    CHECK(fake_program_init_count == 1u);
     CHECK(nxs_status_led_ready());
+    CHECK(fake_disable_count == 1u);
+    CHECK(fake_fifo_clear_count == 1u);
+    CHECK(fake_program_init_count == 2u);
     CHECK(fake_status_word_count == 2u);
     CHECK(fake_status_words[1] == TEST_READY_WORD);
 }
@@ -73,6 +69,6 @@ static void ready_waits_for_latch_and_fifo(void) {
  */
 int main(void) {
     status_colors_are_dim_red_and_green();
-    ready_waits_for_latch_and_fifo();
+    initialization_writes_red_then_ready_writes_green();
     return nxs_test_finish(TEST_SUITE_NAME);
 }

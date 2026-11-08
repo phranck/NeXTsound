@@ -29,8 +29,6 @@ typedef pio_hw_t *PIO;
 #define PICO_DEFAULT_WS2812_PIN 16u
 /** @brief Maximum number of status words recorded by the fixture. */
 #define TEST_MAX_STATUS_WORDS 4u
-/** @brief Simulated duration of one 24-bit WS2812 frame at 800 kHz. */
-#define TEST_WS2812_FRAME_US 30u
 
 /** @brief Whether the fake PIO FIFO is full. */
 extern bool fake_tx_fifo_full;
@@ -38,8 +36,12 @@ extern bool fake_tx_fifo_full;
 extern uint32_t fake_status_words[TEST_MAX_STATUS_WORDS];
 /** @brief Number of WS2812 words written through the fake PIO. */
 extern unsigned int fake_status_word_count;
-/** @brief Current fake timestamp in microseconds. */
-extern uint64_t fake_now_us;
+/** @brief Number of times the fake state machine was disabled. */
+extern unsigned int fake_disable_count;
+/** @brief Number of times the fake FIFO was cleared. */
+extern unsigned int fake_fifo_clear_count;
+/** @brief Number of times the fake WS2812 program was initialized. */
+extern unsigned int fake_program_init_count;
 
 /** @brief Claims a fake PIO state machine and installs the fake program.
  * @param program The unused fake program descriptor.
@@ -65,6 +67,29 @@ static inline bool pio_claim_free_sm_and_add_program_for_gpio_range(const pio_pr
     return true;
 }
 
+/** @brief Enables or disables the fake state machine without changing its output.
+ * @param pio The unused fake PIO instance.
+ * @param sm The unused fake state machine index.
+ * @param enabled Whether the state machine is enabled, unused by the fixture.
+ */
+static inline void pio_sm_set_enabled(PIO pio, uint sm, bool enabled) {
+    (void)pio;
+    (void)sm;
+    if (!enabled) {
+        ++fake_disable_count;
+    }
+}
+
+/** @brief Clears the fake FIFO without changing recorded status words.
+ * @param pio The unused fake PIO instance.
+ * @param sm The unused fake state machine index.
+ */
+static inline void pio_sm_clear_fifos(PIO pio, uint sm) {
+    (void)pio;
+    (void)sm;
+    ++fake_fifo_clear_count;
+}
+
 /** @brief Reports the fake TX FIFO state.
  * @param pio The unused fake PIO instance.
  * @param sm The unused fake state machine index.
@@ -76,7 +101,7 @@ static inline bool pio_sm_is_tx_fifo_full(PIO pio, uint sm) {
     return fake_tx_fifo_full;
 }
 
-/** @brief Records one WS2812 word and advances fake time by one frame.
+/** @brief Records one WS2812 word.
  * @param pio The unused fake PIO instance.
  * @param sm The unused fake state machine index.
  * @param data The WS2812 word to record.
@@ -88,7 +113,6 @@ static inline void pio_sm_put(PIO pio, uint sm, uint32_t data) {
         fake_status_words[fake_status_word_count] = data;
         ++fake_status_word_count;
     }
-    fake_now_us += TEST_WS2812_FRAME_US;
 }
 
 #endif

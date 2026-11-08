@@ -26,6 +26,7 @@ static inline void ws2812_program_init(PIO pio, uint sm, uint offset, uint pin, 
     (void)pin;
     (void)freq;
     (void)rgbw;
+    ++fake_program_init_count;
 }
 
 #endif
