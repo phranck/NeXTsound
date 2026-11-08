@@ -1,13 +1,10 @@
 /** @file status_led.c
- * @brief Implements nonblocking WS2812 status updates on core 0.
+ * @brief Implements nonblocking WS2812 boot status updates on core 0.
  */
 
 #include "nxs_status_led.h"
 
-#include "nxs_rainbow.h"
-
 #include "hardware/pio.h"
-#include "pico/time.h"
 // The SDK-generated initializer implicitly converts the system clock and cycle count to float.
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wconversion"
@@ -18,8 +15,6 @@
 #define NXS_WS2812_BIT_FREQUENCY_HZ 800000.0f
 /** @brief Number of GPIO pins used by one WS2812. */
 #define NXS_WS2812_PIN_COUNT 1u
-/** @brief Number of microseconds in one millisecond. */
-#define NXS_MICROSECONDS_PER_MILLISECOND 1000u
 
 // Core 0 owns all state in this module after nxs_status_led_init succeeds.
 /** @brief PIO instance that drives the status LED. */
@@ -28,14 +23,19 @@ static PIO status_pio = NULL;
 static unsigned int status_state_machine = 0;
 /** @brief Instruction offset of the WS2812 program. */
 static unsigned int status_program_offset = 0;
-/** @brief Boot-relative start time of the animation. */
-static uint64_t status_started_ms = 0;
-/** @brief Last color written to the PIO FIFO. */
-static uint32_t status_previous_color = 0;
-/** @brief Whether status_previous_color holds a written color. */
-static bool status_has_previous_color = false;
 
-/** @brief Claims and initializes the onboard WS2812. */
+/** @brief Writes one status color to the PIO FIFO.
+ * @param word The WS2812 color word in 0xGGRRBB00 format.
+ * @return Always true after writing the word.
+ */
+static bool write_status_word(uint32_t word) {
+    pio_sm_put(status_pio, status_state_machine, word);
+    return true;
+}
+
+/** @brief Claims the onboard WS2812 and lights it dim red.
+ * @return True when the PIO initialized and the boot color was written.
+ */
 bool nxs_status_led_init(void) {
     /** @brief Whether a free PIO state machine accepted the WS2812 program. */
     const bool claimed = pio_claim_free_sm_and_add_program_for_gpio_range(
@@ -45,22 +45,16 @@ bool nxs_status_led_init(void) {
     }
     ws2812_program_init(status_pio, status_state_machine, status_program_offset, PICO_DEFAULT_WS2812_PIN, NXS_WS2812_BIT_FREQUENCY_HZ,
                         false);
-    status_started_ms = to_us_since_boot(get_absolute_time()) / NXS_MICROSECONDS_PER_MILLISECOND;
-    status_previous_color = 0;
-    status_has_previous_color = false;
-    return true;
+    return write_status_word(NXS_STATUS_BOOTING_WORD);
 }
 
-/** @brief Publishes the current rainbow color without waiting for the PIO FIFO. */
-void nxs_status_led_task(void) {
-    /** @brief Time since the animation started. */
-    const uint64_t elapsed_ms = (to_us_since_boot(get_absolute_time()) / NXS_MICROSECONDS_PER_MILLISECOND) - status_started_ms;
-    /** @brief Current dim rainbow color. */
-    const uint32_t color = nxs_rainbow_color(elapsed_ms);
-    if ((status_has_previous_color && color == status_previous_color) || pio_sm_is_tx_fifo_full(status_pio, status_state_machine)) {
-        return;
-    }
-    pio_sm_put(status_pio, status_state_machine, nxs_rainbow_ws2812_word(color));
-    status_previous_color = color;
-    status_has_previous_color = true;
+/** @brief Lights the onboard WS2812 dim green after firmware initialization.
+ * @return True when the ready color was written.
+ */
+bool nxs_status_led_ready(void) {
+    pio_sm_set_enabled(status_pio, status_state_machine, false);
+    pio_sm_clear_fifos(status_pio, status_state_machine);
+    ws2812_program_init(status_pio, status_state_machine, status_program_offset, PICO_DEFAULT_WS2812_PIN, NXS_WS2812_BIT_FREQUENCY_HZ,
+                        false);
+    return write_status_word(NXS_STATUS_READY_WORD);
 }

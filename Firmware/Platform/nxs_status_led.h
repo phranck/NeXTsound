@@ -7,13 +7,21 @@
 #define NXS_STATUS_LED_H
 
 #include <stdbool.h>
+#include <stdint.h>
 
-/** @brief Claims and initializes the onboard WS2812.
- * @return True when the PIO program and state machine were initialized.
+/** @brief WS2812 word for the dim red boot status. */
+#define NXS_STATUS_BOOTING_WORD 0x04000000u
+/** @brief WS2812 word for the dim green ready status. */
+#define NXS_STATUS_READY_WORD 0x00040000u
+
+/** @brief Claims the onboard WS2812 and lights it dim red.
+ * @return True when the PIO initialized and the boot color was written.
  */
 bool nxs_status_led_init(void);
 
-/** @brief Publishes the current rainbow color without waiting for the PIO FIFO. */
-void nxs_status_led_task(void);
+/** @brief Lights the onboard WS2812 dim green after firmware initialization.
+ * @return True when the ready color was written without waiting.
+ */
+bool nxs_status_led_ready(void);
 
 #endif
