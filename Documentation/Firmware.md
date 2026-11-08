@@ -12,6 +12,10 @@ The script bootstraps the pinned project-local tools, builds all three firmware 
 
 `toolchain.json` supplies the board and dependency revisions. The audio firmware reserves 4 KiB stacks for both cores in the SDK's scratch banks. GCC emits `.su` frame reports beside its objects. These reports are not a measurement of interrupt-inclusive stack high-water use.
 
+## Status LED
+
+The onboard WS2812 on GP16 shows USB-powered operation with a slow rainbow cycle while the firmware runs. The color calculation limits the LED to a restrained brightness. The main loop publishes new colors without waiting for the PIO FIFO and writes only when the dimmed color changes.
+
 ## Version
 
 The firmware's version number is the `project()` version in [`Firmware/CMakeLists.txt`](../Firmware/CMakeLists.txt), such as `0.1.0`. Capabilities report it, and the app shows it as `FW`. A build from a working copy with uncommitted changes to tracked files reports it with `-dirty` appended. The UF2 metadata adds the commit, so `picotool info` shows `0.1.0 (<commit>)` and names the exact source. The reported text holds at most 16 characters, and a longer version fails the build.
