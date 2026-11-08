@@ -194,17 +194,25 @@ struct FrontPanelDisplayLayoutTests {
     }
 
     /// The update announcement wraps onto two VFD lines and keeps its version and destination intact.
-    @Test func theFirmwareUpdateMessageFitsTheVfdCard() {
-        let card = FrontPanelDisplayLayout.messageCard(
+    @Test func theFirmwareUpdateMessageFitsTheVfdCard() throws {
+        let layout = FrontPanelDisplayLayout.self
+        let card = layout.messageCard(
             FrontPanelMessage(text: "Firmware 99.0.0 is available. Open FLASH to update.", isDismissible: true),
             displayColumns: Self.frontPanelDisplayColumns
         )
-        #expect(card.lines.count == 3)
-        #expect(card.lines.last == FrontPanelDisplayLayout.messageIndent + "OK")
-        #expect(card.lines.allSatisfy { $0.count <= FrontPanelDisplayLayout.messageCardTextCells })
+        #expect(card.lines.count == 2)
+        #expect(card.lines.allSatisfy { $0.count <= layout.messageCardTextCells })
         let text = card.lines.joined(separator: " ")
         #expect(text.contains("99.0.0"))
         #expect(text.contains("FLASH"))
+
+        let button = try #require(card.button)
+        let lastTextColumn = card.textColumn + DotMatrixMetrics.columns(forCells: card.lines.map(\.count).max() ?? 0) - 1
+        #expect(button.columns.lowerBound > lastTextColumn)
+        #expect(card.columns.upperBound - button.columns.upperBound == layout.messageCardPadding + 1)
+        #expect(button.textColumn - button.columns.lowerBound == 2)
+        #expect(button.textRow - button.rows.lowerBound == 1)
+        #expect(button.rows.count == DotMatrixFont.glyphRows + 2)
     }
 
     /// The card's frame leaves out each corner and the dot beside it on either edge, and joins the edges with a dot on
