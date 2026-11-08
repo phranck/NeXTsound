@@ -11,15 +11,31 @@ final class FlashFirmwareSheetModel {
         case failed(String)
     }
 
+    enum UpdateState: Equatable {
+        case idle
+        case checking
+        case available(FirmwareRelease)
+        case upToDate
+        case failed(String)
+    }
+
     private(set) var outcome: Outcome = .idle
+    private(set) var updateState: UpdateState = .idle
     let target: FlashTarget
 
     @ObservationIgnored private let service: FlashService?
+    @ObservationIgnored private let releaseService: any FirmwareReleaseService
     @ObservationIgnored private let firmwareURL: URL?
 
-    init(target: FlashTarget, runner: (any PicotoolRunning)? = ProcessPicotoolRunner(), firmwareBundle: Bundle = .module) {
+    init(
+        target: FlashTarget,
+        runner: (any PicotoolRunning)? = ProcessPicotoolRunner(),
+        firmwareBundle: Bundle = .module,
+        releaseService: (any FirmwareReleaseService)? = nil
+    ) {
         self.target = target
         service = runner.map { FlashService(runner: $0) }
+        self.releaseService = releaseService ?? GiteaFirmwareReleaseService()
         firmwareURL = firmwareBundle.url(forResource: "nxs_firmware", withExtension: "uf2")
         if service == nil {
             outcome = .failed(FlashError.picotoolUnavailable.errorDescription ?? "")
@@ -53,10 +69,59 @@ extension FlashFirmwareSheetModel {
         !isRunning && outcome != .succeeded
     }
 
+    /// Checks Gitea for a newer firmware than the connected board reports.
+    func checkForUpdates() async {
+        guard let versionString = target.applicationVersion else {
+            updateState = .idle
+            return
+        }
+        guard let currentVersion = FirmwareVersion(boardVersion: versionString) else {
+            updateState = .failed(String(localized: "The board's firmware version cannot be read."))
+            return
+        }
+        updateState = .checking
+        do {
+            let release = try await releaseService.latestRelease()
+            updateState = release.version > currentVersion ? .available(release) : .upToDate
+        } catch {
+            updateState = .failed(error.localizedDescription)
+        }
+    }
+
+    /// Dismisses the offer without downloading or changing the firmware.
+    func declineUpdate() {
+        if case .available = updateState {
+            updateState = .idle
+        }
+    }
+
+    /// Downloads the offered firmware and flashes it only after the user chose Update.
+    func installUpdate() {
+        guard case let .available(release) = updateState else {
+            return
+        }
+        updateState = .checking
+        Task {
+            do {
+                let firmwareURL = try await releaseService.download(release)
+                flash(firmwareURL: firmwareURL)
+            } catch {
+                updateState = .failed(error.localizedDescription)
+            }
+        }
+    }
+
     func flash() {
+        guard let firmwareURL else {
+            return
+        }
+        flash(firmwareURL: firmwareURL)
+    }
+
+    /// Flashes either the bundled firmware or one downloaded after explicit confirmation.
+    private func flash(firmwareURL: URL) {
         guard
             let service,
-            let firmwareURL,
             !isRunning
         else {
             return
@@ -68,8 +133,10 @@ extension FlashFirmwareSheetModel {
                     Task { @MainActor in self?.outcome = .running(phase) }
                 }
                 outcome = .succeeded
+                updateState = .upToDate
             } catch {
                 outcome = .failed(error.localizedDescription)
+                updateState = .failed(error.localizedDescription)
             }
         }
     }
