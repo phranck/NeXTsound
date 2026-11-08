@@ -5,6 +5,7 @@
 #include "nxs_status_led.h"
 
 #include "hardware/pio.h"
+#include "pico/time.h"
 // The SDK-generated initializer implicitly converts the system clock and cycle count to float.
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wconversion"
@@ -15,6 +16,8 @@
 #define NXS_WS2812_BIT_FREQUENCY_HZ 800000.0f
 /** @brief Number of GPIO pins used by one WS2812. */
 #define NXS_WS2812_PIN_COUNT 1u
+/** @brief Minimum delay between the red and green WS2812 frames. */
+#define NXS_STATUS_READY_DELAY_MS 1u
 
 // Core 0 owns all state in this module after nxs_status_led_init succeeds.
 /** @brief PIO instance that drives the status LED. */
@@ -23,6 +26,8 @@ static PIO status_pio = NULL;
 static unsigned int status_state_machine = 0;
 /** @brief Instruction offset of the WS2812 program. */
 static unsigned int status_program_offset = 0;
+/** @brief Earliest timestamp for the green ready frame. */
+static absolute_time_t status_ready_at = 0;
 
 /** @brief Writes one status color if the PIO FIFO has room.
  * @param word The WS2812 color word in 0xGGRRBB00 format.
@@ -48,12 +53,20 @@ bool nxs_status_led_init(void) {
     }
     ws2812_program_init(status_pio, status_state_machine, status_program_offset, PICO_DEFAULT_WS2812_PIN, NXS_WS2812_BIT_FREQUENCY_HZ,
                         false);
-    return write_status_word(NXS_STATUS_BOOTING_WORD);
+    /** @brief Whether the red boot frame was written. */
+    const bool boot_written = write_status_word(NXS_STATUS_BOOTING_WORD);
+    if (boot_written) {
+        status_ready_at = make_timeout_time_ms(NXS_STATUS_READY_DELAY_MS);
+    }
+    return boot_written;
 }
 
 /** @brief Lights the onboard WS2812 dim green after firmware initialization.
  * @return True when the ready color was written without waiting.
  */
 bool nxs_status_led_ready(void) {
+    if (!time_reached(status_ready_at)) {
+        return false;
+    }
     return write_status_word(NXS_STATUS_READY_WORD);
 }

@@ -49,7 +49,7 @@ set(NXS_RP2_PORT_SOURCES "${NXS_TINYUSB_SOURCE}/portable/raspberrypi/rp2040/dcd_
 nxs_add_host_test(rp2_iso usb_iso_tests.c nxs_device)
 target_sources(nxs_rp2_iso_tests PRIVATE ${NXS_RP2_PORT_SOURCES})
 set_source_files_properties(${NXS_RP2_PORT_SOURCES} TARGET_DIRECTORY nxs_rp2_iso_tests PROPERTIES COMPILE_OPTIONS "-Wno-error")
-target_include_directories(nxs_rp2_iso_tests PRIVATE Support/Pico ../USB)
+target_include_directories(nxs_rp2_iso_tests PRIVATE Support/pico ../USB)
 target_include_directories(nxs_rp2_iso_tests SYSTEM PRIVATE "${NXS_TINYUSB_SOURCE}"
     "${NXS_TINYUSB_SOURCE}/portable/raspberrypi/rp2040"
     "${NXS_REPOSITORY_ROOT}/.tools/pico-sdk/src/rp2350/hardware_regs/include"
