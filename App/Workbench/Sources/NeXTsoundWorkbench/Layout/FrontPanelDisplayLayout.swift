@@ -70,6 +70,14 @@ enum FrontPanelDisplayLayout {
     static let messageCardLineLimit = 4
     /// The unlit dots between the message card's frame and its text, on every side.
     static let messageCardPadding = 6
+    /// The lit dots on either side of the OK text inside its inverted background.
+    static let messageButtonHorizontalPadding = 4
+    /// The lit dots above and below the OK text inside its inverted background.
+    static let messageButtonVerticalPadding = 2
+    /// The unlit dots between the message text and its OK button.
+    static let messageButtonGap = 6
+    /// The label of the dismissible message's button.
+    static let messageButtonText = "OK"
     /// The dot columns that the status column takes from the curve, the gap before it included. The column slides
     /// this far to the right to leave the display.
     static let statusReservedColumns = DotMatrixMetrics.columns(forCells: statusCells) + statusGapColumns
@@ -191,11 +199,34 @@ extension FrontPanelDisplayLayout {
             firstPrefix: message.isError ? errorMarker : infoMarker,
             laterPrefix: messageIndent
         ).prefix(messageCardLineLimit)
-        let width = DotMatrixMetrics.columns(forCells: lines.map(\.count).max() ?? 0) + 2 * (messageCardPadding + 1)
-        let height = DotMatrixMetrics.rows(forLines: lines.count) + 2 * (messageCardPadding + 1)
+        let textWidth = DotMatrixMetrics.columns(forCells: lines.map(\.count).max() ?? 0)
+        let textHeight = DotMatrixMetrics.rows(forLines: lines.count)
+        let buttonWidth = message.isDismissible ? DotMatrixMetrics
+            .columns(forCells: messageButtonText.count) + 2 * messageButtonHorizontalPadding : 0
+        let buttonHeight = message.isDismissible ? DotMatrixFont.glyphRows + 2 * messageButtonVerticalPadding : 0
+        let buttonGap = message.isDismissible ? messageButtonGap : 0
+        let width = textWidth + buttonGap + buttonWidth + 2 * (messageCardPadding + 1)
+        let contentHeight = max(textHeight, buttonHeight)
+        let height = contentHeight + 2 * (messageCardPadding + 1)
         let firstColumn = (displayColumns - width) / 2
         let firstRow = (rows - height) / 2
-        return MessageCard(lines: Array(lines), columns: firstColumn ... firstColumn + width - 1, rows: firstRow ... firstRow + height - 1)
+        var button: MessageButton?
+        if message.isDismissible {
+            let buttonColumn = firstColumn + width - messageCardPadding - 1 - buttonWidth
+            let buttonRow = firstRow + 1 + messageCardPadding + (contentHeight - buttonHeight) / 2
+            button = MessageButton(
+                columns: buttonColumn ... buttonColumn + buttonWidth - 1,
+                rows: buttonRow ... buttonRow + buttonHeight - 1,
+                textColumn: buttonColumn + messageButtonHorizontalPadding,
+                textRow: buttonRow + messageButtonVerticalPadding
+            )
+        }
+        return MessageCard(
+            lines: Array(lines),
+            button: button,
+            columns: firstColumn ... firstColumn + width - 1,
+            rows: firstRow ... firstRow + height - 1
+        )
     }
 
     /// The dot row a gain falls on among `rows` rows, with 0 dB in the middle row and every gain beyond the range on
@@ -252,6 +283,18 @@ extension FrontPanelDisplayLayout {
         let row: Int
     }
 
+    /// The inverted OK button at the right of a dismissible message card.
+    struct MessageButton {
+        /// The dot columns of the lit background.
+        let columns: ClosedRange<Int>
+        /// The dot rows of the lit background.
+        let rows: ClosedRange<Int>
+        /// The first dot column of the OK text, inside the horizontal padding.
+        let textColumn: Int
+        /// The first dot row of the OK text, inside the vertical padding.
+        let textRow: Int
+    }
+
     /// The card a message shows in, over the middle of the display: a frame with rounded corners around the message's
     /// lines, and a ring of unlit dots around the frame that sets the card apart from the curve and the status column.
     struct MessageCard {
@@ -261,6 +304,8 @@ extension FrontPanelDisplayLayout {
 
         /// The message's lines, the first with its marker.
         let lines: [String]
+        /// The OK button at the right, or nil for a message without a dismissal action.
+        let button: MessageButton?
         /// The dot columns the frame spans, its side edges included.
         let columns: ClosedRange<Int>
         /// The dot rows the frame spans, its top and bottom edges included.

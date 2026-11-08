@@ -109,6 +109,34 @@ extension RenderingTests {
             }
         }
 
+        /// The OK button has a lit background with dark text, not just another message line.
+        @Test func theMessageButtonHasAnInvertedBackground() async throws {
+            let (pixels, bright) = try await MainActor.run {
+                let message = FrontPanelMessage(
+                    text: "Firmware 99.0.0 is available. Open FLASH to update.",
+                    isLasting: true,
+                    isDismissible: true
+                )
+                let display = FrontPanelDisplay(
+                    settings: SoundProfile(name: "Flat").settings,
+                    profileName: "Flat",
+                    status: FrontPanelStatus(connection: "SoundBox connected", fields: []),
+                    showsStatus: true,
+                    overlayMessage: message
+                )
+                .frame(width: DotMatrixMetrics.size(columns: Self.gapTestColumns, rows: 1).width)
+                return try renderedWithMarker(display, color: PhosphorTheme.blue.bright)
+            }
+            let card = FrontPanelDisplayLayout.messageCard(
+                FrontPanelMessage(text: "Firmware 99.0.0 is available. Open FLASH to update.", isDismissible: true),
+                displayColumns: Self.gapTestColumns
+            )
+            let button = try #require(card.button)
+            #expect(pixels.dotPixel(column: button.columns.lowerBound, row: button.rows.lowerBound) == bright)
+            let textDot = try #require(Self.firstLitDot(in: FrontPanelDisplayLayout.messageButtonText, button: button))
+            #expect(pixels.dotPixel(column: textDot.column, row: textDot.row) != bright)
+        }
+
         /// While the display shows the spectrum, a band's bar lights from its level's row down and nothing above it, and
         /// the curve's solid 0 dB line gives way to the spectrum's dotted level line on the same row.
         @Test func theSpectrumTakesTheCurvesPlaceWhileItShows() async throws {
@@ -173,6 +201,16 @@ private extension RenderingTests.FrontPanelRenderTests {
         )
         .frame(width: DotMatrixMetrics.size(columns: gapTestColumns, rows: 1).width)
         return try RenderedPixels(display)
+    }
+
+    /// The first dot in the OK text that the font lights.
+    static func firstLitDot(in text: String, button: FrontPanelDisplayLayout.MessageButton) -> FrontPanelDisplayLayout.Dot? {
+        for (offset, mask) in DotMatrixFont.columnMasks(for: text).enumerated() {
+            for bit in 0 ..< DotMatrixFont.glyphRows where mask & (1 << bit) != 0 {
+                return FrontPanelDisplayLayout.Dot(column: button.textColumn + offset, row: button.textRow + bit)
+            }
+        }
+        return nil
     }
 
     static func isLit(_ pixel: RenderedPixel) -> Bool {

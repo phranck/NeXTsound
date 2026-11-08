@@ -36,7 +36,8 @@ public struct FrontPanelView: View {
                     showsStatus: showsStatus,
                     selectedBand: selectedBand,
                     overlayMessage: messageOverlay.shown,
-                    spectrum: showsSpectrum ? spectrum : nil
+                    spectrum: showsSpectrum ? spectrum : nil,
+                    onDismissMessage: dismissMessageAction
                 )
                 .padding(FrontPanelLayout.bayMargin)
                 FrontPanelControlRow(
@@ -132,6 +133,14 @@ private extension FrontPanelView {
         FrontPanelStatus(model: model, saveSucceeded: saveFeedback.showsSuccess, spectrumProblem: spectrum.problem?.localizedDescription)
     }
 
+    /// The current message's dismissal action, or nil for messages with their usual timing.
+    var dismissMessageAction: (() -> Void)? {
+        guard messageOverlay.shown?.isDismissible == true else {
+            return nil
+        }
+        return model.dismissFirmwareUpdate
+    }
+
     /// What the spectrum's DSP takes besides the audio: the selected profile's settings, which every edit sends to the
     /// board, and the host's volume and mute as the board reports them.
     var spectrumInputs: SpectrumInputs.Values {
@@ -181,6 +190,8 @@ private struct DisplayBay: View {
     /// The spectrum the display shows in place of the EQ curve, or nil while it shows the curve. The bay reads its
     /// levels itself, so their thirty updates a second redraw the display and leave the rest of the panel alone.
     let spectrum: SpectrumMonitor?
+    /// Dismisses the message when its OK affordance is clicked.
+    var onDismissMessage: (() -> Void)?
 
     var body: some View {
         FrontPanelDisplay(
@@ -206,5 +217,19 @@ private struct DisplayBay: View {
             in: RoundedRectangle(cornerRadius: FrontPanelLayout.bayRadius)
         )
         .frameHighlight(cornerRadius: FrontPanelLayout.bayRadius, opacity: 0.05)
+        .dismissibleMessage(onDismissMessage)
+    }
+}
+
+private extension View {
+    /// Gives a dismissible VFD message the same click action on the display and through accessibility.
+    @ViewBuilder
+    func dismissibleMessage(_ action: (() -> Void)?) -> some View {
+        if let action {
+            onTapGesture(perform: action)
+                .accessibilityAction(named: "Dismiss", action)
+        } else {
+            self
+        }
     }
 }

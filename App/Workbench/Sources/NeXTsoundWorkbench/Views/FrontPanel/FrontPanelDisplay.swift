@@ -355,5 +355,17 @@ private extension FrontPanelDisplayDots {
         }
         frame.fill(context, color: theme.dim)
         text.fill(context, color: tone == .bright ? theme.bright : theme.normal)
+        if let button = card.button {
+            var background = DotMatrixPainter()
+            for column in button.columns {
+                for row in button.rows {
+                    background.light(column: column, row: row)
+                }
+            }
+            background.fill(context, color: tone == .bright ? theme.bright : theme.normal)
+            var label = DotMatrixPainter()
+            label.write(FrontPanelDisplayLayout.messageButtonText, column: button.textColumn, row: button.textRow)
+            label.fill(context, color: theme.ghost)
+        }
     }
 }

@@ -6,12 +6,18 @@ final class FakeFirmwareReleaseService: FirmwareReleaseService, @unchecked Senda
     var release: FirmwareRelease?
     var downloadURL = URL(fileURLWithPath: "/tmp/update.uf2")
     var error: (any Error)?
+    private let latestReleaseCalls = Locked(0)
+
+    var latestReleaseCallCount: Int {
+        latestReleaseCalls.value
+    }
 
     init(release: FirmwareRelease? = nil) {
         self.release = release
     }
 
     func latestRelease() async throws -> FirmwareRelease {
+        latestReleaseCalls.mutate { $0 += 1 }
         if let error {
             throw error
         }

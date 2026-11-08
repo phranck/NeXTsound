@@ -52,6 +52,9 @@ public final class BoardMonitor {
     /// Called with the board's chip serial whenever the monitor reads its metadata, so the serial-number register can
     /// take over a number the board already carries.
     @ObservationIgnored public var onMetadataRead: (@MainActor (String, OwnerMetadata) -> Void)?
+    /// Called when a newly connected board finishes verification, not when an already verified board refreshes its
+    /// capabilities. The app uses this for work that belongs to the first verified board of a session.
+    @ObservationIgnored public var onVerified: (@MainActor (DeviceCapabilities) -> Void)?
 
     @ObservationIgnored private let isEnabled: Bool
     @ObservationIgnored private let discovery: any BoardDiscovery
@@ -216,6 +219,7 @@ private extension BoardMonitor {
                 show(status)
                 self.metadata = metadata
                 state = .verified(capabilities)
+                onVerified?(capabilities)
                 if let metadata {
                     onMetadataRead?(capabilities.serial, metadata)
                 }

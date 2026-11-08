@@ -1,9 +1,14 @@
 import Foundation
 
 /// A firmware release that can be offered for installation.
-struct FirmwareRelease: Equatable, Sendable {
-    let version: FirmwareVersion
-    let assetURL: URL
+public struct FirmwareRelease: Equatable, Sendable {
+    public let version: FirmwareVersion
+    public let assetURL: URL
+
+    public init(version: FirmwareVersion, assetURL: URL) {
+        self.version = version
+        self.assetURL = assetURL
+    }
 }
 
 /// Errors raised while reading or downloading a release.
@@ -24,13 +29,13 @@ enum FirmwareReleaseError: LocalizedError, Equatable {
 }
 
 /// Reads release metadata and firmware images from Gitea.
-protocol FirmwareReleaseService: Sendable {
+public protocol FirmwareReleaseService: Sendable {
     func latestRelease() async throws -> FirmwareRelease
     func download(_ release: FirmwareRelease) async throws -> URL
 }
 
 /// The Gitea implementation of the release service.
-final class GiteaFirmwareReleaseService: NSObject, FirmwareReleaseService, URLSessionTaskDelegate, @unchecked Sendable {
+public final class GiteaFirmwareReleaseService: NSObject, FirmwareReleaseService, URLSessionTaskDelegate, @unchecked Sendable {
     /// The repository and API root, fixed by the product rather than by release data.
     private static let repositoryURL = URL(string: "https://git.layered.work/api/v1/repos/phranck/NeXTsound")!
     /// The only host from which a release asset may be downloaded.
@@ -46,7 +51,7 @@ final class GiteaFirmwareReleaseService: NSObject, FirmwareReleaseService, URLSe
     /// - Parameters:
     ///   - protocolClasses: URL protocol handlers used by tests; production uses none.
     ///   - fileManager: The file manager used for temporary downloads.
-    init(protocolClasses: [AnyClass]? = nil, fileManager: FileManager = .default) {
+    public init(protocolClasses: [AnyClass]? = nil, fileManager: FileManager = .default) {
         let configuration = URLSessionConfiguration.ephemeral
         if let protocolClasses {
             configuration.protocolClasses = protocolClasses
@@ -58,7 +63,7 @@ final class GiteaFirmwareReleaseService: NSObject, FirmwareReleaseService, URLSe
     }
 }
 
-extension GiteaFirmwareReleaseService {
+public extension GiteaFirmwareReleaseService {
     func latestRelease() async throws -> FirmwareRelease {
         let data = try await data(from: Self.repositoryURL.appendingPathComponent("releases"))
         let releases = try JSONDecoder().decode([GiteaRelease].self, from: data)

@@ -1,7 +1,7 @@
 import Foundation
 
 /// A semantic firmware version read from a Gitea tag or a board's capabilities.
-struct FirmwareVersion: Comparable, Sendable {
+public struct FirmwareVersion: Comparable, Sendable {
     /// The tag prefix used by Gitea firmware releases.
     private static let tagPrefix = "firmware-v"
     /// The number of numeric components in a semantic version.
@@ -9,11 +9,11 @@ struct FirmwareVersion: Comparable, Sendable {
     /// The suffix accepted for a local, uncommitted firmware build.
     private static let dirtySuffix = "dirty"
 
-    let major: UInt32
-    let minor: UInt32
-    let patch: UInt32
+    public let major: UInt32
+    public let minor: UInt32
+    public let patch: UInt32
 
-    init(major: UInt32, minor: UInt32, patch: UInt32) {
+    public init(major: UInt32, minor: UInt32, patch: UInt32) {
         self.major = major
         self.minor = minor
         self.patch = patch
@@ -61,11 +61,11 @@ struct FirmwareVersion: Comparable, Sendable {
     }
 
     /// The version in the form shown by an update prompt.
-    var description: String {
+    public var description: String {
         "\(major).\(minor).\(patch)"
     }
 
-    static func < (lhs: FirmwareVersion, rhs: FirmwareVersion) -> Bool {
+    public static func < (lhs: FirmwareVersion, rhs: FirmwareVersion) -> Bool {
         if lhs.major != rhs.major {
             return lhs.major < rhs.major
         }
