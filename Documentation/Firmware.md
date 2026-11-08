@@ -14,7 +14,7 @@ The script bootstraps the pinned project-local tools, builds all three firmware 
 
 ## Status LED
 
-The onboard WS2812 on GP16 shows USB-powered operation with a slow rainbow cycle while the firmware runs. The color calculation limits the LED to a restrained brightness. The main loop publishes new colors without waiting for the PIO FIFO and writes only when the dimmed color changes.
+The onboard WS2812 on GP16 lights dim red immediately after its PIO initialization. It changes to dim green only after storage, audio, and USB initialization have completed. Both colors limit their active RGB channel to 4 of 255 and are written without waiting for the PIO FIFO.
 
 ## Version
 

@@ -65,8 +65,10 @@ int main(void) {
     if (!tusb_init(0, &usb)) {
         panic(usb_error);
     }
+    if (!nxs_status_led_ready()) {
+        panic(status_led_error);
+    }
     for (;;) {
-        nxs_status_led_task();
         nxs_usb_task();
         tud_task();
         /** @brief Reset action requested through USB and awaiting audio quiescence. */

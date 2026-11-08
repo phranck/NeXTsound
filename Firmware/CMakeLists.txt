@@ -10,7 +10,7 @@ endif()
 include("${PICO_SDK_PATH}/pico_sdk_init.cmake")
 # The firmware's version number. Scripts/check-firmware-version.sh fails a branch that changes the firmware
 # without raising it, so two different firmwares never report the same number.
-project(NeXTsoundFirmware VERSION 0.5.1 LANGUAGES C CXX ASM)
+project(NeXTsoundFirmware VERSION 0.6.0 LANGUAGES C CXX ASM)
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_CXX_STANDARD 17)
 pico_sdk_init()
@@ -50,7 +50,7 @@ set(NXS_PROGRAM_VERSION "${NXS_FIRMWARE_VERSION} (${NXS_GIT_COMMIT})")
 add_executable(nxs_firmware main.c Platform/engine.c Platform/i2s.c Platform/flash_storage.c Platform/status_led.c USB/control.c USB/descriptors.c USB/reset.c)
 pico_set_boot_stage2(nxs_firmware nxs_read_only_boot2)
 target_include_directories(nxs_firmware PRIVATE Platform USB)
-target_link_libraries(nxs_firmware PRIVATE nxs_device nxs_rainbow pico_stdlib pico_multicore pico_unique_id pico_util
+target_link_libraries(nxs_firmware PRIVATE nxs_device pico_stdlib pico_multicore pico_unique_id pico_util
     tinyusb_device tinyusb_board pico_flash pico_usb_reset_interface_headers hardware_flash hardware_clocks hardware_pio hardware_dma)
 target_compile_options(nxs_firmware PRIVATE -Wall -Wextra -Werror -fstack-usage)
 set_source_files_properties(main.c Platform/status_led.c PROPERTIES COMPILE_OPTIONS "-Wshadow;-Wconversion;-Wsign-conversion")
