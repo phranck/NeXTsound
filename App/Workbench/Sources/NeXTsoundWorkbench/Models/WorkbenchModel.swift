@@ -20,12 +20,12 @@ public final class WorkbenchModel {
     /// to give a board a number, because the number could already belong to another board.
     public private(set) var serialNumbersAreAvailable: Bool
     /// The newer release found by the one automatic check in this app session.
-    public private(set) var availableFirmwareUpdate: FirmwareRelease?
+    public internal(set) var availableFirmwareUpdate: FirmwareRelease?
 
     @ObservationIgnored private let storage: (any ProfileLibraryStorage)?
     @ObservationIgnored private let serialNumberStorage: (any SerialNumberRegisterStorage)?
-    @ObservationIgnored private let firmwareReleaseService: (any FirmwareReleaseService)?
-    @ObservationIgnored private var hasCheckedForFirmwareUpdates = false
+    @ObservationIgnored let firmwareReleaseService: (any FirmwareReleaseService)?
+    @ObservationIgnored var hasCheckedForFirmwareUpdates = false
     @ObservationIgnored private var saveTask: Task<Void, Never>?
     @ObservationIgnored private var boardApplyTask: Task<Void, Never>?
     @ObservationIgnored private var isWritingToBoard = false
@@ -424,35 +424,6 @@ private extension WorkbenchModel {
             storageError = nil
         } catch {
             storageError = error.localizedDescription
-        }
-    }
-
-    /// Checks once per app session when the first board verifies. A failed background request stays silent; the flash
-    /// sheet keeps its own visible error and retry path, and no firmware is downloaded or flashed here.
-    func checkForFirmwareUpdatesIfNeeded() {
-        guard
-            let firmwareReleaseService,
-            !hasCheckedForFirmwareUpdates,
-            let capabilities = boards.state.verifiedCapabilities,
-            let currentVersion = FirmwareVersion(boardVersion: capabilities.firmwareVersion)
-        else {
-            return
-        }
-        hasCheckedForFirmwareUpdates = true
-        Task {
-            do {
-                let release = try await firmwareReleaseService.latestRelease()
-                guard
-                    !Task.isCancelled,
-                    boards.state.verifiedCapabilities?.serial == capabilities.serial,
-                    release.version > currentVersion
-                else {
-                    return
-                }
-                availableFirmwareUpdate = release
-            } catch {
-                // The flash sheet reports its own errors when the owner asks for an update check there.
-            }
         }
     }
 

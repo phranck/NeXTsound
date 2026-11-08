@@ -25,6 +25,8 @@ struct FrontPanelMessage: Equatable {
     var tone = DotMatrixTone.bright
     /// Whether the message stays while it is current, as a save in progress does, instead of leaving after a while.
     var isLasting = false
+    /// Whether a click on the display dismisses the message. Its card shows an OK affordance then.
+    var isDismissible = false
 }
 
 extension FrontPanelStatus {
@@ -248,7 +250,11 @@ extension FrontPanelMessageSources {
         }
         if let availableFirmwareUpdate {
             let version = availableFirmwareUpdate.version.description
-            return FrontPanelMessage(text: String(localized: "Firmware \(version) is available. Open FLASH to update."))
+            return FrontPanelMessage(
+                text: String(localized: "Firmware \(version) is available. Open FLASH to update."),
+                isLasting: true,
+                isDismissible: true
+            )
         }
         if case .verified = board {
             return FrontPanelMessage(text: String(localized: "Edits play live"), tone: .normal)

@@ -20,8 +20,11 @@ struct FirmwareUpdateAnnouncementTests {
         connect(discovery)
         await waitUntil { model.availableFirmwareUpdate == release }
         #expect(model.availableFirmwareUpdate == release)
-        #expect(FrontPanelStatus(model: model, saveSucceeded: false)
-            .message == FrontPanelMessage(text: "Firmware 99.0.0 is available. Open FLASH to update."))
+        #expect(FrontPanelStatus(model: model, saveSucceeded: false).message == FrontPanelMessage(
+            text: "Firmware 99.0.0 is available. Open FLASH to update.",
+            isLasting: true,
+            isDismissible: true
+        ))
         #expect(service.latestReleaseCallCount == 1)
 
         discovery.simulateDisconnect()
@@ -29,6 +32,11 @@ struct FirmwareUpdateAnnouncementTests {
         connect(discovery)
         await waitUntil { model.boards.state == .verified(fixtureCapabilities()) }
         try await Task.sleep(for: .milliseconds(50))
+        #expect(service.latestReleaseCallCount == 1)
+
+        model.dismissFirmwareUpdate()
+        #expect(model.availableFirmwareUpdate == nil)
+        #expect(FrontPanelStatus(model: model, saveSucceeded: false).message == FrontPanelMessage(text: "Edits play live", tone: .normal))
         #expect(service.latestReleaseCallCount == 1)
     }
 

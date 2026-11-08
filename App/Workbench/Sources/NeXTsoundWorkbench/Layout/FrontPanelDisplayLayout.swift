@@ -185,12 +185,20 @@ extension FrontPanelDisplayLayout {
         // The padding, the frame and the unlit ring around it on either side of the text.
         let edgeColumns = 2 * (messageCardPadding + 2)
         let cells = min(messageCardTextCells, DotMatrixMetrics.cells(inColumns: displayColumns - edgeColumns))
-        let lines = DotMatrixWrap.lines(
+        var lines = DotMatrixWrap.lines(
             of: message.text,
             width: max(cells, 1),
             firstPrefix: message.isError ? errorMarker : infoMarker,
             laterPrefix: messageIndent
         ).prefix(messageCardLineLimit)
+        if message.isDismissible {
+            let okLine = messageIndent + "OK"
+            if lines.count < messageCardLineLimit {
+                lines.append(okLine)
+            } else if !lines.isEmpty {
+                lines[lines.count - 1] = okLine
+            }
+        }
         let width = DotMatrixMetrics.columns(forCells: lines.map(\.count).max() ?? 0) + 2 * (messageCardPadding + 1)
         let height = DotMatrixMetrics.rows(forLines: lines.count) + 2 * (messageCardPadding + 1)
         let firstColumn = (displayColumns - width) / 2
