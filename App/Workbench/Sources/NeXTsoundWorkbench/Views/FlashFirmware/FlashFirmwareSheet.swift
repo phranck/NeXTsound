@@ -8,10 +8,13 @@ struct FlashFirmwareSheet: View {
     @State private var model: FlashFirmwareSheetModel
     @Environment(\.dismiss) private var dismiss
 
-    init(connectionState: BoardConnectionState) {
+    init(connectionState: BoardConnectionState, releaseService: (any FirmwareReleaseService)? = nil) {
         self.connectionState = connectionState
-        let target = FlashTarget(applicationSerial: connectionState.verifiedCapabilities?.serial)
-        _model = State(initialValue: FlashFirmwareSheetModel(target: target))
+        let target = FlashTarget(
+            applicationSerial: connectionState.verifiedCapabilities?.serial,
+            applicationVersion: connectionState.verifiedCapabilities?.firmwareVersion
+        )
+        _model = State(initialValue: FlashFirmwareSheetModel(target: target, releaseService: releaseService))
     }
 
     var body: some View {
@@ -22,6 +25,12 @@ struct FlashFirmwareSheet: View {
                 Text("Put the SoundBox into BOOTSEL mode before continuing: hold its BOOTSEL button while connecting the USB cable.")
                     .foregroundStyle(.secondary)
             }
+            FirmwareUpdateView(
+                state: model.updateState,
+                onCheck: model.checkForUpdates,
+                onInstall: model.installUpdate,
+                onDecline: model.declineUpdate
+            )
             FlashOutcomeView(outcome: model.outcome)
             if model.showsRestartStatus {
                 RestartStatusView(status: FlashRestartStatus(connectionState: connectionState))
@@ -36,6 +45,48 @@ struct FlashFirmwareSheet: View {
         }
         .padding(16)
         .frame(width: 420)
+        .task { await model.checkForUpdates() }
+    }
+}
+
+private struct FirmwareUpdateView: View {
+    let state: FlashFirmwareSheetModel.UpdateState
+    let onCheck: () async -> Void
+    let onInstall: () -> Void
+    let onDecline: () -> Void
+
+    var body: some View {
+        switch state {
+        case .idle:
+            EmptyView()
+        case .checking:
+            HStack {
+                ProgressView()
+                    .controlSize(.small)
+                Text("Checking for firmware updates…")
+                    .foregroundStyle(.secondary)
+            }
+        case let .available(release):
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Firmware \(release.version.description) is available. Install it?")
+                HStack {
+                    Button("Update", action: onInstall)
+                        .keyboardShortcut(.defaultAction)
+                    Button("Not now", role: .cancel, action: onDecline)
+                }
+            }
+        case .upToDate:
+            Text("Firmware is up to date.")
+                .foregroundStyle(.secondary)
+        case let .failed(message):
+            VStack(alignment: .leading, spacing: 8) {
+                Label(message, systemImage: "exclamationmark.triangle")
+                    .foregroundStyle(.red)
+                Button("Try again") {
+                    Task { await onCheck() }
+                }
+            }
+        }
     }
 }
 
@@ -62,7 +113,20 @@ private struct FlashOutcomeView: View {
     }
 }
 
-/// The board's restart after a successful flash, as `FlashRestartStatus` reads it from the board monitor.
+// The board's restart after a successful flash, as `FlashRestartStatus` reads it from the board monitor.
+#Preview("Update available") {
+    FirmwareUpdateView(
+        state: .available(FirmwareRelease(
+            version: FirmwareVersion(major: 99, minor: 0, patch: 1),
+            assetURL: URL(string: "https://git.layered.work/phranck/NeXTsound/releases/download/firmware-v99.0.1/nxs_firmware.uf2")!
+        )),
+        onCheck: {},
+        onInstall: {},
+        onDecline: {}
+    )
+    .padding(16)
+}
+
 private struct RestartStatusView: View {
     let status: FlashRestartStatus
 

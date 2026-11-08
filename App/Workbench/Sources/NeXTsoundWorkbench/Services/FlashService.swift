@@ -56,9 +56,12 @@ struct FlashTarget: Sendable, Equatable {
     /// verified. `FlashService` then force-reboots that exact board into BOOTSEL by serial before
     /// flashing; otherwise the board must already be in BOOTSEL mode (held into it by hand).
     var applicationSerial: String?
+    /// The firmware version reported by that board, used to decide whether a release is newer.
+    var applicationVersion: String?
 
-    init(applicationSerial: String? = nil) {
+    init(applicationSerial: String? = nil, applicationVersion: String? = nil) {
         self.applicationSerial = applicationSerial
+        self.applicationVersion = applicationVersion
     }
 }
 
