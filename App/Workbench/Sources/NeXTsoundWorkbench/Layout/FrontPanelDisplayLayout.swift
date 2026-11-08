@@ -201,7 +201,8 @@ extension FrontPanelDisplayLayout {
         ).prefix(messageCardLineLimit)
         let textWidth = DotMatrixMetrics.columns(forCells: lines.map(\.count).max() ?? 0)
         let textHeight = DotMatrixMetrics.rows(forLines: lines.count)
-        let buttonWidth = message.isDismissible ? DotMatrixMetrics.columns(forCells: messageButtonText.count) + 2 * messageButtonHorizontalPadding : 0
+        let buttonWidth = message.isDismissible ? DotMatrixMetrics
+            .columns(forCells: messageButtonText.count) + 2 * messageButtonHorizontalPadding : 0
         let buttonHeight = message.isDismissible ? DotMatrixFont.glyphRows + 2 * messageButtonVerticalPadding : 0
         let buttonGap = message.isDismissible ? messageButtonGap : 0
         let width = textWidth + buttonGap + buttonWidth + 2 * (messageCardPadding + 1)
