@@ -65,7 +65,6 @@ int main(void) {
     if (!tusb_init(0, &usb)) {
         panic(usb_error);
     }
-    busy_wait_us(NXS_STATUS_READY_DELAY_US);
     (void)nxs_status_led_ready();
     for (;;) {
         nxs_usb_task();
