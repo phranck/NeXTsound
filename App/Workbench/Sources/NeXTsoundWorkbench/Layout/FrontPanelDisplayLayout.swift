@@ -71,9 +71,9 @@ enum FrontPanelDisplayLayout {
     /// The unlit dots between the message card's frame and its text, on every side.
     static let messageCardPadding = 6
     /// The lit dots on either side of the OK text inside its inverted background.
-    static let messageButtonHorizontalPadding = 2
+    static let messageButtonHorizontalPadding = 4
     /// The lit dots above and below the OK text inside its inverted background.
-    static let messageButtonVerticalPadding = 1
+    static let messageButtonVerticalPadding = 2
     /// The unlit dots between the message text and its OK button.
     static let messageButtonGap = 6
     /// The label of the dismissible message's button.

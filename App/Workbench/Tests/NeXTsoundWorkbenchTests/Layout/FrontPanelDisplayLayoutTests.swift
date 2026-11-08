@@ -210,9 +210,9 @@ struct FrontPanelDisplayLayoutTests {
         let lastTextColumn = card.textColumn + DotMatrixMetrics.columns(forCells: card.lines.map(\.count).max() ?? 0) - 1
         #expect(button.columns.lowerBound > lastTextColumn)
         #expect(card.columns.upperBound - button.columns.upperBound == layout.messageCardPadding + 1)
-        #expect(button.textColumn - button.columns.lowerBound == 2)
-        #expect(button.textRow - button.rows.lowerBound == 1)
-        #expect(button.rows.count == DotMatrixFont.glyphRows + 2)
+        #expect(button.textColumn - button.columns.lowerBound == 4)
+        #expect(button.textRow - button.rows.lowerBound == 2)
+        #expect(button.rows.count == DotMatrixFont.glyphRows + 4)
     }
 
     /// The card's frame leaves out each corner and the dot beside it on either edge, and joins the edges with a dot on
