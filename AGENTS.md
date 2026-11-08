@@ -14,6 +14,10 @@ When listing or referencing issues in replies, always link them, e.g. [#38](http
 
 `Papers` contains the living German documentation and stays outside version control. Repository documentation and interface copy are English. Use the `PAP-NXS` paper prefix and maintain the local papers overview and the global projects overview together.
 
+## Builds
+
+After every firmware change, commit and push the change, then build the macOS app in its Release configuration with that firmware and install the app in `~/Applications`.
+
 ## Hardware
 
 The target is the Waveshare RP2350-Zero-M with the photographed MAX98357A breakout. Prommer and the SoundBox KiCad projects are separate projects. Do not change them as part of NeXTsound work.
