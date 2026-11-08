@@ -15,7 +15,7 @@
 /** @brief Mask for one extracted color channel. */
 #define COLOR_CHANNEL_MASK 0xffu
 /** @brief Maximum permitted output value per color channel. */
-#define TEST_MAX_CHANNEL 16u
+#define TEST_MAX_CHANNEL 4u
 /** @brief Expected duration of one hue step. */
 #define TEST_HUE_STEP_MS 20u
 /** @brief Expected number of hue steps in one period. */
@@ -35,19 +35,19 @@
 /** @brief Expected start time of magenta. */
 #define TEST_MAGENTA_MS 25600u
 /** @brief Expected dim red. */
-#define TEST_DIM_RED 0x00100000u
+#define TEST_DIM_RED 0x00040000u
 /** @brief Expected dim yellow. */
-#define TEST_DIM_YELLOW 0x00101000u
+#define TEST_DIM_YELLOW 0x00040400u
 /** @brief Expected dim green. */
-#define TEST_DIM_GREEN 0x00001000u
+#define TEST_DIM_GREEN 0x00000400u
 /** @brief Expected dim cyan. */
-#define TEST_DIM_CYAN 0x00001010u
+#define TEST_DIM_CYAN 0x00000404u
 /** @brief Expected dim blue. */
-#define TEST_DIM_BLUE 0x00000010u
+#define TEST_DIM_BLUE 0x00000004u
 /** @brief Expected dim magenta. */
-#define TEST_DIM_MAGENTA 0x00100010u
-/** @brief Expected color at 2^32 milliseconds, where hue 204 gives full red and 12 green. */
-#define TEST_DIM_AT_U32_WRAP 0x00100c00u
+#define TEST_DIM_MAGENTA 0x00040004u
+/** @brief Expected color at 2^32 milliseconds, where hue 204 gives red 4 and green 3. */
+#define TEST_DIM_AT_U32_WRAP 0x00040300u
 /** @brief RGB sample with three distinct color channels. */
 #define TEST_RGB_SAMPLE 0x00102030u
 /** @brief WS2812 word for TEST_RGB_SAMPLE. */

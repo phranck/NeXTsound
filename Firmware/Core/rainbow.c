@@ -15,7 +15,7 @@
 /** @brief Maximum input value of one color channel. */
 #define NXS_CHANNEL_MAX 255u
 /** @brief Maximum output value of one dimmed color channel. */
-#define NXS_STATUS_CHANNEL_MAX 16u
+#define NXS_STATUS_CHANNEL_MAX 4u
 /** @brief Bit position of red in 0x00RRGGBB. */
 #define NXS_RED_SHIFT 16u
 /** @brief Bit position of green in 0x00RRGGBB. */
