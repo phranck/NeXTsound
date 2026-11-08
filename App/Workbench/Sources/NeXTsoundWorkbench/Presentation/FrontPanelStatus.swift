@@ -199,6 +199,8 @@ struct FrontPanelMessageSources: Equatable {
     var spectrumProblem: String?
     var validationProblem: String?
     var storageStatus: String?
+    /// A newer firmware release found by the app's one automatic check.
+    var availableFirmwareUpdate: FirmwareRelease?
     /// Whether the storage status reports a failure.
     var storageFailed = false
 }
@@ -217,6 +219,7 @@ extension FrontPanelMessageSources {
             spectrumProblem: spectrumProblem,
             validationProblem: model.profile.validationProblem,
             storageStatus: model.storageStatus,
+            availableFirmwareUpdate: model.availableFirmwareUpdate,
             storageFailed: model.storageError != nil
         )
     }
@@ -242,6 +245,10 @@ extension FrontPanelMessageSources {
         }
         if let storageStatus {
             return FrontPanelMessage(text: storageStatus, isError: storageFailed, tone: storageFailed ? .bright : .normal)
+        }
+        if let availableFirmwareUpdate {
+            let version = availableFirmwareUpdate.version.description
+            return FrontPanelMessage(text: String(localized: "Firmware \(version) is available. Open FLASH to update."))
         }
         if case .verified = board {
             return FrontPanelMessage(text: String(localized: "Edits play live"), tone: .normal)

@@ -193,6 +193,19 @@ struct FrontPanelDisplayLayoutTests {
         }
     }
 
+    /// The update announcement wraps onto two VFD lines and keeps its version and destination intact.
+    @Test func theFirmwareUpdateMessageFitsTheVfdCard() {
+        let card = FrontPanelDisplayLayout.messageCard(
+            FrontPanelMessage(text: "Firmware 99.0.0 is available. Open FLASH to update."),
+            displayColumns: Self.frontPanelDisplayColumns
+        )
+        #expect(card.lines.count == 2)
+        #expect(card.lines.allSatisfy { $0.count <= FrontPanelDisplayLayout.messageCardTextCells })
+        let text = card.lines.joined(separator: " ")
+        #expect(text.contains("99.0.0"))
+        #expect(text.contains("FLASH"))
+    }
+
     /// The card's frame leaves out each corner and the dot beside it on either edge, and joins the edges with a dot on
     /// the diagonal, so its corners read as rounded.
     @Test func theMessageCardsFrameRoundsItsCorners() {

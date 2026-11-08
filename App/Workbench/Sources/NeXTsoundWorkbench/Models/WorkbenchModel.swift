@@ -19,9 +19,13 @@ public final class WorkbenchModel {
     /// Whether the register was read, or there is no store to read it from. While it is false, the edit form refuses
     /// to give a board a number, because the number could already belong to another board.
     public private(set) var serialNumbersAreAvailable: Bool
+    /// The newer release found by the one automatic check in this app session.
+    public private(set) var availableFirmwareUpdate: FirmwareRelease?
 
     @ObservationIgnored private let storage: (any ProfileLibraryStorage)?
     @ObservationIgnored private let serialNumberStorage: (any SerialNumberRegisterStorage)?
+    @ObservationIgnored private let firmwareReleaseService: (any FirmwareReleaseService)?
+    @ObservationIgnored private var hasCheckedForFirmwareUpdates = false
     @ObservationIgnored private var saveTask: Task<Void, Never>?
     @ObservationIgnored private var boardApplyTask: Task<Void, Never>?
     @ObservationIgnored private var isWritingToBoard = false
@@ -83,16 +87,21 @@ public final class WorkbenchModel {
         library: ProfileLibrary = ProfileLibrary(),
         storage: (any ProfileLibraryStorage)? = nil,
         boards: BoardMonitor? = nil,
-        serialNumberStorage: (any SerialNumberRegisterStorage)? = nil
+        serialNumberStorage: (any SerialNumberRegisterStorage)? = nil,
+        firmwareReleaseService: (any FirmwareReleaseService)? = nil
     ) {
         self.library = library
         self.storage = storage
         self.boards = boards ?? BoardMonitor(isEnabled: false)
         self.serialNumberStorage = serialNumberStorage
+        self.firmwareReleaseService = firmwareReleaseService
         isReady = storage == nil
         serialNumbersAreAvailable = serialNumberStorage == nil
         self.boards.onMetadataRead = { [weak self] chip, metadata in
             self?.adoptSerialNumber(metadata.serialNumber, from: chip)
+        }
+        self.boards.onVerified = { [weak self] _ in
+            self?.checkForFirmwareUpdatesIfNeeded()
         }
     }
 }
@@ -403,6 +412,7 @@ private extension WorkbenchModel {
         // Read before the boards connect, so the number a connected board carries reaches a loaded register.
         await loadSerialNumbers()
         boards.start()
+        checkForFirmwareUpdatesIfNeeded()
         defer { isReady = true }
         guard let storage else {
             return
@@ -414,6 +424,35 @@ private extension WorkbenchModel {
             storageError = nil
         } catch {
             storageError = error.localizedDescription
+        }
+    }
+
+    /// Checks once per app session when the first board verifies. A failed background request stays silent; the flash
+    /// sheet keeps its own visible error and retry path, and no firmware is downloaded or flashed here.
+    func checkForFirmwareUpdatesIfNeeded() {
+        guard
+            let firmwareReleaseService,
+            !hasCheckedForFirmwareUpdates,
+            let capabilities = boards.state.verifiedCapabilities,
+            let currentVersion = FirmwareVersion(boardVersion: capabilities.firmwareVersion)
+        else {
+            return
+        }
+        hasCheckedForFirmwareUpdates = true
+        Task {
+            do {
+                let release = try await firmwareReleaseService.latestRelease()
+                guard
+                    !Task.isCancelled,
+                    boards.state.verifiedCapabilities?.serial == capabilities.serial,
+                    release.version > currentVersion
+                else {
+                    return
+                }
+                availableFirmwareUpdate = release
+            } catch {
+                // The flash sheet reports its own errors when the owner asks for an update check there.
+            }
         }
     }
 
