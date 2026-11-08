@@ -14,7 +14,7 @@
 /** @brief WS2812 word for the dim green ready status. */
 #define NXS_STATUS_READY_WORD 0x00040000u
 /** @brief Minimum delay between the red and green WS2812 frames. */
-#define NXS_STATUS_READY_DELAY_US 1000u
+#define NXS_STATUS_READY_DELAY_US 1000000u
 
 /** @brief Claims the onboard WS2812 and lights it dim red.
  * @return True when the PIO initialized and the boot color was written.
