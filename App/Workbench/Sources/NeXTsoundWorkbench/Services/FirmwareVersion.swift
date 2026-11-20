@@ -1,8 +1,8 @@
 import Foundation
 
-/// A semantic firmware version read from a Gitea tag or a board's capabilities.
+/// A semantic firmware version read from a GitHub tag or a board's capabilities.
 public struct FirmwareVersion: Comparable, Sendable {
-    /// The tag prefix used by Gitea firmware releases.
+    /// The tag prefix used by GitHub firmware releases.
     private static let tagPrefix = "firmware-v"
     /// The number of numeric components in a semantic version.
     private static let componentCount = 3

@@ -16,7 +16,7 @@ struct FirmwareReleaseServiceTests {
             "assets": [
               {
                 "name": "NeXTsound-0.4.0.zip",
-                "browser_download_url": "https://git.layered.work/phranck/NeXTsound/releases/download/firmware-v0.4.0/NeXTsound-0.4.0.zip"
+                "browser_download_url": "https://github.com/phranck/NeXTsound/releases/download/firmware-v0.4.0/NeXTsound-0.4.0.zip"
               }
             ]
           },
@@ -27,7 +27,7 @@ struct FirmwareReleaseServiceTests {
             "assets": [
               {
                 "name": "nxs_firmware.uf2",
-                "browser_download_url": "https://git.layered.work/phranck/NeXTsound/releases/download/firmware-v0.6.4/nxs_firmware.uf2"
+                "browser_download_url": "https://github.com/phranck/NeXTsound/releases/download/firmware-v0.6.4/nxs_firmware.uf2"
               }
             ]
           },
@@ -38,13 +38,17 @@ struct FirmwareReleaseServiceTests {
             "assets": [
               {
                 "name": "nxs_firmware.uf2",
-                "browser_download_url": "https://git.layered.work/phranck/NeXTsound/releases/download/firmware-v99.0.0/nxs_firmware.uf2"
+                "browser_download_url": "https://github.com/phranck/NeXTsound/releases/download/firmware-v99.0.0/nxs_firmware.uf2"
               }
             ]
           }
         ]
         """#.utf8)
-        let service = makeService(statusCode: 200, data: data)
+        let service = makeService(
+            statusCode: 200,
+            data: data,
+            expectedURL: URL(string: "https://api.github.com/repos/phranck/NeXTsound/releases")
+        )
         let release = try await service.latestRelease()
         #expect(release.version == FirmwareVersion(major: 0, minor: 6, patch: 4))
         #expect(release.assetURL == releaseURL)
@@ -80,7 +84,7 @@ struct FirmwareReleaseServiceTests {
 
     @Test func rejectsARedirect() throws {
         let releaseURL = try makeReleaseURL()
-        let service = GiteaFirmwareReleaseService()
+        let service = GitHubFirmwareReleaseService()
         let response = try #require(HTTPURLResponse(url: releaseURL, statusCode: 301, httpVersion: nil, headerFields: nil))
         var completion: URLRequest?
         service.urlSession(
@@ -94,6 +98,23 @@ struct FirmwareReleaseServiceTests {
         #expect(completion == nil)
     }
 
+    @Test func allowsARedirectToGitHubReleaseAssets() throws {
+        let releaseURL = try makeReleaseURL()
+        let service = GitHubFirmwareReleaseService()
+        let response = try #require(HTTPURLResponse(url: releaseURL, statusCode: 302, httpVersion: nil, headerFields: nil))
+        let redirectURL = try #require(URL(string: "https://release-assets.githubusercontent.com/github-production-release-asset/asset"))
+        var completion: URLRequest?
+        service.urlSession(
+            .shared,
+            task: URLSession.shared.dataTask(with: releaseURL),
+            willPerformHTTPRedirection: response,
+            newRequest: URLRequest(url: redirectURL)
+        ) { request in
+            completion = request
+        }
+        #expect(completion?.url == redirectURL)
+    }
+
     @Test func rejectsAnOversizedResponse() async throws {
         let releaseURL = try makeReleaseURL()
         let service = makeService(statusCode: 200, data: Data(repeating: 0, count: 4_000_001))
@@ -105,14 +126,22 @@ struct FirmwareReleaseServiceTests {
 
     /// The URL used by the release and download tests.
     private func makeReleaseURL() throws -> URL {
-        try #require(URL(string: "https://git.layered.work/phranck/NeXTsound/releases/download/"
+        try #require(URL(string: "https://github.com/phranck/NeXTsound/releases/download/"
                 + "firmware-v0.6.4/nxs_firmware.uf2"))
     }
 
     /// Creates a client whose URLSession returns the chosen status and body.
-    private func makeService(statusCode: Int, data: Data, location: String? = nil) -> GiteaFirmwareReleaseService {
+    private func makeService(
+        statusCode: Int,
+        data: Data,
+        location: String? = nil,
+        expectedURL: URL? = nil
+    ) -> GitHubFirmwareReleaseService {
         FakeURLProtocol.handler = { request in
             let url = try #require(request.url)
+            if let expectedURL {
+                #expect(url == expectedURL)
+            }
             let response = try #require(HTTPURLResponse(
                 url: url,
                 statusCode: statusCode,
@@ -121,6 +150,6 @@ struct FirmwareReleaseServiceTests {
             ))
             return (response, data)
         }
-        return GiteaFirmwareReleaseService(protocolClasses: [FakeURLProtocol.self])
+        return GitHubFirmwareReleaseService(protocolClasses: [FakeURLProtocol.self])
     }
 }

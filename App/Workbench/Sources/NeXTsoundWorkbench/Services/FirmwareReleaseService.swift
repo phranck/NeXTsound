@@ -28,18 +28,20 @@ enum FirmwareReleaseError: LocalizedError, Equatable {
     }
 }
 
-/// Reads release metadata and firmware images from Gitea.
+/// Reads release metadata and firmware images from GitHub.
 public protocol FirmwareReleaseService: Sendable {
     func latestRelease() async throws -> FirmwareRelease
     func download(_ release: FirmwareRelease) async throws -> URL
 }
 
-/// The Gitea implementation of the release service.
-public final class GiteaFirmwareReleaseService: NSObject, FirmwareReleaseService, URLSessionTaskDelegate, @unchecked Sendable {
+/// The GitHub implementation of the release service.
+public final class GitHubFirmwareReleaseService: NSObject, FirmwareReleaseService, URLSessionTaskDelegate, @unchecked Sendable {
     /// The repository and API root, fixed by the product rather than by release data.
-    private static let repositoryURL = URL(string: "https://git.layered.work/api/v1/repos/phranck/NeXTsound")!
+    private static let repositoryURL = URL(string: "https://api.github.com/repos/phranck/NeXTsound")!
     /// The only host from which a release asset may be downloaded.
-    private static let allowedHost = "git.layered.work"
+    private static let allowedHost = "github.com"
+    /// The host GitHub uses when redirecting a release asset download.
+    private static let allowedRedirectHost = "release-assets.githubusercontent.com"
     /// The path below which release assets live.
     private static let assetPathPrefix = "/phranck/NeXTsound/releases/download/"
     /// Maximum bytes accepted for a release list or a firmware image.
@@ -63,10 +65,10 @@ public final class GiteaFirmwareReleaseService: NSObject, FirmwareReleaseService
     }
 }
 
-public extension GiteaFirmwareReleaseService {
+public extension GitHubFirmwareReleaseService {
     func latestRelease() async throws -> FirmwareRelease {
         let data = try await data(from: Self.repositoryURL.appendingPathComponent("releases"))
-        let releases = try JSONDecoder().decode([GiteaRelease].self, from: data)
+        let releases = try JSONDecoder().decode([GitHubRelease].self, from: data)
         let candidates = releases.flatMap { release in
             release.assets.compactMap { asset -> FirmwareRelease? in
                 guard
@@ -94,23 +96,31 @@ public extension GiteaFirmwareReleaseService {
         return destination
     }
 
-    /// Rejects every redirect instead of allowing a checked URL to lead to another host.
+    /// Allows only GitHub's HTTPS redirect to the release asset host.
     func urlSession(
         _: URLSession,
         task _: URLSessionTask,
         willPerformHTTPRedirection _: HTTPURLResponse,
-        newRequest _: URLRequest,
+        newRequest request: URLRequest,
         completionHandler: @escaping (URLRequest?) -> Void
     ) {
-        completionHandler(nil)
+        guard
+            let url = request.url,
+            url.scheme == "https",
+            url.host == Self.allowedRedirectHost
+        else {
+            completionHandler(nil)
+            return
+        }
+        completionHandler(request)
     }
 }
 
-private struct GiteaRelease: Decodable {
+private struct GitHubRelease: Decodable {
     let tagName: String
     let draft: Bool
     let prerelease: Bool
-    let assets: [GiteaAsset]
+    let assets: [GitHubAsset]
 
     enum CodingKeys: String, CodingKey {
         case tagName = "tag_name"
@@ -120,7 +130,7 @@ private struct GiteaRelease: Decodable {
     }
 }
 
-private struct GiteaAsset: Decodable {
+private struct GitHubAsset: Decodable {
     let name: String
     let browserDownloadURL: URL
 
@@ -130,7 +140,7 @@ private struct GiteaAsset: Decodable {
     }
 }
 
-private extension GiteaFirmwareReleaseService {
+private extension GitHubFirmwareReleaseService {
     /// Returns one response only when it is a successful, bounded HTTP response.
     private func data(from url: URL) async throws -> Data {
         var request = URLRequest(url: url)
@@ -154,7 +164,7 @@ private extension GiteaFirmwareReleaseService {
     }
 
     /// Whether a release asset has the expected name, size, scheme, host, and path.
-    private static func isUsableAsset(_ asset: GiteaAsset, release: GiteaRelease) -> Bool {
+    private static func isUsableAsset(_ asset: GitHubAsset, release: GitHubRelease) -> Bool {
         !release.draft && !release.prerelease && asset.name.hasSuffix(".uf2") && asset.name
             .count <= 255 && isAllowedDownloadURL(asset.browserDownloadURL)
     }

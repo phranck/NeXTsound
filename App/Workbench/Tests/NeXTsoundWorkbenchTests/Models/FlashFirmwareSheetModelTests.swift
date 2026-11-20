@@ -27,7 +27,7 @@ struct FlashFirmwareSheetModelTests {
         let release = try FirmwareRelease(
             version: FirmwareVersion(major: 99, minor: 0, patch: 0),
             assetURL: #require(
-                URL(string: "https://git.layered.work/phranck/NeXTsound/releases/download/firmware-v99.0.0/nxs_firmware.uf2")
+                URL(string: "https://github.com/phranck/NeXTsound/releases/download/firmware-v99.0.0/nxs_firmware.uf2")
             )
         )
         let model = FlashFirmwareSheetModel(
@@ -42,7 +42,7 @@ struct FlashFirmwareSheetModelTests {
     @Test func theCurrentReleaseIsUpToDate() async throws {
         let release = try FirmwareRelease(
             version: FirmwareVersion(major: 1, minor: 0, patch: 0),
-            assetURL: #require(URL(string: "https://git.layered.work/phranck/NeXTsound/releases/download/firmware-v1.0.0/nxs_firmware.uf2"))
+            assetURL: #require(URL(string: "https://github.com/phranck/NeXTsound/releases/download/firmware-v1.0.0/nxs_firmware.uf2"))
         )
         let model = FlashFirmwareSheetModel(
             target: FlashTarget(applicationSerial: fixtureCapabilities().serial, applicationVersion: "1.0.0"),
@@ -72,7 +72,7 @@ struct FlashFirmwareSheetModelTests {
         let release = try FirmwareRelease(
             version: FirmwareVersion(major: 99, minor: 0, patch: 0),
             assetURL: #require(
-                URL(string: "https://git.layered.work/phranck/NeXTsound/releases/download/firmware-v99.0.0/nxs_firmware.uf2")
+                URL(string: "https://github.com/phranck/NeXTsound/releases/download/firmware-v99.0.0/nxs_firmware.uf2")
             )
         )
         let runner = FakePicotoolRunner()
@@ -94,7 +94,7 @@ struct FlashFirmwareSheetModelTests {
         let release = try FirmwareRelease(
             version: FirmwareVersion(major: 99, minor: 0, patch: 0),
             assetURL: #require(
-                URL(string: "https://git.layered.work/phranck/NeXTsound/releases/download/firmware-v99.0.0/nxs_firmware.uf2")
+                URL(string: "https://github.com/phranck/NeXTsound/releases/download/firmware-v99.0.0/nxs_firmware.uf2")
             )
         )
         let model = FlashFirmwareSheetModel(

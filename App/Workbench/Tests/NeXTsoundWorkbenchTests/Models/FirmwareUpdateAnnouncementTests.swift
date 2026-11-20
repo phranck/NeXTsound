@@ -81,7 +81,7 @@ struct FirmwareUpdateAnnouncementTests {
     }
 
     private func makeAssetURL() throws -> URL {
-        try #require(URL(string: "https://git.layered.work/phranck/NeXTsound/releases/download/firmware-v99.0.0/nxs_firmware.uf2"))
+        try #require(URL(string: "https://github.com/phranck/NeXTsound/releases/download/firmware-v99.0.0/nxs_firmware.uf2"))
     }
 
     private func connect(_ discovery: FakeBoardDiscovery) {
