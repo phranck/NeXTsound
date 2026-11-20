@@ -35,7 +35,7 @@ final class FlashFirmwareSheetModel {
     ) {
         self.target = target
         service = runner.map { FlashService(runner: $0) }
-        self.releaseService = releaseService ?? GiteaFirmwareReleaseService()
+        self.releaseService = releaseService ?? GitHubFirmwareReleaseService()
         firmwareURL = firmwareBundle.url(forResource: "nxs_firmware", withExtension: "uf2")
         if service == nil {
             outcome = .failed(FlashError.picotoolUnavailable.errorDescription ?? "")
@@ -69,7 +69,7 @@ extension FlashFirmwareSheetModel {
         !isRunning && outcome != .succeeded
     }
 
-    /// Checks Gitea for a newer firmware than the connected board reports.
+    /// Checks GitHub for a newer firmware than the connected board reports.
     func checkForUpdates() async {
         guard let versionString = target.applicationVersion else {
             updateState = .idle

@@ -8,7 +8,7 @@ struct NeXTsoundApp: App {
         storage: try? ProfileLibraryStore.standard(),
         boards: BoardMonitor(),
         serialNumberStorage: try? SerialNumberRegisterStore.standard(),
-        firmwareReleaseService: GiteaFirmwareReleaseService()
+        firmwareReleaseService: GitHubFirmwareReleaseService()
     )
     @State private var driverLibrary = DriverLibraryModel(storage: try? DriverLibraryStore.standard())
 

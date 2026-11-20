@@ -118,7 +118,7 @@ private struct FlashOutcomeView: View {
     FirmwareUpdateView(
         state: .available(FirmwareRelease(
             version: FirmwareVersion(major: 99, minor: 0, patch: 1),
-            assetURL: URL(string: "https://git.layered.work/phranck/NeXTsound/releases/download/firmware-v99.0.1/nxs_firmware.uf2")!
+            assetURL: URL(string: "https://github.com/phranck/NeXTsound/releases/download/firmware-v99.0.1/nxs_firmware.uf2")!
         )),
         onCheck: {},
         onInstall: {},

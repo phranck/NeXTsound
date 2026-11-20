@@ -68,7 +68,7 @@ The operation accepts no request payload and changes no snapshot, generation, or
 
 ## Owner metadata
 
-The owner metadata of [issue 39](https://git.layered.work/phranck/NeXTsound/issues/39) is a 328-byte block, larger than one report, so it travels in two 164-byte parts. `nxs_owner_metadata_encode` and `nxs_owner_metadata_decode` own the block, and the firmware and the app validate it with the same `nxs_owner_metadata_is_valid`. Integers are little-endian. Zero means unset in every field except the serial number, whose flag tells 0, which the app shows as NXSB0000, from no number.
+The owner metadata from unmigrated issue 39 is a 328-byte block, larger than one report, so it travels in two 164-byte parts. `nxs_owner_metadata_encode` and `nxs_owner_metadata_decode` own the block, and the firmware and the app validate it with the same `nxs_owner_metadata_is_valid`. Integers are little-endian. Zero means unset in every field except the serial number, whose flag tells 0, which the app shows as NXSB0000, from no number.
 
 | Offset | Bytes | Meaning |
 | --- | --- | --- |

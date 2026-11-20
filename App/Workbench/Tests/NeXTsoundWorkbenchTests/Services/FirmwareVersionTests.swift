@@ -2,7 +2,7 @@ import Testing
 @testable import NeXTsoundWorkbench
 
 struct FirmwareVersionTests {
-    @Test func readsGiteaTagsAndBoardVersions() {
+    @Test func readsGitHubTagsAndBoardVersions() {
         #expect(FirmwareVersion(tag: "firmware-v0.4.0") == FirmwareVersion(major: 0, minor: 4, patch: 0))
         #expect(FirmwareVersion(tag: "firmware-v12.34.56") == FirmwareVersion(major: 12, minor: 34, patch: 56))
         #expect(FirmwareVersion(boardVersion: "0.6.4") == FirmwareVersion(major: 0, minor: 6, patch: 4))
