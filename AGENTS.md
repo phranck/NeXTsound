@@ -4,11 +4,11 @@ Preserve the exact spelling `NeXTsound` in the product name, repository name, an
 
 ## Planning
 
-The [product baseline](https://github.com/phranck/NeXTsound/issues/1) records the product and architecture decisions. Work is tracked in the repository's issues on GitHub. An issue's exclusive label `priority/P0`, `priority/P1` or `priority/P2` is its priority. Read an issue and its comments before starting its work.
+The product baseline and earlier issue contents have not been migrated to GitHub. New work is tracked in the repository's issues on GitHub. An issue's exclusive label `priority/P0`, `priority/P1` or `priority/P2` is its priority. Read an issue and its comments before starting its work.
 
 ## Issues
 
-When listing or referencing issues in replies, always link them, e.g. [#38](https://github.com/phranck/NeXTsound/issues/38).
+When listing or referencing issues in replies, always link them to their GitHub issue.
 
 ## Documentation
 

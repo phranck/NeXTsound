@@ -98,6 +98,23 @@ struct FirmwareReleaseServiceTests {
         #expect(completion == nil)
     }
 
+    @Test func rejectsAnInsecureRedirectToGitHubReleaseAssets() throws {
+        let releaseURL = try makeReleaseURL()
+        let service = GitHubFirmwareReleaseService()
+        let response = try #require(HTTPURLResponse(url: releaseURL, statusCode: 302, httpVersion: nil, headerFields: nil))
+        let redirectURL = try #require(URL(string: "http://release-assets.githubusercontent.com/github-production-release-asset/asset"))
+        var completion: URLRequest?
+        service.urlSession(
+            .shared,
+            task: URLSession.shared.dataTask(with: releaseURL),
+            willPerformHTTPRedirection: response,
+            newRequest: URLRequest(url: redirectURL)
+        ) { request in
+            completion = request
+        }
+        #expect(completion == nil)
+    }
+
     @Test func allowsARedirectToGitHubReleaseAssets() throws {
         let releaseURL = try makeReleaseURL()
         let service = GitHubFirmwareReleaseService()
